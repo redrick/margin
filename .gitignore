@@ -1,0 +1,6 @@
+/bin/
+/margin
+*.env
+.env*
+*.review.state.yaml
+/local/

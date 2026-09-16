@@ -1,0 +1,117 @@
+version: 1
+repo: current
+base_dir: base
+kicker: "example · current/ vs base/"
+title: Stock reservations get an audit trail
+summary: |
+  Reservations are now recorded in an audit log, and Reserve rejects bad quantities before it takes
+  the lock. Verdict: correct, with one breaking constructor change to check at every call site.
+flow: |
+  caller ─► Store.Reserve ─► qty > 0 ? ─► enough stock ? ─► AuditLog.Record
+                                 │               │
+                                 │               └─► ErrInsufficient (wrapped, still errors.Is)
+                                 └─► ErrInvalidQuantity
+
+stations:
+  - id: store
+    title: The store carries an audit log
+    lede: NewStore now takes the log, so every caller has to decide whether it wants one.
+    risk: low
+    concern: feature
+    tests: [TestReserve]
+    parts:
+      - file: inventory/stock.go
+        from: "type Store struct"
+      - file: inventory/stock.go
+        func: NewStore
+    notes:
+      - at: "log   *AuditLog"
+        kind: info
+        text: Optional. A nil log is valid, see the audit station.
+      - at: "func NewStore(log *AuditLog)"
+        kind: issue
+        evidence: stock_test.go calls NewStore(nil); callers outside this change are not shown.
+        text: "**Breaking signature.** Every call site passes a log or `nil`."
+
+  - id: reserve
+    title: Reserve validates before locking
+    lede: The quantity check moved in front of the mutex, and failures now say what was missing.
+    risk: medium
+    concern: fix
+    tests: [TestReserve, TestAuditLogRecords]
+    parts:
+      - file: inventory/stock.go
+        func: Store.Reserve
+    notes:
+      - at: "if qty <= 0"
+        kind: info
+        text: Checked before taking the lock, so a bad request never waits on other writers.
+      - at: "fmt.Errorf("
+        kind: ok
+        text: "Still matches `errors.Is(err, ErrInsufficient)` because of `%w`."
+      - at: "s.log.Record(sku, -qty)"
+        kind: info
+        text: Recorded while the lock is held, so the log order matches the stock order.
+
+  - id: audit
+    title: The new audit log
+    lede: A new file, so every line shows as added.
+    risk: high
+    concern: feature
+    tests: [TestAuditLogRecords]
+    parts:
+      - file: inventory/audit.go
+        func: AuditLog.Record
+      - file: inventory/audit.go
+        func: AuditLog.Entries
+    notes:
+      - at: "if l == nil"
+        kind: info
+        text: A nil log is allowed, so stores built without one keep working.
+      - at: "append([]Entry(nil), l.entries...)"
+        kind: ok
+        text: Returns a copy; callers cannot mutate the log.
+
+  - id: removed
+    title: ReleaseAll is gone
+    lede: Nothing called it. Shown from the base side because it no longer exists.
+    risk: low
+    concern: refactor
+    parts:
+      - file: inventory/stock.go
+        func: Store.ReleaseAll
+        side: base
+    notes:
+      - at: "delete(s.items, sku)"
+        kind: info
+        text: Deleting the key also dropped the SKU from listings, which surprised callers.
+
+  - id: report
+    title: Report skips zero deltas
+    risk: low
+    concern: fix
+    parts:
+      - file: scripts/report.py
+        func: summarize
+    notes:
+      - at: 'if entry["delta"] == 0'
+        kind: question
+        confidence: medium
+        text: Zero entries come from cancelled reservations. Should they still show up somewhere?
+      - at: "return dict(sorted(totals.items()))"
+        kind: ok
+        text: Sorted so the output is stable between runs.
+
+skip:
+  - what: Store.Add
+    why: unchanged
+  - what: load in report.py
+    why: unchanged
+
+renames:
+  - before: "NewStore()"
+    after: "NewStore(log *AuditLog)"
+
+tests:
+  - file: inventory/stock_test.go
+    why: Reserve cases plus one test that the log records the reservation.
