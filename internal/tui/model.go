@@ -62,6 +62,7 @@ type Model struct {
 	hoff          int
 	note          int
 	ghosts        bool
+	split         bool
 	notes         bool
 	whole         map[[2]int]bool
 
@@ -69,6 +70,10 @@ type Model struct {
 	listCur  int
 	asking   bool
 	input    textinput.Model
+
+	searching bool
+	query     string
+	lastQuery string
 
 	paint *render.Painter
 	spans map[string][][]render.Span
@@ -211,6 +216,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case m.asking:
 			return m, m.updateAsk(msg)
+		case m.searching:
+			return m, m.updateSearch(msg)
 		case m.listOpen:
 			m.updateList(msg)
 			return m, nil
@@ -346,7 +353,11 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 	case "[":
 		m.nextNote(-1)
 	case "N":
-		m.nextFresh()
+		if m.query != "" {
+			m.searchNext(-1)
+		} else {
+			m.nextFresh()
+		}
 	case "enter":
 		m.activate()
 	case "z":
@@ -365,9 +376,25 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 	case "d":
 		m.ghosts = !m.ghosts
 		m.rebuildKeep()
+	case "s":
+		m.split = !m.split
+		if m.split && !m.splitFits() {
+			m.setStatus(false, splitNarrow)
+		}
+		m.rebuildKeep()
 	case "n":
+		if m.query != "" {
+			m.searchNext(1)
+			break
+		}
 		m.notes = !m.notes
 		m.rebuildKeep()
+	case "/":
+		return m.startSearch()
+	case "esc":
+		if m.query != "" {
+			m.endSearch()
+		}
 	case "f":
 		if r, ok := m.cursorRow(); ok {
 			k := [2]int{m.station, r.part}
@@ -465,6 +492,7 @@ func (m *Model) startAsk() tea.Cmd {
 	}
 	p := m.doc.Stations[m.station].Parts[r.part]
 	m.asking = true
+	m.input.Prompt = " ask › "
 	m.input.SetValue("")
 	m.input.Placeholder = fmt.Sprintf("question about %s:%d, enter sends, esc cancels", p.Spec.File, r.line+1)
 	return m.input.Focus()

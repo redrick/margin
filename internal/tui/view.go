@@ -86,7 +86,7 @@ func (m *Model) progressDots() []seg {
 }
 
 func (m *Model) footerView() string {
-	if m.asking {
+	if m.asking || m.searching {
 		return ansi.Truncate(m.input.View(), m.width, "")
 	}
 	c := m.counts()
@@ -110,8 +110,14 @@ func (m *Model) footerView() string {
 	if c.Open > 0 {
 		segs = append(segs, pill(fmt.Sprintf("%d waiting for the agent", c.Open), colChanged, colBar)...)
 	}
+	if m.doc.Stations[m.station].Kind == doc.Code && !m.ghosts && !m.sideBySide() {
+		segs = append(segs, pill("removed lines hidden", colInk, colHeading)...)
+	}
 	if m.filter > 0 {
 		segs = append(segs, pill(filterNames[m.filter], colInk, colHeading)...)
+	}
+	if m.query != "" {
+		segs = append(segs, pill("/"+m.query+" · n N · esc", colInk, colMatch)...)
 	}
 	pace, warn := m.pace()
 	paceFg := colDim
@@ -124,7 +130,21 @@ func (m *Model) footerView() string {
 		statusFg = colProblem
 	}
 	segs = append(segs, seg{text: m.status, fg: statusFg, bg: colBar})
-	return m.bar(segs, m.width, "H help ")
+	return m.bar(segs, m.width, " "+m.viewHint()+"H help ")
+}
+
+// viewHint keeps the keys that change how the diff is drawn in sight, since they decide whether the
+// red lines are on screen at all.
+func (m *Model) viewHint() string {
+	switch {
+	case m.doc.Stations[m.station].Kind != doc.Code:
+		return ""
+	case m.sideBySide():
+		return "s one column · "
+	case m.ghosts:
+		return "d hide removed · s side by side · "
+	}
+	return "d show removed · s side by side · "
 }
 
 func (m *Model) bodyView() string {
@@ -189,17 +209,14 @@ func toneStyle(t tone) (fg string, bold, italic bool) {
 	return colText, false, false
 }
 
+// tint colours a line by whether it ends up in the change: added and changed lines are both new code,
+// so they share green, and only lines that are gone are red.
 func tint(k diffmap.Kind, cursor bool) (bg, fg string) {
 	switch k {
-	case diffmap.Added:
+	case diffmap.Added, diffmap.Changed:
 		bg, fg = tintAdded, colAdded
 		if cursor {
 			bg = tintAddedCur
-		}
-	case diffmap.Changed:
-		bg, fg = tintChanged, colChanged
-		if cursor {
-			bg = tintChangedCur
 		}
 	case diffmap.Removed:
 		bg, fg = tintRemoved, colRemoved
@@ -249,58 +266,148 @@ func (m *Model) renderRow(idx, width, numW int) string {
 		if sel {
 			bg = tintCursor
 		}
-		return p.Text(fmt.Sprintf("%s⋯ %d unchanged lines", strings.Repeat(" ", numW+6), r.fold), width, colDim, bg, false, true)
+		return p.Text(fmt.Sprintf("%s⋯ %d unchanged lines", strings.Repeat(" ", numW+7), r.fold), width, colDim, bg, false, true)
 	}
 
 	st := m.doc.Stations[m.station]
 	part := st.Parts[r.part]
-	codeW := max(width-numW-6, 1)
+	if m.splitPart(part) {
+		return m.renderSplit(r, part, width, numW, sel)
+	}
+	codeW := max(width-numW-7, 1)
 	if r.kind == rowGhost {
-		hs, he := -1, -1
-		if cur := r.line + r.ghost; cur < len(part.Lines) && part.Pairs[cur] == r.text {
-			if as, ae, _, _, ok := render.ChangedRange(r.text, part.Lines[cur]); ok {
-				hs, he = as, ae
-			}
-		}
-		return strings.Repeat(" ", numW+4) + p.Text("▎ ", 2, colRemoved, tintRemoved, false, false) +
-			p.CodeHL([]render.Span{{Text: r.text, Color: colGhost}}, codeW, m.hoff, tintRemoved, hs, he, tintRemovedHL)
+		hs, he := ghostRange(part, r)
+		return strings.Repeat(" ", numW+4) + p.Text("▎- ", 3, colRemoved, tintRemoved, true, false) +
+			p.CodeHL(struck(r.text, hs, he), codeW, m.hoff, tintRemoved, hs, he, tintRemovedHL)
 	}
 
-	kind := diffmap.Same
-	if r.line < len(part.Kinds) {
-		kind = part.Kinds[r.line]
-	}
+	kind := lineKind(part, r.line)
 	bg, barFg := tint(kind, sel)
-	gutter := "  "
-	if kind != diffmap.Same {
-		gutter = "▎ "
+	hs, he := newRange(part, r.line)
+	return m.noteLabel(st, r) + m.lineNum(r.line, numW, sel) + p.Text(sign(kind, "▎"), 3, barFg, bg, true, false) +
+		p.CodeHL(m.lineSpans(part, r.line), codeW, m.hoff, bg, hs, he, tintAddedHL)
+}
+
+// renderSplit draws a code or removed row as base on the left and current code on the right, so a
+// changed line sits beside the line it replaced. Line numbers belong to the current file.
+func (m *Model) renderSplit(r row, part *doc.Part, width, numW int, sel bool) string {
+	p := m.paint
+	total := width - numW - 9
+	lw, rw := total/2, total-total/2
+	div := p.Text("│", 1, colDim, "", false, false)
+	blankRight := strings.Repeat(" ", numW+3+rw)
+
+	oldBg := tintRemoved
+	if sel {
+		oldBg = tintRemovedCur
 	}
-	label := "   "
-	if len(r.notes) > 0 {
-		s := strconv.Itoa(r.notes[0] + 1)
-		if len(r.notes) > 1 {
-			s += "+"
-		}
-		labelBg := m.noteStyle(st.Notes[r.notes[0]]).color
-		if slices.Contains(r.notes, m.note) {
-			labelBg = colNoteSel
-		}
-		label = p.Text(fmt.Sprintf("%2s ", s), 3, colInk, labelBg, true, false)
+	if r.kind == rowGhost {
+		hs, he := ghostRange(part, r)
+		return "   " + p.Text("- ", 2, colRemoved, tintRemoved, true, false) +
+			p.CodeHL(struck(r.text, hs, he), lw, m.hoff, tintRemoved, hs, he, tintRemovedHL) + div + blankRight
 	}
+
+	st := m.doc.Stations[m.station]
+	kind := lineKind(part, r.line)
+	var left string
+	old, paired := part.Pairs[r.line]
+	switch {
+	case kind == diffmap.Same:
+		bg := ""
+		if sel {
+			bg = tintCursor
+		}
+		left = p.Text("", 2, "", bg, false, false) + p.Code(m.lineSpans(part, r.line), lw, m.hoff, bg)
+	case kind == diffmap.Changed && paired:
+		hs, he := -1, -1
+		if as, ae, _, _, ok := render.ChangedRange(old, part.Lines[r.line]); ok {
+			hs, he = as, ae
+		}
+		left = p.Text("- ", 2, colRemoved, oldBg, true, false) + p.CodeHL(struck(old, hs, he), lw, m.hoff, oldBg, hs, he, tintRemovedHL)
+	default:
+		left = strings.Repeat(" ", lw+2)
+	}
+	bg, fg := tint(kind, sel)
+	hs, he := newRange(part, r.line)
+	return m.noteLabel(st, r) + left + div + m.lineNum(r.line, numW, sel) + p.Text(sign(kind, ""), 2, fg, bg, true, false) +
+		p.CodeHL(m.lineSpans(part, r.line), rw, m.hoff, bg, hs, he, tintAddedHL)
+}
+
+// sign is the gutter mark for a line: + for code that is in the change, - for code that is gone.
+func sign(k diffmap.Kind, bar string) string {
+	switch k {
+	case diffmap.Added, diffmap.Changed:
+		return bar + "+ "
+	case diffmap.Removed:
+		return bar + "- "
+	}
+	return strings.Repeat(" ", len([]rune(bar))) + "  "
+}
+
+func lineKind(part *doc.Part, line int) diffmap.Kind {
+	if line < len(part.Kinds) {
+		return part.Kinds[line]
+	}
+	return diffmap.Same
+}
+
+// newRange is the part of a changed line that differs from the base line it replaced, or -1, -1.
+func newRange(part *doc.Part, line int) (int, int) {
+	if lineKind(part, line) != diffmap.Changed {
+		return -1, -1
+	}
+	if old, ok := part.Pairs[line]; ok {
+		if _, _, bs, be, ok := render.ChangedRange(old, part.Lines[line]); ok {
+			return bs, be
+		}
+	}
+	return -1, -1
+}
+
+// ghostRange is the part of a removed line that differs from the line that replaced it, or -1, -1.
+func ghostRange(part *doc.Part, r row) (int, int) {
+	if cur := r.line + r.ghost; cur < len(part.Lines) && part.Pairs[cur] == r.text {
+		if as, ae, _, _, ok := render.ChangedRange(r.text, part.Lines[cur]); ok {
+			return as, ae
+		}
+	}
+	return -1, -1
+}
+
+// struck renders a removed line dimmed, with the runes [hs, he) that were rewritten struck through.
+func struck(text string, hs, he int) []render.Span {
+	rs := []rune(text)
+	if hs < 0 || he > len(rs) || hs >= he {
+		return []render.Span{{Text: text, Color: colGhost}}
+	}
+	return []render.Span{
+		{Text: string(rs[:hs]), Color: colGhost},
+		{Text: string(rs[hs:he]), Color: colGhost, Strike: true},
+		{Text: string(rs[he:]), Color: colGhost},
+	}
+}
+
+func (m *Model) noteLabel(st *doc.Station, r row) string {
+	if len(r.notes) == 0 {
+		return "   "
+	}
+	s := strconv.Itoa(r.notes[0] + 1)
+	if len(r.notes) > 1 {
+		s += "+"
+	}
+	labelBg := m.noteStyle(st.Notes[r.notes[0]]).color
+	if slices.Contains(r.notes, m.note) {
+		labelBg = colNoteSel
+	}
+	return m.paint.Text(fmt.Sprintf("%2s ", s), 3, colInk, labelBg, true, false)
+}
+
+func (m *Model) lineNum(line, numW int, sel bool) string {
 	numFg, numBg := colDim, ""
 	if sel {
 		numFg, numBg = colInk, colCursorNum
 	}
-	num := p.Text(fmt.Sprintf("%*d ", numW, r.line+1), numW+1, numFg, numBg, sel, false)
-	hs, he := -1, -1
-	if kind == diffmap.Changed {
-		if old, ok := part.Pairs[r.line]; ok {
-			if _, _, bs, be, ok := render.ChangedRange(old, part.Lines[r.line]); ok {
-				hs, he = bs, be
-			}
-		}
-	}
-	return label + num + p.Text(gutter, 2, barFg, bg, false, false) + p.CodeHL(m.spansFor(part)[r.line], codeW, m.hoff, bg, hs, he, tintChangedHL)
+	return m.paint.Text(fmt.Sprintf("%*d ", numW, line+1), numW+1, numFg, numBg, sel, false)
 }
 
 func (m *Model) spansFor(part *doc.Part) [][]render.Span {
@@ -324,6 +431,8 @@ var helpLines = []string{
 	" a          ask the agent        F      filter: all, problems+questions, problems",
 	" z          fold unchanged lines f      whole file",
 	" d          removed lines        n      notes column",
+	" s          side by side         r      reload",
+	" /          search the code      n N    next / previous match, esc ends",
 	" h l        scroll sideways      q      quit",
 }
 

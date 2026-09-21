@@ -89,6 +89,9 @@ func (m *Model) rebuild() {
 	case doc.Code:
 		m.codeRows(st)
 	}
+	if m.status == splitNarrow && (!m.split || m.splitFits()) {
+		m.status = ""
+	}
 	m.clamp()
 }
 
@@ -350,35 +353,83 @@ func (m *Model) codeRows(st *doc.Station) {
 			m.add(rowText, tonePlain, "")
 			continue
 		}
-		rng := p.Range
-		if m.whole[[2]int{m.station, pi}] {
-			rng = anchor.Range{Start: 0, End: len(p.Lines) - 1}
-		}
+		rng := m.partRange(m.station, pi)
 		noted := func(i int) bool { return len(all[doc.LineKey(p, i)]) > 0 }
 		for _, sg := range foldPlan(p, rng, noted) {
 			if sg.fold && !m.unfold {
 				m.rows = append(m.rows, row{kind: rowFold, part: pi, line: sg.start, fold: sg.end - sg.start + 1})
 				continue
 			}
+			split := m.splitPart(p)
 			for i := sg.start; i <= sg.end; i++ {
-				m.ghostRows(p, pi, i)
+				start := changeStart(p, i)
+				if !split || start < 0 {
+					m.ghostRows(p, pi, i, 0)
+				}
 				m.rows = append(m.rows, row{kind: rowCode, part: pi, line: i, notes: m.visibleAt(st, all[doc.LineKey(p, i)])})
+				// Side by side, removed lines pair up with the changed lines beside them; the ones left
+				// over follow the change instead of preceding it.
+				if split && start >= 0 && (i == sg.end || changeStart(p, i+1) != start) {
+					m.ghostRows(p, pi, start, i-start+1)
+				}
 			}
 		}
 		if rng.End+1 == len(p.Lines) {
-			m.ghostRows(p, pi, len(p.Lines))
+			m.ghostRows(p, pi, len(p.Lines), 0)
 		}
 		m.add(rowText, tonePlain, "")
 	}
 }
 
-func (m *Model) ghostRows(p *doc.Part, pi, line int) {
-	if !m.ghosts {
+func (m *Model) partRange(si, pi int) anchor.Range {
+	p := m.doc.Stations[si].Parts[pi]
+	if m.whole[[2]int{si, pi}] {
+		return anchor.Range{Start: 0, End: len(p.Lines) - 1}
+	}
+	return p.Range
+}
+
+// ghostRows adds the base lines removed before line, starting at the from-th one.
+func (m *Model) ghostRows(p *doc.Part, pi, line, from int) {
+	if !m.ghosts && !m.splitPart(p) {
 		return
 	}
 	for gi, g := range p.Ghosts[line] {
-		m.rows = append(m.rows, row{kind: rowGhost, part: pi, line: line, ghost: gi, text: g})
+		if gi >= from {
+			m.rows = append(m.rows, row{kind: rowGhost, part: pi, line: line, ghost: gi, text: g})
+		}
 	}
+}
+
+// changeStart returns the first line of the changed block holding line, or -1 when line is not changed.
+func changeStart(p *doc.Part, line int) int {
+	if lineKind(p, line) != diffmap.Changed {
+		return -1
+	}
+	for line > 0 && p.Kinds[line-1] == diffmap.Changed {
+		line--
+	}
+	return line
+}
+
+// splitMinHalf is the narrowest code column side by side still reads at.
+const splitMinHalf = 40
+
+const splitNarrow = "side by side needs a wider code column: widen the pane or hide notes with n"
+
+// sideBySide reports whether the current stop is drawn side by side: asked for, and wide enough.
+func (m *Model) sideBySide() bool {
+	return m.split && m.splitFits()
+}
+
+func (m *Model) splitFits() bool {
+	return m.doc != nil && m.doc.Stations[m.station].Kind == doc.Code && (m.codeWidth()-m.numWidth()-9)/2 >= splitMinHalf
+}
+
+// splitPart reports whether p is drawn side by side. New files and base-only parts have nothing to
+// set beside them, so they stay in one column.
+func (m *Model) splitPart(p *doc.Part) bool {
+	return m.sideBySide() && p.Kinds != nil && !p.Base && !p.NewFile
 }
 
 func (m *Model) visibleAt(st *doc.Station, idx []int) []int {
@@ -410,7 +461,7 @@ func (m *Model) partHeader(st *doc.Station, pi int, p *doc.Part) string {
 	}
 	if p.Err == nil && (p.Kinds != nil) && !p.NewFile && !p.Base {
 		a, c, r := doc.Counts([]*doc.Part{p})
-		s += fmt.Sprintf(" · +%d ~%d -%d", a, c, r)
+		s += fmt.Sprintf(" · +%d -%d", a+c, r)
 	}
 	if m.whole[[2]int{m.station, pi}] {
 		s += " · whole file"

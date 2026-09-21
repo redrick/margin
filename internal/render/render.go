@@ -17,6 +17,8 @@ type Span struct {
 	Color  string
 	Bold   bool
 	Italic bool
+	Strike bool
+	Bg     string
 }
 
 // Highlight tokenises the whole file at once, so multi-line strings and comments colour correctly.
@@ -62,8 +64,8 @@ func Highlight(filename string, lines []string) [][]Span {
 }
 
 type styleKey struct {
-	fg, bg       string
-	bold, italic bool
+	fg, bg               string
+	bold, italic, strike bool
 }
 
 type Painter struct {
@@ -76,7 +78,7 @@ func (p *Painter) style(k styleKey) lipgloss.Style {
 	if s, ok := p.cache[k]; ok {
 		return s
 	}
-	s := lipgloss.NewStyle().Bold(k.bold).Italic(k.italic)
+	s := lipgloss.NewStyle().Bold(k.bold).Italic(k.italic).Strikethrough(k.strike)
 	if k.fg != "" {
 		s = s.Foreground(lipgloss.Color(k.fg))
 	}
@@ -105,7 +107,7 @@ func (p *Painter) CodeHL(spans []Span, width, offset int, bg string, hlStart, hl
 		segBg := bg
 		flush := func() {
 			if seg.Len() > 0 {
-				b.WriteString(p.style(styleKey{fg: sp.Color, bg: segBg, bold: sp.Bold, italic: sp.Italic}).Render(seg.String()))
+				b.WriteString(p.style(styleKey{fg: sp.Color, bg: segBg, bold: sp.Bold, italic: sp.Italic, strike: sp.Strike}).Render(seg.String()))
 				seg.Reset()
 			}
 		}
@@ -130,6 +132,9 @@ func (p *Painter) CodeHL(spans []Span, width, offset int, bg string, hlStart, hl
 			cellBg := bg
 			if ri >= hlStart && ri < hlEnd {
 				cellBg = hlBg
+			}
+			if sp.Bg != "" {
+				cellBg = sp.Bg
 			}
 			ri++
 			ok := true

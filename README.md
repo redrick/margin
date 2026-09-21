@@ -71,7 +71,11 @@ long the rest will take to read. Press `enter` on a stop to open it.
 
 The header shows where you are (`reserve 2/7`), the risk and the stop's title; the line below it
 says what the stop is about and which tests cover it. Each part is a slice of a file with the
-changed regions marked in the gutter: green for added, amber for changed, red for removed lines.
+diff marked in the gutter: green `+` lines are the code as it is now, red `-` lines are gone and
+have no line number. A changed line shows as the red lines it replaced followed by the green lines
+that replaced them, with the words that differ highlighted and struck through on the red side.
+Press `d` to hide the red lines and read only the resulting code, or `s` to put the old code on
+the left and the new code on the right when the pane is wide enough.
 Notes sit in the right column next to the line they belong to, numbered in the gutter, so `2+`
 means note 2 and more notes on that line. The footer counts reviewed notes, open problems (`!`)
 and questions (`?`), and how long and how much you have read.
@@ -132,6 +136,7 @@ you approve. `enter` jumps to the note.
 | `tab` | list of stops |
 | `]` `[` | next / previous note |
 | `N` | next note the agent added while you were reading |
+| `/` | search the code in every stop; `n` `N` then jump to the next / previous match, `esc` ends the search |
 | `enter` | open the selected link, or unfold |
 | `a` | ask about the current line |
 | `space` | mark the note reviewed and move on (again to undo) |
@@ -140,6 +145,7 @@ you approve. `enter` jumps to the note.
 | `v` | show the notes on a high-risk stop you read first |
 | `F` | filter: all notes, problems and questions, problems only |
 | `z` `d` `n` `f` | fold unchanged lines, removed lines, notes column, whole file |
+| `s` | side by side: old code left, new code right |
 | `h` `l`, `0` | scroll sideways, back to the start |
 | `r` | reload |
 | `H` | help |

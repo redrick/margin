@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
 
+	"github.com/redrick/margin/internal/render"
 	"github.com/redrick/margin/internal/review"
 	"github.com/redrick/margin/internal/state"
 	"github.com/redrick/margin/internal/testutil"
@@ -227,12 +228,129 @@ func TestViewFitsScreen(t *testing.T) {
 	}
 	mustGoto(t, m, "reserve:2")
 	view := ansi.Strip(m.View())
-	for _, want := range []string{"Reserve validates before locking", "fmt.Errorf", "Still matches", "▎ \tif s.items[sku] < qty {", "looks right", "MEDIUM RISK"} {
+	for _, want := range []string{"Reserve validates before locking", "fmt.Errorf", "Still matches", "▎- \tif s.items[sku] < qty {", "looks right", "MEDIUM RISK"} {
 		if !strings.Contains(view, strings.ReplaceAll(want, "\t", "    ")) {
 			t.Errorf("view missing %q", want)
 		}
 	}
 	if testing.Verbose() {
 		t.Log("\n" + view)
+	}
+}
+
+func TestSideBySide(t *testing.T) {
+	m := newModel(t)
+	mustGoto(t, m, "reserve:2")
+	press(m, "s")
+	if m.sideBySide() {
+		t.Fatal("side by side should not fit beside the notes column at this width")
+	}
+	if !strings.Contains(m.status, "wider") {
+		t.Errorf("s without room should say why, got %q", m.status)
+	}
+	press(m, "n")
+	if !m.sideBySide() {
+		t.Fatal("hiding notes should leave room for side by side")
+	}
+	lines := strings.Split(m.View(), "\n")
+	for i, l := range lines {
+		if w := ansi.StringWidth(l); w != width {
+			t.Errorf("line %d width %d, want %d: %q", i, w, width, ansi.Strip(l))
+		}
+	}
+	view := ansi.Strip(m.View())
+	var pair, leftover string
+	for _, l := range strings.Split(view, "\n") {
+		if strings.Contains(l, "available := s.items[sku]") {
+			pair = l
+		}
+		if strings.Contains(l, "ReleaseAll") {
+			leftover = l
+		}
+	}
+	if !strings.Contains(pair, "- ") || !strings.Contains(pair, "if s.items[sku] < qty {") {
+		t.Errorf("a changed line should sit beside the line it replaced: %q", pair)
+	}
+	if left, _, ok := strings.Cut(leftover, "│"); !ok || !strings.Contains(left, "ReleaseAll") {
+		t.Errorf("a removed function should stay on the left: %q", leftover)
+	}
+	if strings.Contains(view, "wider") {
+		t.Error("the narrow warning should clear once side by side fits")
+	}
+	if !strings.Contains(view, "s one column") {
+		t.Error("footer should say how to leave side by side")
+	}
+	if testing.Verbose() {
+		t.Log("\n" + view)
+	}
+
+	press(m, "s", "d")
+	if strings.Contains(ansi.Strip(m.View()), "ReleaseAll") || !strings.Contains(ansi.Strip(m.View()), "removed lines hidden") {
+		t.Error("d in one column should hide removed lines and say so")
+	}
+}
+
+func TestSearch(t *testing.T) {
+	m := newModel(t)
+	notes := m.notes
+	press(m, "/", "record", "enter")
+	w := m.where()
+	if w.Station.ID != "reserve" || w.Cursor == nil || w.Cursor.Line != 42 {
+		t.Fatalf("/record from store = %s %+v", w.Station.ID, w.Cursor)
+	}
+	if !strings.Contains(m.status, "1 of 2") {
+		t.Errorf("status %q", m.status)
+	}
+	press(m, "n")
+	if w := m.where(); w.Station.ID != "audit" || w.Cursor.File != "inventory/audit.go" || w.Cursor.Line != 24 {
+		t.Fatalf("n went to %s %+v", w.Station.ID, w.Cursor)
+	}
+	press(m, "n")
+	if w := m.where(); w.Station.ID != "reserve" || !strings.Contains(m.status, "wrapped") {
+		t.Fatalf("n past the last match should wrap, got %s, status %q", w.Station.ID, m.status)
+	}
+	press(m, "N")
+	if w := m.where(); w.Station.ID != "audit" {
+		t.Fatalf("N went to %s", w.Station.ID)
+	}
+	if m.notes != notes {
+		t.Fatal("n during a search toggled the notes column")
+	}
+	if view := ansi.Strip(m.View()); !strings.Contains(view, "/record") {
+		t.Error("footer does not show the search")
+	}
+
+	press(m, "esc", "n")
+	if m.query != "" || m.notes == notes {
+		t.Fatalf("esc should end the search and give n back, query %q", m.query)
+	}
+
+	press(m, "/", "Record", "enter")
+	if !strings.Contains(m.status, "of 2") {
+		t.Errorf("upper case should still find Record: %q", m.status)
+	}
+	press(m, "/", "RECORD", "enter")
+	if !strings.Contains(m.status, "not found") {
+		t.Errorf("upper case should match case: %q", m.status)
+	}
+	press(m, "esc", "/", "enter")
+	if m.query != "RECORD" {
+		t.Errorf("empty / should repeat the last search, got %q", m.query)
+	}
+}
+
+func TestMarkSpans(t *testing.T) {
+	spans := []render.Span{{Text: "s.log", Color: "a"}, {Text: ".Record(x)", Color: "b"}}
+	out := markSpans(spans, [][2]int{{2, 7}})
+	var got []string
+	for _, s := range out {
+		mark := ""
+		if s.Bg == colMatch {
+			mark = "*"
+		}
+		got = append(got, mark+s.Text)
+	}
+	if want := "s.|*log|*.R|ecord(x)"; strings.Join(got, "|") != want {
+		t.Fatalf("got %q, want %q", strings.Join(got, "|"), want)
 	}
 }
