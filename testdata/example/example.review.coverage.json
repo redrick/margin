@@ -1,0 +1,67 @@
+{
+  "tests": [
+    {
+      "name": "TestAuditLogRecords",
+      "package": "./inventory",
+      "source": "go",
+      "lines": {
+        "inventory/audit.go": [20, 21, 22, 24, 25, 28, 29, 30, 33, 34, 35, 36, 37],
+        "inventory/stock.go": [20, 21, 22, 24, 25, 26, 27, 28, 31, 32, 35, 36, 37, 38, 41, 42, 43]
+      }
+    },
+    {
+      "name": "TestReserve",
+      "package": "./inventory",
+      "source": "go",
+      "lines": {
+        "inventory/audit.go": [24, 25, 26, 27],
+        "inventory/stock.go": [20, 21, 22, 24, 25, 26, 27, 28, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43]
+      }
+    },
+    {
+      "name": "TestReserve/insufficient_stock_leaves_store_unchanged",
+      "package": "./inventory",
+      "source": "go",
+      "lines": {
+        "inventory/audit.go": [24, 25, 26, 27],
+        "inventory/stock.go": [20, 21, 22, 24, 25, 26, 27, 28, 31, 32, 35, 36, 37, 38, 39, 40, 41, 42, 43]
+      }
+    },
+    {
+      "name": "TestReserve/rejects_non-positive_quantity",
+      "package": "./inventory",
+      "source": "go",
+      "lines": {
+        "inventory/audit.go": [],
+        "inventory/stock.go": [20, 21, 22, 31, 32, 33, 34]
+      }
+    },
+    {
+      "name": "TestReserve/takes_stock",
+      "package": "./inventory",
+      "source": "go",
+      "lines": {
+        "inventory/audit.go": [24, 25, 26, 27],
+        "inventory/stock.go": [20, 21, 22, 24, 25, 26, 27, 28, 31, 32, 35, 36, 37, 38, 41, 42, 43]
+      }
+    },
+    {
+      "name": "test_summarize_totals",
+      "file": "scripts/test_report.py",
+      "source": "agent",
+      "lines": {
+        "scripts/report.py": [11, 12, 13, 14, 16, 17]
+      }
+    }
+  ],
+  "executable": {
+    "inventory/audit.go": [20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 33, 34, 35, 36, 37],
+    "inventory/stock.go": [20, 21, 22, 24, 25, 26, 27, 28, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43],
+    "scripts/report.py": [1, 2, 3, 6, 7, 8, 11, 12, 13, 14, 15, 16, 17, 20, 21, 22]
+  },
+  "hashes": {
+    "inventory/audit.go": "f944d32c1b7f0923",
+    "inventory/stock.go": "8b2fc750adb7ccc3"
+  },
+  "updated": "2026-09-21T12:00:00Z"
+}

@@ -76,6 +76,9 @@ func fileName(t *Target, vault bool) string {
 	switch t.Mode {
 	case Worktree:
 		name = "worktree-" + gitx.Short(t.Base)
+		if t.Staged {
+			name = "staged-" + gitx.Short(t.Base)
+		}
 	case Branch:
 		name = "branch-" + slug(t.Name)
 	}

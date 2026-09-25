@@ -127,6 +127,14 @@ func (m *Model) searchNext(dir int) {
 		m.setStatus(true, "/%s not found", m.query)
 		return
 	}
+	idx, wrapped := m.pick(hs, dir)
+	m.jump(hs[idx])
+	m.showMatch(hs[idx])
+	m.setStatus(false, "match %d of %d%s", idx+1, len(hs), wrapped)
+}
+
+// pick chooses the hit after the cursor in direction dir, wrapping around the review.
+func (m *Model) pick(hs []hit, dir int) (int, string) {
 	cur := hit{m.station, -1, -1}
 	if r, ok := m.cursorRow(); ok {
 		cur.part, cur.line = r.part, r.line
@@ -154,8 +162,7 @@ func (m *Model) searchNext(dir int) {
 			idx, wrapped = len(hs)-1, " · wrapped to the last stop"
 		}
 	}
-	m.jump(hs[idx])
-	m.setStatus(false, "match %d of %d%s", idx+1, len(hs), wrapped)
+	return idx, wrapped
 }
 
 func (m *Model) jump(h hit) {
@@ -172,7 +179,6 @@ func (m *Model) jump(h hit) {
 		return
 	}
 	m.setCursor(idx)
-	m.showMatch(h)
 }
 
 func (m *Model) rowOf(h hit) int {
@@ -224,6 +230,9 @@ func displayCol(line string, runes int) int {
 
 func (m *Model) lineSpans(p *doc.Part, line int) []render.Span {
 	s := m.spansFor(p)[line]
+	if m.dimmed(p, line) {
+		s = []render.Span{{Text: p.Lines[line], Color: colSpotDim}}
+	}
 	if m.query == "" {
 		return s
 	}

@@ -1,6 +1,9 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -49,6 +52,19 @@ func press(m *Model, keys ...string) {
 		}
 		m.Update(msg)
 	}
+}
+
+// rowsText is every row of the current stop as plain text, including the ones scrolled off screen.
+func rowsText(m *Model) string {
+	var b strings.Builder
+	for _, r := range m.rows {
+		b.WriteString(r.text)
+		for _, sp := range r.spans {
+			b.WriteString(sp.Text)
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
 }
 
 func mustGoto(t *testing.T, m *Model, target string) Where {
@@ -116,7 +132,7 @@ func TestMarksPersist(t *testing.T) {
 	if !st.Reviewed[key] || len(st.Flagged) != 1 {
 		t.Fatalf("state not saved: %+v", st)
 	}
-	if c := m.counts(); c.Reviewed != 1 || c.Flagged != 1 || c.Notes != 10 {
+	if c := m.counts(); c.Reviewed != 1 || c.Flagged != 1 || c.Notes != 12 || c.Calls != 2 {
 		t.Fatalf("counts = %+v", c)
 	}
 }
@@ -155,7 +171,7 @@ func TestNewNotesAfterReload(t *testing.T) {
 		t.Fatalf("reload should keep position and announce the note: station %s, status %q", w.Station.ID, m.status)
 	}
 	press(m, "N")
-	if w := m.where(); w.Station.ID != "audit" || w.Note.Number != 3 {
+	if w := m.where(); w.Station.ID != "audit" || w.Note.Number != 4 {
 		t.Fatalf("N should jump to the new note, got %s %+v", w.Station.ID, w.Note)
 	}
 	if len(m.fresh) != 0 {
@@ -168,7 +184,7 @@ func TestRecapLinksJump(t *testing.T) {
 	mustGoto(t, m, "recap")
 	jumped := false
 	for idx, r := range m.rows {
-		if r.kind == rowLink {
+		if r.kind == rowLink && strings.Contains(r.text, "Breaking") {
 			m.cur = idx
 			press(m, "enter")
 			jumped = true
@@ -202,12 +218,19 @@ func TestYourPassFirstAndFilter(t *testing.T) {
 	}
 
 	mustGoto(t, m, "store")
+	all := markers()
 	press(m, "F", "F")
 	if got := markers(); got != 1 {
 		t.Fatalf("problems-only filter should leave the one problem marked, got %d", got)
 	}
 	press(m, "F")
-	if markers() != 2 {
+	if fs := m.filters(); fs[m.filter] != "focus: breaking-change" || markers() != 1 {
+		t.Fatalf("the next filter should be the first focus area, got %q with %d marks", fs[m.filter], markers())
+	}
+	for m.filter != 0 {
+		press(m, "F")
+	}
+	if markers() != all {
 		t.Fatal("filter should cycle back to all notes")
 	}
 }
@@ -352,5 +375,167 @@ func TestMarkSpans(t *testing.T) {
 	}
 	if want := "s.|*log|*.R|ecord(x)"; strings.Join(got, "|") != want {
 		t.Fatalf("got %q, want %q", strings.Join(got, "|"), want)
+	}
+}
+
+func TestCoverage(t *testing.T) {
+	m := newModel(t)
+	mustGoto(t, m, "0")
+	if text := rowsText(m); !strings.Contains(text, "tested ███████░░░░░ 4/7 changed lines · 3 untested") {
+		t.Errorf("overview misses the report bar:\n%s", text)
+	}
+
+	press(m, "u")
+	if w := m.where(); w.Station.ID != "report" || w.Cursor.Line != 3 {
+		t.Fatalf("u should stop at the untested import first, went to %s %+v", w.Station.ID, w.Cursor)
+	}
+	press(m, "u")
+	w := m.where()
+	if w.Station.ID != "report" || w.Cursor.Line != 15 || w.Cursor.Coverage != "untested" {
+		t.Fatalf("u went to %s %+v", w.Station.ID, w.Cursor)
+	}
+	view := ansi.Strip(m.View())
+	for _, want := range []string{"15✗", "4/7 tested", "line 15 changed, and no test runs it"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("report view missing %q", want)
+		}
+	}
+	if strings.Contains(view, "no tests cover this stop") {
+		t.Error("measured coverage should replace the agent's no tests warning")
+	}
+	press(m, "k")
+	if w := m.where(); w.Cursor.Coverage != "run" || len(w.Cursor.Tests) != 1 || w.Cursor.Tests[0] != "test_summarize_totals" {
+		t.Fatalf("line 14 = %+v", w.Cursor)
+	}
+
+	mustGoto(t, m, "tests")
+	view = ansi.Strip(m.View())
+	for _, want := range []string{"store   reserve   audit   report", "    rejects non-positive quantity  new", "changed lines no test runs"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("grid missing %q:\n%s", want, view)
+		}
+	}
+	for m.rows[m.cur].kind != rowTest || !strings.Contains(m.rows[m.cur].spans[0].Text, "rejects") {
+		press(m, "j")
+	}
+	press(m, "enter")
+	w = m.where()
+	if w.Spotlight != "TestReserve/rejects_non-positive_quantity" || w.Station.ID != "store" || w.Cursor.Line != 20 {
+		t.Fatalf("spotlight = %q at %s %+v", w.Spotlight, w.Station.ID, w.Cursor)
+	}
+	st := m.doc.Stations[2]
+	if p := st.Parts[0]; !m.dimmed(p, 34) || m.dimmed(p, 31) {
+		t.Error("the rejecting test runs the qty check but never takes the lock")
+	}
+	press(m, "esc")
+	if m.where().Spotlight != "" {
+		t.Fatal("esc should end the spotlight")
+	}
+}
+
+func TestCoverageStale(t *testing.T) {
+	m := newModel(t)
+	stock := filepath.Join(filepath.Dir(m.opts.ReviewPath), "current", "inventory", "stock.go")
+	data, err := os.ReadFile(stock)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stock, append(data, []byte("\n// edited\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	d, st, err := Load(m.opts.ReviewPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.Update(loadedMsg{doc: d, state: st})
+	w := mustGoto(t, m, "reserve")
+	view := ansi.Strip(m.View())
+	if w.Cursor.Coverage != "" || !strings.Contains(view, "coverage stale") || strings.Contains(view, "32┃") {
+		t.Fatalf("an edited file should show stale coverage and no marks:\n%s", view)
+	}
+}
+
+func TestStopRationale(t *testing.T) {
+	m := newModel(t)
+	mustGoto(t, m, "reserve")
+	view := ansi.Strip(m.View())
+	for _, want := range []string{"Why a stop of its own", "What it does and how", "Reserve now rejects a quantity",
+		"Why", "The whole of Reserve, since the check"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("reserve misses %q:\n%s", want, view)
+		}
+	}
+	if strings.Contains(view, "`available`") {
+		t.Error("backticks should render as code, not literally")
+	}
+
+	path := m.opts.ReviewPath
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bare := regexp.MustCompile(`(?m)^    (scope|what|why): (>-\n(      .*\n)+|.*\n)`).ReplaceAll(data, nil)
+	if err := os.WriteFile(path, bare, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	d, st, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.Update(loadedMsg{doc: d, state: st})
+	mustGoto(t, m, "reserve")
+	if view := ansi.Strip(m.View()); !strings.Contains(view, "no rationale yet") || strings.Contains(view, "What it does and how") {
+		t.Errorf("a stop without rationale should say so:\n%s", view)
+	}
+}
+
+func TestYank(t *testing.T) {
+	m := newModel(t)
+	var got string
+	m.clip = func(s string) error { got = s; return nil }
+	run := func(cmd tea.Cmd) {
+		if cmd != nil {
+			m.Update(cmd())
+		}
+	}
+
+	mustGoto(t, m, "reserve:2")
+	run(m.yank(false))
+	want := "inventory/stock.go:39 · note 2 · looks right\nStill matches `errors.Is(err, ErrInsufficient)` because of `%w`.\n"
+	if got != want || m.status != "copied note 2 to the clipboard" {
+		t.Fatalf("y copied %q, status %q", got, m.status)
+	}
+
+	run(m.yank(true))
+	for _, part := range []string{"reserve · Reserve validates before locking\nThe quantity check",
+		"\n\nWhy a stop of its own\nThis is the only function", "\n\nstock.go · Store.Reserve: The whole of Reserve",
+		"\n\ninventory/stock.go:32 · note 1 · context\n", "\n\ninventory/stock.go:42 · note 3 · context\n"} {
+		if !strings.Contains(got, part) {
+			t.Errorf("Y misses %q in:\n%s", part, got)
+		}
+	}
+
+	mustGoto(t, m, "audit")
+	got = ""
+	run(m.yank(true))
+	if got != "" || !strings.Contains(m.status, "press v") {
+		t.Fatalf("a stop with hidden notes should not be copied: %q %q", got, m.status)
+	}
+}
+
+func TestRecapWraps(t *testing.T) {
+	m := newModel(t)
+	m.Update(tea.WindowSizeMsg{Width: 60, Height: height})
+	mustGoto(t, m, "recap")
+	view := ansi.Strip(m.View())
+	for _, want := range []string{"Zero entries come from", "cancelled", "somewhere?"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("recap should wrap long notes instead of cutting them, missing %q:\n%s", want, view)
+		}
+	}
+	press(m, "j", "j", "j")
+	press(m, "enter")
+	if w := m.where(); w.Station.ID != "report" || w.Note.Number != 1 {
+		t.Fatalf("j should skip the wrapped lines to the next entry, enter opened %s %+v", w.Station.ID, w.Note)
 	}
 }

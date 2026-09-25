@@ -7,6 +7,8 @@ import (
 
 	"github.com/redrick/margin/internal/anchor"
 	"github.com/redrick/margin/internal/diffmap"
+	"github.com/redrick/margin/internal/gitx"
+	"github.com/redrick/margin/internal/ignore"
 	"github.com/redrick/margin/internal/review"
 	"github.com/redrick/margin/internal/source"
 	"github.com/redrick/margin/internal/text"
@@ -24,6 +26,7 @@ const (
 const (
 	KindIssue    = "issue"
 	KindQuestion = "question"
+	KindDecide   = "decide"
 	KindOK       = "ok"
 	KindInfo     = "info"
 	KindNit      = "nit"
@@ -37,6 +40,18 @@ type Doc struct {
 	HeadDesc string
 	Stations []*Station
 	Problems []Problem
+	Coverage *Coverage
+	// Ignored lists changed files .margin/ignore keeps out of the tour; Unshown lists changed files
+	// that cannot be shown as text.
+	Ignored []gitx.Change
+	Unshown []Unshown
+	// Guidance is the repository's .margin/instructions, as the agent was given it.
+	Guidance string
+}
+
+type Unshown struct {
+	Path   string
+	Reason string
 }
 
 type Problem struct {
@@ -49,12 +64,19 @@ type Station struct {
 	ID        string
 	Title     string
 	Lede      string
+	Scope     string
+	What      string
+	Why       string
 	Risk      string
+	RiskWhy   string
 	Concern   string
+	Flow      string
 	TestNames []string
-	Parts     []*Part
-	Notes     []*Note
-	Tests     []TestGroup
+	// Auto marks a stop margin made itself, for changes no stop of the review shows.
+	Auto  bool
+	Parts []*Part
+	Notes []*Note
+	Tests []TestGroup
 }
 
 type Part struct {
@@ -67,6 +89,10 @@ type Part struct {
 	Pairs   map[int]string
 	NewFile bool
 	Err     error
+	// Moved maps a line to where it was moved from, or on the base side to where it went; GhostMoved
+	// does the same for the removed lines drawn before a line.
+	Moved      map[int]string
+	GhostMoved map[int]map[int]string
 
 	Hunk      int
 	HunkCount int
@@ -87,9 +113,10 @@ func Build(r *review.Review, files *source.Files) *Doc {
 	d := &Doc{Review: r, Repo: files.Repo, HasBase: files.HasBase(), BaseDesc: files.BaseDesc, HeadDesc: files.HeadDesc}
 	d.Stations = append(d.Stations, &Station{Kind: Overview, ID: "overview", Title: r.Title})
 	b := builder{files: files, cache: map[string]*Part{}}
-	findings := false
+	d.Guidance = files.RepoConfig("instructions")
 	for _, s := range r.Stations {
-		st := &Station{Kind: Code, ID: s.ID, Title: s.Title, Lede: s.Lede, Risk: s.Risk, Concern: s.Concern, TestNames: s.Tests}
+		st := &Station{Kind: Code, ID: s.ID, Title: s.Title, Lede: s.Lede, Scope: s.Scope, What: s.What, Why: s.Why,
+			Risk: s.Risk, RiskWhy: s.RiskWhy, Concern: s.Concern, Flow: s.Flow, TestNames: s.Tests}
 		for _, ps := range s.Parts {
 			for _, p := range b.parts(ps) {
 				if p.Err != nil {
@@ -105,13 +132,12 @@ func Build(r *review.Review, files *source.Files) *Doc {
 			}
 			st.Notes = append(st.Notes, note)
 		}
-		if issues, questions := st.Findings(); issues+questions > 0 {
-			findings = true
-		}
 		d.Stations = append(d.Stations, st)
 	}
-	if findings {
-		d.Stations = append(d.Stations, &Station{Kind: Recap, ID: "recap", Title: "Problems and open questions"})
+	d.addUnplaced(b, ignore.Parse(files.RepoConfig("ignore")))
+	d.markMoved(b)
+	if len(d.Stations) > 1 {
+		d.Stations = append(d.Stations, &Station{Kind: Recap, ID: "recap", Title: "Before you approve"})
 	}
 	if len(r.Tests) > 0 {
 		st := &Station{Kind: Tests, ID: "tests", Title: "Tests"}
@@ -176,7 +202,7 @@ func (d *Doc) Station(id string) (int, *Station) {
 
 // WatchPaths lists every file whose change should reload the review.
 func (d *Doc) WatchPaths() []string {
-	paths := []string{d.Review.Path}
+	paths := []string{d.Review.Path, review.CoveragePath(d.Review.Path)}
 	seen := map[string]bool{}
 	add := func(p string) {
 		if !seen[p] {
@@ -184,9 +210,9 @@ func (d *Doc) WatchPaths() []string {
 			paths = append(paths, p)
 		}
 	}
-	for _, s := range d.Review.Stations {
+	for _, s := range d.Stations {
 		for _, p := range s.Parts {
-			add(filepath.Join(d.Repo, filepath.FromSlash(p.File)))
+			add(filepath.Join(d.Repo, filepath.FromSlash(p.Spec.File)))
 		}
 	}
 	for _, t := range d.Review.Tests {
@@ -205,6 +231,7 @@ func (b builder) part(spec review.Part) *Part {
 	key := fmt.Sprintf("%v|%s|%s", p.Base, spec.File, spec.BaseFile)
 	if c, ok := b.cache[key]; ok {
 		p.Lines, p.Kinds, p.Ghosts, p.Pairs, p.NewFile, p.Err = c.Lines, c.Kinds, c.Ghosts, c.Pairs, c.NewFile, c.Err
+		p.Moved, p.GhostMoved = c.Moved, c.GhostMoved
 	} else {
 		b.load(p)
 		b.cache[key] = p
@@ -216,6 +243,7 @@ func (b builder) part(spec review.Part) *Part {
 }
 
 func (b builder) load(p *Part) {
+	p.Moved, p.GhostMoved = map[int]string{}, map[int]map[int]string{}
 	file := p.Spec.File
 	cur, err := b.files.Current(file)
 	if err != nil {
@@ -336,6 +364,17 @@ func (st *Station) Findings() (issues, questions int) {
 		}
 	}
 	return issues, questions
+}
+
+// Decisions counts the judgment calls the agent left for the reader.
+func (st *Station) Decisions() int {
+	n := 0
+	for _, note := range st.Notes {
+		if note.Level() == KindDecide {
+			n++
+		}
+	}
+	return n
 }
 
 // LOC counts the distinct lines the station shows.

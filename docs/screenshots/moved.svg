@@ -1,0 +1,227 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1462" height="952" viewBox="0 0 1462 952">
+<style>text{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:16px;white-space:pre}</style>
+<rect width="1462" height="952" rx="10" fill="#0d1117" stroke="#30363d"/>
+<rect width="1462" height="38" rx="10" fill="#161b22"/><rect y="28" width="1462" height="10" fill="#161b22"/>
+<line x1="0" y1="38" x2="1462" y2="38" stroke="#30363d"/>
+<circle cx="22" cy="19.0" r="6.5" fill="#ff5f57"/>
+<circle cx="44" cy="19.0" r="6.5" fill="#febc2e"/>
+<circle cx="66" cy="19.0" r="6.5" fill="#28c840"/>
+<text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
+<rect x="16.0" y="54" width="268.8" height="21" fill="#161b22"/>
+<rect x="284.8" y="54" width="96.0" height="21" fill="#3fb950"/>
+<rect x="380.8" y="54" width="1065.6" height="21" fill="#161b22"/>
+<text x="16.0" y="69" textLength="230.4" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › rounding 1/3  </text>
+<text x="246.4" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc">●</text>
+<text x="256.0" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○</text>
+<text x="284.8" y="69" textLength="96.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> LOW RISK </text>
+<text x="380.8" y="69" textLength="220.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> refactor · 27 lines   </text>
+<text x="601.6" y="69" textLength="288.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">roundCents becomes money.Round</text>
+<text x="1196.8" y="69" textLength="249.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  shop · current/ vs base/</text>
+<text x="947.2" y="90" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="111" textLength="931.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff">── cart/cart.go · change 1/2 · 1–6 · +1 -1 · no agent notes, read it yourself ───────────────────</text>
+<text x="947.2" y="111" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="132" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  1</text>
+<text x="112.0" y="132" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">package</text>
+<text x="188.8" y="132" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">cart</text>
+<text x="947.2" y="132" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="153" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  2</text>
+<text x="947.2" y="153" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="159" width="105.6" height="21" fill="#2c1517"/>
+<rect x="188.8" y="159" width="38.4" height="21" fill="#6e2b30"/>
+<rect x="227.2" y="159" width="720.0" height="21" fill="#2c1517"/>
+<text x="83.2" y="174" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#f85149" font-weight="bold">▎- </text>
+<text x="112.0" y="174" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#b08286">import "</text>
+<text x="188.8" y="174" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#b08286" text-decoration="line-through">math</text>
+<text x="227.2" y="174" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#b08286">"</text>
+<text x="947.2" y="174" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="180" width="105.6" height="21" fill="#12261e"/>
+<rect x="188.8" y="180" width="211.2" height="21" fill="#245c3a"/>
+<rect x="400.0" y="180" width="547.2" height="21" fill="#12261e"/>
+<text x="44.8" y="195" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  3</text>
+<text x="83.2" y="195" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="112.0" y="195" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">import</text>
+<text x="179.2" y="195" textLength="230.4" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"example.com/shop/money"</text>
+<text x="947.2" y="195" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="216" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  4</text>
+<text x="947.2" y="216" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="237" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  5</text>
+<text x="112.0" y="237" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">type</text>
+<text x="160.0" y="237" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">Item</text>
+<text x="208.0" y="237" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">struct</text>
+<text x="275.2" y="237" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">{</text>
+<text x="947.2" y="237" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="258" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  6</text>
+<text x="150.4" y="258" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">Name</text>
+<text x="208.0" y="258" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">string</text>
+<text x="947.2" y="258" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="279" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="300" textLength="931.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff">── cart/cart.go · change 2/2 · 12–17 · +1 -12 ───────────────────────────────────────────────────</text>
+<text x="947.2" y="300" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="321" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 12</text>
+<text x="150.4" y="321" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">sum</text>
+<text x="188.8" y="321" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71" font-weight="bold">:=</text>
+<text x="217.6" y="321" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">0.0</text>
+<text x="947.2" y="321" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="342" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 13</text>
+<text x="150.4" y="342" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">for</text>
+<text x="188.8" y="342" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">_,</text>
+<text x="217.6" y="342" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">it</text>
+<text x="246.4" y="342" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71" font-weight="bold">:=</text>
+<text x="275.2" y="342" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">range</text>
+<text x="332.8" y="342" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">items</text>
+<text x="390.4" y="342" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">{</text>
+<text x="947.2" y="342" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="363" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 14</text>
+<text x="188.8" y="363" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">sum</text>
+<text x="227.2" y="363" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71" font-weight="bold">+=</text>
+<text x="256.0" y="363" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">it.Price</text>
+<text x="342.4" y="363" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71" font-weight="bold">*</text>
+<text x="361.6" y="363" textLength="144.0" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">float64(it.Qty)</text>
+<text x="947.2" y="363" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="384" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 15</text>
+<text x="150.4" y="384" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">}</text>
+<text x="947.2" y="384" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="390" width="134.4" height="21" fill="#2c1517"/>
+<rect x="217.6" y="390" width="96.0" height="21" fill="#6e2b30"/>
+<rect x="313.6" y="390" width="633.6" height="21" fill="#2c1517"/>
+<text x="83.2" y="405" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#f85149" font-weight="bold">▎- </text>
+<text x="112.0" y="405" textLength="105.6" lengthAdjust="spacingAndGlyphs" fill="#b08286">    return </text>
+<text x="217.6" y="405" textLength="96.0" lengthAdjust="spacingAndGlyphs" fill="#b08286" text-decoration="line-through">roundCents</text>
+<text x="313.6" y="405" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#b08286">(sum)</text>
+<text x="947.2" y="405" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="411" width="864.0" height="21" fill="#2c1517"/>
+<text x="83.2" y="426" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#f85149" font-weight="bold">▎- </text>
+<text x="112.0" y="426" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#b08286">}</text>
+<text x="947.2" y="426" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="432" width="864.0" height="21" fill="#2c1517"/>
+<text x="83.2" y="447" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#f85149" font-weight="bold">▎- </text>
+<text x="947.2" y="447" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="453" width="864.0" height="21" fill="#2c1517"/>
+<text x="83.2" y="468" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#f85149" font-weight="bold">▎- </text>
+<text x="112.0" y="468" textLength="345.6" lengthAdjust="spacingAndGlyphs" fill="#b08286">func roundCents(x float64) float64 {</text>
+<text x="947.2" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="474" width="864.0" height="21" fill="#131d2e"/>
+<text x="83.2" y="489" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold">▎← </text>
+<text x="112.0" y="489" textLength="403.2" lengthAdjust="spacingAndGlyphs" fill="#b08286">    if math.IsNaN(x) || math.IsInf(x, 0) {</text>
+<text x="947.2" y="489" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="495" width="864.0" height="21" fill="#131d2e"/>
+<text x="83.2" y="510" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold">▎← </text>
+<text x="112.0" y="510" textLength="153.6" lengthAdjust="spacingAndGlyphs" fill="#b08286">        return 0</text>
+<text x="947.2" y="510" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="516" width="864.0" height="21" fill="#131d2e"/>
+<text x="83.2" y="531" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold">▎← </text>
+<text x="112.0" y="531" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#b08286">    }</text>
+<text x="947.2" y="531" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="537" width="864.0" height="21" fill="#131d2e"/>
+<text x="83.2" y="552" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold">▎← </text>
+<text x="112.0" y="552" textLength="307.2" lengthAdjust="spacingAndGlyphs" fill="#b08286">    cents := math.Round(x * 100)</text>
+<text x="947.2" y="552" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="558" width="864.0" height="21" fill="#131d2e"/>
+<text x="83.2" y="573" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold">▎← </text>
+<text x="112.0" y="573" textLength="182.4" lengthAdjust="spacingAndGlyphs" fill="#b08286">    if cents == 0 {</text>
+<text x="947.2" y="573" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="579" width="864.0" height="21" fill="#131d2e"/>
+<text x="83.2" y="594" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold">▎← </text>
+<text x="112.0" y="594" textLength="153.6" lengthAdjust="spacingAndGlyphs" fill="#b08286">        return 0</text>
+<text x="947.2" y="594" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="600" width="864.0" height="21" fill="#131d2e"/>
+<text x="83.2" y="615" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold">▎← </text>
+<text x="112.0" y="615" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#b08286">    }</text>
+<text x="947.2" y="615" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="621" width="864.0" height="21" fill="#131d2e"/>
+<text x="83.2" y="636" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold">▎← </text>
+<text x="112.0" y="636" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#b08286">    return cents / 100</text>
+<text x="947.2" y="636" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="16.0" y="642" width="28.8" height="21" fill="#f0f6fc"/>
+<rect x="83.2" y="642" width="134.4" height="21" fill="#12261e"/>
+<rect x="217.6" y="642" width="105.6" height="21" fill="#245c3a"/>
+<rect x="323.2" y="642" width="624.0" height="21" fill="#12261e"/>
+<rect x="956.8" y="642" width="28.8" height="21" fill="#f0f6fc"/>
+<rect x="985.6" y="642" width="249.6" height="21" fill="#1c2433"/>
+<text x="16.0" y="657" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> 1 </text>
+<text x="44.8" y="657" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 16</text>
+<text x="83.2" y="657" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="150.4" y="657" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">return</text>
+<text x="217.6" y="657" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">money.</text>
+<text x="275.2" y="657" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">Round</text>
+<text x="323.2" y="657" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(sum)</text>
+<text x="947.2" y="657" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#3fb950">┤</text>
+<text x="956.8" y="657" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> 1 </text>
+<text x="985.6" y="657" textLength="249.6" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold"> ✓ looks right  cart.go:16</text>
+<rect x="956.8" y="663" width="489.6" height="21" fill="#1c2433"/>
+<text x="44.8" y="678" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 17</text>
+<text x="112.0" y="678" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">}</text>
+<text x="947.2" y="678" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="956.8" y="678" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950">▌ </text>
+<text x="976.0" y="678" textLength="470.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Same call as before, now through the new package.</text>
+<text x="947.2" y="699" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="720" textLength="931.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff">── money/round.go · changes · 1–15 · new file · 8 moved unchanged · no agent notes, read it yours</text>
+<text x="947.2" y="720" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="726" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="741" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  1</text>
+<text x="83.2" y="741" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="112.0" y="741" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">package</text>
+<text x="188.8" y="741" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">money</text>
+<text x="947.2" y="741" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="747" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="762" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  2</text>
+<text x="83.2" y="762" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="947.2" y="762" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="768" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="783" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  3</text>
+<text x="83.2" y="783" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="112.0" y="783" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">import</text>
+<text x="179.2" y="783" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"math"</text>
+<text x="947.2" y="783" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="789" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="804" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  4</text>
+<text x="83.2" y="804" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="947.2" y="804" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="810" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="825" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  5</text>
+<text x="83.2" y="825" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="112.0" y="825" textLength="595.2" lengthAdjust="spacingAndGlyphs" fill="#8b939e" font-style="italic">// Round rounds x to whole cents; NaN and infinities become 0.</text>
+<text x="947.2" y="825" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="44.8" y="831" width="28.8" height="21" fill="#58a6ff"/>
+<rect x="83.2" y="831" width="864.0" height="21" fill="#1d4030"/>
+<text x="44.8" y="846" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold">  6</text>
+<text x="83.2" y="846" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="112.0" y="846" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">func</text>
+<text x="160.0" y="846" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">Round</text>
+<text x="208.0" y="846" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(x</text>
+<text x="236.8" y="846" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">float64</text>
+<text x="304.0" y="846" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">)</text>
+<text x="323.2" y="846" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">float64</text>
+<text x="400.0" y="846" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">{</text>
+<text x="947.2" y="846" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="852" width="864.0" height="21" fill="#131d2e"/>
+<text x="44.8" y="867" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  7</text>
+<text x="83.2" y="867" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold">▎→ </text>
+<text x="150.4" y="867" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">if</text>
+<text x="179.2" y="867" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">math.</text>
+<text x="227.2" y="867" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">IsNaN</text>
+<text x="275.2" y="867" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(x)</text>
+<text x="313.6" y="867" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71" font-weight="bold">||</text>
+<text x="342.4" y="867" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">math.</text>
+<text x="390.4" y="867" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">IsInf</text>
+<text x="438.4" y="867" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(x,</text>
+<text x="476.8" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">0</text>
+<text x="486.4" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">)</text>
+<text x="505.6" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">{</text>
+<text x="947.2" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="873" width="864.0" height="21" fill="#131d2e"/>
+<text x="44.8" y="888" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  8</text>
+<text x="83.2" y="888" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold">▎→ </text>
+<text x="188.8" y="888" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">return</text>
+<text x="256.0" y="888" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">0</text>
+<text x="947.2" y="888" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="894" width="864.0" height="21" fill="#131d2e"/>
+<text x="44.8" y="909" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  9</text>
+<text x="83.2" y="909" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold">▎→ </text>
+<text x="150.4" y="909" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">}</text>
+<text x="947.2" y="909" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="16.0" y="915" width="1430.4" height="21" fill="#161b22"/>
+<text x="25.6" y="930" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 0/1 </text>
+<text x="102.4" y="930" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 0m · 27 lines read </text>
+<text x="1052.8" y="930" textLength="393.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> d hide removed · s side by side · H help</text>
+</svg>

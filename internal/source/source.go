@@ -29,6 +29,8 @@ type Files struct {
 
 	root    *os.Root
 	head    string
+	staged  bool
+	baseSHA string
 	base    reader
 	current map[string]File
 	baseC   map[string]File
@@ -67,7 +69,11 @@ func (f *Files) init(r *review.Review) error {
 			return err
 		}
 		f.base = gitReader{repo: f.Repo, sha: sha}
+		f.baseSHA = sha
 		f.BaseDesc = describe(r.Base, sha)
+	}
+	if r.Staged {
+		f.staged, f.HeadDesc = true, "the index (staged changes)"
 	}
 	if r.Head != "" {
 		sha, err := gitx.RevParse(f.Repo, r.Head)
@@ -99,8 +105,8 @@ func (f *Files) Close() {
 
 func (f *Files) HasBase() bool { return f.base != nil }
 
-// ReadOnly reports whether the current side comes from a commit rather than the working tree.
-func (f *Files) ReadOnly() bool { return f.head != "" }
+// ReadOnly reports whether the current side comes from a commit or the index rather than the working tree.
+func (f *Files) ReadOnly() bool { return f.head != "" || f.staged }
 
 func (f *Files) Current(path string) (File, error) {
 	if c, ok := f.current[path]; ok {
@@ -108,7 +114,8 @@ func (f *Files) Current(path string) (File, error) {
 	}
 	var c File
 	var err error
-	if f.head != "" {
+	// An empty sha reads the index: `git cat-file blob :path`.
+	if f.head != "" || f.staged {
 		c, err = gitReader{repo: f.Repo, sha: f.head}.read(path)
 	} else {
 		c, err = readRoot(f.root, path)
@@ -195,4 +202,14 @@ func ResolveRef(repo, ref string) (string, error) {
 		return "", err
 	}
 	return gitx.MergeBase(repo, head, o)
+}
+
+// WorktreeFile reads path from the working tree, whatever side the review shows.
+func WorktreeFile(repo, path string) (File, error) {
+	root, err := os.OpenRoot(repo)
+	if err != nil {
+		return File{}, err
+	}
+	defer root.Close()
+	return readRoot(root, path)
 }

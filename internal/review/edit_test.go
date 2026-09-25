@@ -93,3 +93,21 @@ stations:
 		t.Error("unknown field should fail")
 	}
 }
+
+func TestSetScalarMultiline(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "r.review.yaml")
+	if err := os.WriteFile(path, []byte("version: 1\nrepo: .\ntitle: t\nstations: []\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetScalar(path, "asked", "Fix login\n\nSessions expired early."); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(path)
+	if !strings.Contains(string(data), "asked: |-\n  Fix login\n\n  Sessions expired early.") {
+		t.Fatalf("multi-line text should be a literal block:\n%s", data)
+	}
+	r, err := Load(path)
+	if err != nil || r.Asked != "Fix login\n\nSessions expired early." {
+		t.Fatalf("asked = %q, %v", r.Asked, err)
+	}
+}

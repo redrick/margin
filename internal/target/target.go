@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -16,7 +15,9 @@ import (
 
 	"github.com/redrick/margin/internal/fsx"
 	"github.com/redrick/margin/internal/gitx"
+	"github.com/redrick/margin/internal/ignore"
 	"github.com/redrick/margin/internal/review"
+	"github.com/redrick/margin/internal/source"
 	"github.com/redrick/margin/internal/text"
 )
 
@@ -28,42 +29,59 @@ const (
 	Commit   Mode = "commit"
 )
 
-type Change struct {
-	Status  byte
-	Path    string
-	OldPath string
-}
+type Change = gitx.Change
 
-// Target is what `margin [branch|commit]` reviews. An empty Head means the working tree.
+// Target is what `margin [branch|commit]` reviews. An empty Head means the working tree, or the
+// index when Staged is set.
 type Target struct {
 	Mode    Mode
 	Repo    string
 	Name    string
 	Base    string
 	Head    string
+	Staged  bool
 	Title   string
 	Kicker  string
 	Changes []Change
+	// Asked is what the change was meant to do, from commit messages, a pull request or the reader.
+	Asked     string
+	AskedFrom string
 }
 
-func Resolve(dir, arg, baseRef string) (*Target, error) {
+type Options struct {
+	Base   string
+	Staged bool
+	// PR is a pull request number or URL, looked up read-only with gh.
+	PR     string
+	Intent string
+}
+
+func Resolve(dir, arg string, o Options) (*Target, error) {
 	out, err := gitx.Run(dir, "rev-parse", "--show-toplevel")
 	if err != nil {
 		return nil, errors.New("not inside a git repository")
 	}
-	for _, ref := range []string{arg, baseRef} {
+	for _, ref := range []string{arg, o.Base} {
 		if strings.HasPrefix(ref, "-") {
 			return nil, fmt.Errorf("invalid ref %q", ref)
 		}
 	}
+	if o.Staged && (arg != "" || o.PR != "") {
+		return nil, errors.New("--staged reviews the index; it takes no branch, commit or --pr")
+	}
+	if o.PR != "" && arg != "" {
+		return nil, errors.New("pass either a branch or commit, or --pr")
+	}
 	t := &Target{Repo: strings.TrimSpace(string(out))}
 	switch {
+	case o.PR != "":
+		err = t.pullRequest(o.PR, o.Base)
 	case arg == "":
-		err = t.worktree(baseRef)
+		err = t.worktree(o.Base, o.Staged)
 	case isBranch(t.Repo, arg):
-		err = t.branch(arg, baseRef)
+		err = t.branch(arg, o.Base)
 	default:
-		err = t.commit(arg, baseRef)
+		err = t.commit(arg, o.Base)
 	}
 	if err != nil {
 		return nil, err
@@ -71,18 +89,29 @@ func Resolve(dir, arg, baseRef string) (*Target, error) {
 	if len(t.Changes) == 0 {
 		return nil, fmt.Errorf("nothing to review: no changes (%s)", t.Kicker)
 	}
+	if intent := strings.TrimSpace(o.Intent); intent != "" {
+		from := "you"
+		if t.Asked != "" {
+			intent += "\n\n" + t.AskedFrom + ":\n" + t.Asked
+			from = "you, and " + t.AskedFrom
+		}
+		t.Asked, t.AskedFrom = intent, from
+	}
 	return t, nil
 }
 
 func (t *Target) Label() string {
-	if t.Mode == Worktree {
+	switch {
+	case t.Mode == Worktree && t.Staged:
+		return "staged"
+	case t.Mode == Worktree:
 		return "changes"
 	}
 	return t.Name
 }
 
-func (t *Target) worktree(baseRef string) error {
-	t.Mode = Worktree
+func (t *Target) worktree(baseRef string, staged bool) error {
+	t.Mode, t.Staged = Worktree, staged
 	base, label := gitx.EmptyTree, "an empty repository"
 	if head, err := gitx.RevParse(t.Repo, "HEAD"); err == nil {
 		base, label = head, "HEAD"
@@ -93,12 +122,19 @@ func (t *Target) worktree(baseRef string) error {
 			return err
 		}
 		label = baseRef
+		if head, err := gitx.RevParse(t.Repo, "HEAD"); err == nil && head != base {
+			t.commitMessages(base, head)
+		}
 	}
 	t.Base, t.Name = base, gitx.Short(base)
 	t.Title = "Uncommitted changes"
 	t.Kicker = fmt.Sprintf("%s · working tree vs %s", filepath.Base(t.Repo), label)
+	if staged {
+		t.Title = "Staged changes"
+		t.Kicker = fmt.Sprintf("%s · index vs %s", filepath.Base(t.Repo), label)
+	}
 	var err error
-	t.Changes, err = changes(t.Repo, base, "")
+	t.Changes, err = gitx.Changes(t.Repo, base, "", staged)
 	return err
 }
 
@@ -130,7 +166,8 @@ func (t *Target) branch(name, baseRef string) error {
 	}
 	t.Title = "Branch " + name
 	t.Kicker = fmt.Sprintf("%s · %s vs %s (merge-base %s) · %s", filepath.Base(t.Repo), name, baseRef, gitx.Short(t.Base), where)
-	t.Changes, err = changes(t.Repo, t.Base, t.Head)
+	t.commitMessages(t.Base, tip)
+	t.Changes, err = gitx.Changes(t.Repo, t.Base, t.Head, false)
 	return err
 }
 
@@ -153,8 +190,66 @@ func (t *Target) commit(ref, baseRef string) error {
 	subject, _ := gitx.Run(t.Repo, "log", "-1", "--format=%s", sha)
 	t.Title = "Commit " + t.Name + ": " + text.Line(string(subject))
 	t.Kicker = fmt.Sprintf("%s · %s vs its parent", filepath.Base(t.Repo), t.Name)
-	t.Changes, err = changes(t.Repo, t.Base, sha)
+	if msg, err := gitx.Run(t.Repo, "log", "-1", "--format=%B", sha); err == nil {
+		t.Asked, t.AskedFrom = cleanMessage(string(msg)), "the commit message"
+	}
+	t.Changes, err = gitx.Changes(t.Repo, t.Base, sha, false)
 	return err
+}
+
+// maxCommits caps how many commit messages go into asked; a long branch is summarised by its newest.
+const maxCommits = 30
+
+// commitMessages records the messages of the commits in base..tip, oldest first.
+func (t *Target) commitMessages(base, tip string) {
+	out, err := gitx.Run(t.Repo, "log", "--reverse", "--format=%x1e%B", base+".."+tip)
+	if err != nil {
+		return
+	}
+	if asked, from := formatMessages(strings.Split(string(out), "\x1e")); asked != "" {
+		t.Asked, t.AskedFrom = asked, from
+	}
+}
+
+// formatMessages lists commit messages as asked text, keeping the newest when there are many.
+func formatMessages(raw []string) (asked, from string) {
+	var msgs []string
+	for _, m := range raw {
+		if m = cleanMessage(m); m != "" {
+			msgs = append(msgs, m)
+		}
+	}
+	switch len(msgs) {
+	case 0:
+		return "", ""
+	case 1:
+		return msgs[0], "the commit message"
+	}
+	skipped := 0
+	if len(msgs) > maxCommits {
+		skipped = len(msgs) - maxCommits
+		msgs = msgs[skipped:]
+	}
+	var b strings.Builder
+	if skipped > 0 {
+		fmt.Fprintf(&b, "(%d older commits left out)\n", skipped)
+	}
+	for _, m := range msgs {
+		lines := strings.Split(m, "\n")
+		b.WriteString("- " + lines[0] + "\n")
+		for _, l := range lines[1:] {
+			if strings.TrimSpace(l) == "" {
+				b.WriteString("\n")
+				continue
+			}
+			b.WriteString("  " + l + "\n")
+		}
+	}
+	return strings.TrimSpace(b.String()), fmt.Sprintf("%d commit messages", len(msgs)+skipped)
+}
+
+func cleanMessage(s string) string {
+	return strings.TrimSpace(text.Sanitize(s))
 }
 
 func isBranch(repo, name string) bool {
@@ -178,65 +273,18 @@ func defaultBranch(repo string) (string, error) {
 	return "", errors.New("cannot find the main branch; pass --base <ref>")
 }
 
-func changes(repo, base, head string) ([]Change, error) {
-	args := []string{"diff", "--name-status", "-z", "-M", "--no-ext-diff", "--no-textconv", base}
-	if head != "" {
-		args = append(args, head)
-	}
-	out, err := gitx.Run(repo, args...)
-	if err != nil {
-		return nil, err
-	}
-	list := ParseNameStatus(out)
-	if head == "" {
-		others, err := gitx.Run(repo, "ls-files", "--others", "--exclude-standard", "-z")
-		if err != nil {
-			return nil, err
-		}
-		for _, p := range strings.Split(string(others), "\x00") {
-			if p != "" {
-				list = append(list, Change{Status: 'A', Path: p})
-			}
-		}
-	}
-	sort.SliceStable(list, func(i, j int) bool { return list[i].Path < list[j].Path })
-	return list, nil
-}
-
 // ParseNameStatus parses `git diff --name-status -z` output.
-func ParseNameStatus(out []byte) []Change {
-	f := strings.Split(string(out), "\x00")
-	var list []Change
-	for i := 0; i < len(f); i++ {
-		if f[i] == "" {
-			continue
-		}
-		c := Change{Status: f[i][0]}
-		switch c.Status {
-		case 'R', 'C':
-			if i+2 >= len(f) {
-				return list
-			}
-			c.OldPath, c.Path = f[i+1], f[i+2]
-			i += 2
-		default:
-			if i+1 >= len(f) {
-				return list
-			}
-			c.Path = f[i+1]
-			i++
-		}
-		list = append(list, c)
-	}
-	return list
-}
+func ParseNameStatus(out []byte) []Change { return gitx.ParseNameStatus(out) }
 
 var unsafeID = regexp.MustCompile(`[^a-z0-9_.-]+`)
 
-// Stations makes one station per changed file; used collects ids already taken.
-func Stations(t *Target, used map[string]bool) []review.Station {
+// Stations makes one station per changed file that ign does not match; used collects ids already taken.
+func Stations(t *Target, used map[string]bool, ign *ignore.Matcher) []review.Station {
 	var out []review.Station
 	for _, c := range t.Changes {
+		if ign.Match(c.Path) {
+			continue
+		}
 		p := review.Part{File: c.Path, Hunks: true}
 		st := review.Station{ID: uniqueID(c.Path, used), Title: c.Path}
 		switch c.Status {
@@ -261,7 +309,7 @@ func uniqueID(path string, used map[string]bool) string {
 	if id == "" {
 		id = "file"
 	}
-	if id == "overview" || id == "tests" {
+	if review.Reserved(id) {
 		id = "file-" + id
 	}
 	cand := id
@@ -274,14 +322,29 @@ func uniqueID(path string, used map[string]bool) string {
 
 func New(t *Target) *review.Review {
 	return &review.Review{
-		Version:  1,
-		Repo:     t.Repo,
-		Base:     t.Base,
-		Head:     t.Head,
-		Title:    t.Title,
-		Kicker:   t.Kicker,
-		Stations: Stations(t, map[string]bool{}),
+		Version:   1,
+		Repo:      t.Repo,
+		Base:      t.Base,
+		Head:      t.Head,
+		Staged:    t.Staged,
+		Title:     t.Title,
+		Kicker:    t.Kicker,
+		Asked:     t.Asked,
+		AskedFrom: t.AskedFrom,
+		Stations:  Stations(t, map[string]bool{}, t.ignore()),
 	}
+}
+
+// ignore reads the repository's .margin/ignore; files it matches get no stop of their own, and the
+// viewer lists them instead.
+func (t *Target) ignore() *ignore.Matcher {
+	r := &review.Review{Version: 1, Repo: t.Repo, Base: t.Base, Head: t.Head, Staged: t.Staged}
+	files, err := source.Open(r)
+	if err != nil {
+		return nil
+	}
+	defer files.Close()
+	return ignore.Parse(files.RepoConfig("ignore"))
 }
 
 // Ensure creates the review file, or brings an existing one up to date with new changed files.
@@ -310,9 +373,18 @@ func Ensure(loc Location, t *Target, fresh bool) (created bool, added int, err e
 			return false, 0, err
 		}
 	}
-	if r.Head != t.Head {
-		if err := review.SetScalar(path, "head", t.Head); err != nil {
-			return false, 0, err
+	fields := []struct{ key, have, want string }{{"head", r.Head, t.Head}}
+	// What the reader said with --intent outlives later runs that do not repeat it.
+	if !strings.HasPrefix(r.AskedFrom, "you") || strings.HasPrefix(t.AskedFrom, "you") {
+		fields = append(fields,
+			struct{ key, have, want string }{"asked", r.Asked, t.Asked},
+			struct{ key, have, want string }{"asked_from", r.AskedFrom, t.AskedFrom})
+	}
+	for _, f := range fields {
+		if f.have != f.want {
+			if err := review.SetScalar(path, f.key, f.want); err != nil {
+				return false, 0, err
+			}
 		}
 	}
 	covered, used := map[string]bool{}, map[string]bool{}
@@ -322,7 +394,7 @@ func Ensure(loc Location, t *Target, fresh bool) (created bool, added int, err e
 			covered[p.File] = true
 		}
 	}
-	for _, st := range Stations(t, used) {
+	for _, st := range Stations(t, used, t.ignore()) {
 		if covered[st.Parts[0].File] {
 			continue
 		}

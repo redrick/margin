@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1462" height="784" viewBox="0 0 1462 784">
+<style>text{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:16px;white-space:pre}</style>
+<rect width="1462" height="784" rx="10" fill="#0d1117" stroke="#30363d"/>
+<rect width="1462" height="38" rx="10" fill="#161b22"/><rect y="28" width="1462" height="10" fill="#161b22"/>
+<line x1="0" y1="38" x2="1462" y2="38" stroke="#30363d"/>
+<circle cx="22" cy="19.0" r="6.5" fill="#ff5f57"/>
+<circle cx="44" cy="19.0" r="6.5" fill="#febc2e"/>
+<circle cx="66" cy="19.0" r="6.5" fill="#28c840"/>
+<text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
+<rect x="16.0" y="54" width="1430.4" height="21" fill="#161b22"/>
+<text x="16.0" y="69" textLength="230.4" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › overview 0/7  </text>
+<text x="246.4" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●●</text>
+<text x="265.6" y="69" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○○</text>
+<text x="313.6" y="69" textLength="355.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Stock reservations get an audit trail</text>
+<text x="1168.0" y="69" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  example · current/ vs base/</text>
+<text x="16.0" y="90" textLength="364.8" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> Stock reservations get an audit trail</text>
+<text x="16.0" y="111" textLength="268.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> example · current/ vs base/</text>
+<text x="16.0" y="132" textLength="432.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> base: directory base · showing: working tree</text>
+<text x="16.0" y="174" textLength="144.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> In plain words</text>
+<text x="16.0" y="195" textLength="1046.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic">   Nobody could tell why an item went out of stock, and a mistyped quantity of zero looked like a real order.</text>
+<text x="16.0" y="216" textLength="883.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic">   Every reservation now leaves a record, and impossible quantities are turned away at once.</text>
+<text x="16.0" y="258" textLength="307.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Asked · from the commit message</text>
+<text x="16.0" y="279" textLength="412.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   Record every reservation in an audit log</text>
+<text x="16.0" y="321" textLength="940.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   Support asked for a history of stock changes so they can explain a missing item. Reserve should</text>
+<text x="16.0" y="342" textLength="652.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   also refuse a zero or negative quantity instead of failing later.</text>
+<text x="16.0" y="384" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Did</text>
+<text x="44.8" y="405" textLength="1372.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Adds an in-memory AuditLog that the store fills on every successful reservation, rejects quantities of zero or less before taking the lock, and</text>
+<text x="44.8" y="426" textLength="336.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">makes the report skip zero entries.</text>
+<text x="16.0" y="468" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Gap</text>
+<text x="44.8" y="489" textLength="1372.8" lengthAdjust="spacingAndGlyphs" fill="#d29922">The ask covers recording reservations only; the change also deletes ReleaseAll and sorts the report output, neither of which was asked for. The</text>
+<text x="44.8" y="510" textLength="998.4" lengthAdjust="spacingAndGlyphs" fill="#d29922">log lives in memory, so the history is gone after a restart, which may fall short of what support needs.</text>
+<text x="16.0" y="552" textLength="124.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> What and why</text>
+<text x="16.0" y="573" textLength="940.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> Reservations are now recorded in an audit log, and Reserve rejects bad quantities before it takes</text>
+<text x="16.0" y="594" textLength="902.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> the lock. Verdict: correct, with one breaking constructor change to check at every call site.</text>
+<text x="16.0" y="636" textLength="825.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> complexity: medium · a new type with its own lock, wired into the store's locked path</text>
+<text x="16.0" y="678" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Flow</text>
+<text x="16.0" y="699" textLength="729.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   caller ─► Store.Reserve ─► qty &gt; 0 ? ─► enough stock ? ─► AuditLog.Record</text>
+<text x="16.0" y="720" textLength="489.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">                                  │               │</text>
+<text x="16.0" y="741" textLength="921.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">                                  │               └─► ErrInsufficient (wrapped, still errors.Is)</text>
+<rect x="16.0" y="747" width="96.0" height="21" fill="#161b22"/>
+<rect x="112.0" y="747" width="48.0" height="21" fill="#ff7b71"/>
+<rect x="160.0" y="747" width="9.6" height="21" fill="#161b22"/>
+<rect x="169.6" y="747" width="48.0" height="21" fill="#d29922"/>
+<rect x="217.6" y="747" width="9.6" height="21" fill="#161b22"/>
+<rect x="227.2" y="747" width="67.2" height="21" fill="#d2a8ff"/>
+<rect x="294.4" y="747" width="1152.0" height="21" fill="#161b22"/>
+<text x="25.6" y="762" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 0/13 </text>
+<text x="112.0" y="762" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ! 1 </text>
+<text x="169.6" y="762" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ? 1 </text>
+<text x="227.2" y="762" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ◆ 0/2 </text>
+<text x="304.0" y="762" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 0m · 18 lines read </text>
+<text x="1379.2" y="762" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> H help</text>
+</svg>

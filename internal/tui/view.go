@@ -46,10 +46,14 @@ func (m *Model) headerView() string {
 	name := st.ID
 	segs := []seg{{text: fmt.Sprintf(" margin › %s %d/%d  ", name, m.station, len(m.doc.Stations)-1), fg: colTitle, bg: colBar, bold: true}}
 	segs = append(segs, m.progressDots()...)
+	if name := m.spotName(); name != "" {
+		segs = append(segs, seg{text: " spotlight: " + name + " ", fg: colInk, bg: colTested, bold: true}, seg{text: " ", bg: colBar})
+	}
 	if st.Kind == doc.Code {
 		if st.Risk != "" {
 			segs = append(segs, seg{text: " " + strings.ToUpper(st.Risk) + " RISK ", fg: colInk, bg: riskColor(st.Risk), bold: true})
 		}
+		segs = append(segs, m.coverPills(st)...)
 		meta := fmt.Sprintf(" %d lines", st.LOC())
 		if st.Concern != "" {
 			meta = " " + st.Concern + " ·" + meta
@@ -58,7 +62,7 @@ func (m *Model) headerView() string {
 	} else {
 		segs = append(segs, seg{text: st.Title, fg: colText, bg: colBar})
 	}
-	return m.bar(segs, m.width, doc.Short(m.doc.Review.Kicker, max(m.width/4, 10))+" ")
+	return m.bar(segs, m.width, "  "+doc.Short(m.doc.Review.Kicker, max(m.width/4, 10))+" ")
 }
 
 func (m *Model) progressDots() []seg {
@@ -107,14 +111,24 @@ func (m *Model) footerView() string {
 	if c.Lost > 0 {
 		segs = append(segs, pill(fmt.Sprintf("lost %d", c.Lost), colInk, colProblem)...)
 	}
+	if c.Calls > 0 {
+		segs = append(segs, pill(fmt.Sprintf("◆ %d/%d", c.CallsMade, c.Calls), colInk, colDecide)...)
+	}
+	if c.Drafts > 0 {
+		label := fmt.Sprintf("✎ %d drafts · S sends", c.Drafts)
+		if c.Drafts == 1 {
+			label = "✎ 1 draft · S sends"
+		}
+		segs = append(segs, pill(label, colInk, colComment)...)
+	}
 	if c.Open > 0 {
 		segs = append(segs, pill(fmt.Sprintf("%d waiting for the agent", c.Open), colChanged, colBar)...)
 	}
 	if m.doc.Stations[m.station].Kind == doc.Code && !m.ghosts && !m.sideBySide() {
 		segs = append(segs, pill("removed lines hidden", colInk, colHeading)...)
 	}
-	if m.filter > 0 {
-		segs = append(segs, pill(filterNames[m.filter], colInk, colHeading)...)
+	if fs := m.filters(); m.filter > 0 && m.filter < len(fs) {
+		segs = append(segs, pill(fs[m.filter], colInk, colHeading)...)
 	}
 	if m.query != "" {
 		segs = append(segs, pill("/"+m.query+" · n N · esc", colInk, colMatch)...)
@@ -237,6 +251,9 @@ func (m *Model) renderRow(idx, width, numW int) string {
 	sel := idx == m.cur
 	switch r.kind {
 	case rowText:
+		if r.spans != nil {
+			return p.Code(append([]render.Span{{Text: " "}}, r.spans...), width, 0, "")
+		}
 		fg, bold, italic := toneStyle(r.tone)
 		if r.fg != "" {
 			fg = r.fg
@@ -261,12 +278,22 @@ func (m *Model) renderRow(idx, width, numW int) string {
 			bg, prefix = tintCursor, "▸ "
 		}
 		return p.Code([]render.Span{{Text: prefix + r.text, Color: fg, Bold: sel}}, width, 0, bg)
+	case rowTest:
+		bg, prefix := "", "  "
+		if sel {
+			bg, prefix = tintCursor, "▸ "
+		}
+		return p.Code(append([]render.Span{{Text: prefix, Color: colText, Bold: true}}, r.spans...), width, 0, bg)
 	case rowFold:
 		bg := ""
 		if sel {
 			bg = tintCursor
 		}
-		return p.Text(fmt.Sprintf("%s⋯ %d unchanged lines", strings.Repeat(" ", numW+7), r.fold), width, colDim, bg, false, true)
+		label := fmt.Sprintf("⋯ %d unchanged lines", r.fold)
+		if r.text != "" {
+			label = "⋯ " + r.text
+		}
+		return p.Text(strings.Repeat(" ", numW+7)+label, width, colDim, bg, false, true)
 	}
 
 	st := m.doc.Stations[m.station]
@@ -276,6 +303,10 @@ func (m *Model) renderRow(idx, width, numW int) string {
 	}
 	codeW := max(width-numW-7, 1)
 	if r.kind == rowGhost {
+		if part.GhostMoved[r.line][r.ghost] != "" {
+			return strings.Repeat(" ", numW+4) + p.Text("▎← ", 3, colMoved, tintMoved, true, false) +
+				p.Code([]render.Span{{Text: r.text, Color: colGhost}}, codeW, m.hoff, tintMoved)
+		}
 		hs, he := ghostRange(part, r)
 		return strings.Repeat(" ", numW+4) + p.Text("▎- ", 3, colRemoved, tintRemoved, true, false) +
 			p.CodeHL(struck(r.text, hs, he), codeW, m.hoff, tintRemoved, hs, he, tintRemovedHL)
@@ -283,8 +314,18 @@ func (m *Model) renderRow(idx, width, numW int) string {
 
 	kind := lineKind(part, r.line)
 	bg, barFg := tint(kind, sel)
+	mark := sign(kind, "▎")
+	if part.Moved[r.line] != "" {
+		bg, barFg, mark = tintMoved, colMoved, "▎→ "
+		if part.Base {
+			mark = "▎← "
+		}
+		if sel {
+			bg = tintMovedCur
+		}
+	}
 	hs, he := newRange(part, r.line)
-	return m.noteLabel(st, r) + m.lineNum(r.line, numW, sel) + p.Text(sign(kind, "▎"), 3, barFg, bg, true, false) +
+	return m.noteLabel(st, r) + m.lineNum(part, r.line, numW, sel) + p.Text(mark, 3, barFg, bg, true, false) +
 		p.CodeHL(m.lineSpans(part, r.line), codeW, m.hoff, bg, hs, he, tintAddedHL)
 }
 
@@ -328,8 +369,15 @@ func (m *Model) renderSplit(r row, part *doc.Part, width, numW int, sel bool) st
 		left = strings.Repeat(" ", lw+2)
 	}
 	bg, fg := tint(kind, sel)
+	mark := sign(kind, "")
+	if part.Moved[r.line] != "" {
+		bg, fg, mark = tintMoved, colMoved, "→ "
+		if sel {
+			bg = tintMovedCur
+		}
+	}
 	hs, he := newRange(part, r.line)
-	return m.noteLabel(st, r) + left + div + m.lineNum(r.line, numW, sel) + p.Text(sign(kind, ""), 2, fg, bg, true, false) +
+	return m.noteLabel(st, r) + left + div + m.lineNum(part, r.line, numW, sel) + p.Text(mark, 2, fg, bg, true, false) +
 		p.CodeHL(m.lineSpans(part, r.line), rw, m.hoff, bg, hs, he, tintAddedHL)
 }
 
@@ -389,6 +437,9 @@ func struck(text string, hs, he int) []render.Span {
 
 func (m *Model) noteLabel(st *doc.Station, r row) string {
 	if len(r.notes) == 0 {
+		if r.kind == rowCode && len(m.commentsAt(st.Parts[r.part], r.line)) > 0 {
+			return m.paint.Text(" ✎ ", 3, colInk, colComment, true, false)
+		}
 		return "   "
 	}
 	s := strconv.Itoa(r.notes[0] + 1)
@@ -402,12 +453,13 @@ func (m *Model) noteLabel(st *doc.Station, r row) string {
 	return m.paint.Text(fmt.Sprintf("%2s ", s), 3, colInk, labelBg, true, false)
 }
 
-func (m *Model) lineNum(line, numW int, sel bool) string {
+func (m *Model) lineNum(part *doc.Part, line, numW int, sel bool) string {
 	numFg, numBg := colDim, ""
 	if sel {
 		numFg, numBg = colInk, colCursorNum
 	}
-	return m.paint.Text(fmt.Sprintf("%*d ", numW, line+1), numW+1, numFg, numBg, sel, false)
+	mark, markFg, bold := m.covMark(part, line)
+	return m.paint.Text(fmt.Sprintf("%*d", numW, line+1), numW, numFg, numBg, sel, false) + m.paint.Text(mark, 1, markFg, "", bold, false)
 }
 
 func (m *Model) spansFor(part *doc.Part) [][]render.Span {
@@ -426,13 +478,16 @@ var helpLines = []string{
 	" j k  ↑ ↓   move                 enter  open a link, unfold",
 	" ] [        next / previous note N      next new note",
 	" } {        next / previous stop tab    station list",
-	" space      mark note reviewed   x      dismiss note as not useful",
+	" space      mark note reviewed   x      dismiss note; in the recap, delete a draft",
 	" ?          flag note            v      show notes (your pass first)",
-	" a          ask the agent        F      filter: all, problems+questions, problems",
+	" a          ask the agent        F      filter: all, findings, problems, focus areas",
+	" c          comment (a draft)    S      send the draft comments to the agent",
+	" y          copy the note        Y      copy the stop: rationale and every note",
 	" z          fold unchanged lines f      whole file",
 	" d          removed lines        n      notes column",
 	" s          side by side         r      reload",
 	" /          search the code      n N    next / previous match, esc ends",
+	" u U        next untested line   tests  enter on a test spotlights it, esc ends",
 	" h l        scroll sideways      q      quit",
 }
 

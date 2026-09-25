@@ -16,6 +16,12 @@ func TestPlaceCards(t *testing.T) {
 	if got := placeCards([]int{12}, []int{2}, 10, 1, 20); !reflect.DeepEqual(got, []int{2}) {
 		t.Fatalf("anchors are relative to the scroll position: %v", got)
 	}
+	if got := placeCards([]int{2, 18}, []int{3, 4}, 0, 0, 20); !reflect.DeepEqual(got, []int{2, 16}) {
+		t.Fatalf("a card near the bottom moves up to fit rather than being cut off: %v", got)
+	}
+	if got := placeCards([]int{14, 18}, []int{3, 4}, 0, 0, 20); !reflect.DeepEqual(got, []int{14, 18}) {
+		t.Fatalf("moving up never covers the card above; it is cut off instead: %v", got)
+	}
 }
 
 func TestFoldPlan(t *testing.T) {

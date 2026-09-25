@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1462" height="616" viewBox="0 0 1462 616">
+<style>text{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:16px;white-space:pre}</style>
+<rect width="1462" height="616" rx="10" fill="#0d1117" stroke="#30363d"/>
+<rect width="1462" height="38" rx="10" fill="#161b22"/><rect y="28" width="1462" height="10" fill="#161b22"/>
+<line x1="0" y1="38" x2="1462" y2="38" stroke="#30363d"/>
+<circle cx="22" cy="19.0" r="6.5" fill="#ff5f57"/>
+<circle cx="44" cy="19.0" r="6.5" fill="#febc2e"/>
+<circle cx="66" cy="19.0" r="6.5" fill="#28c840"/>
+<text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
+<rect x="16.0" y="54" width="268.8" height="21" fill="#161b22"/>
+<rect x="284.8" y="54" width="211.2" height="21" fill="#3fb950"/>
+<rect x="496.0" y="54" width="950.4" height="21" fill="#161b22"/>
+<text x="16.0" y="69" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › store 1/7  </text>
+<text x="217.6" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc">●</text>
+<text x="227.2" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●</text>
+<text x="236.8" y="69" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○○</text>
+<text x="284.8" y="69" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> LOW RISK  2/2 tested </text>
+<text x="505.6" y="69" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> feature · 18 lines   </text>
+<text x="716.8" y="69" textLength="288.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">The store carries an audit log</text>
+<text x="1168.0" y="69" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  example · current/ vs base/</text>
+<text x="16.0" y="90" textLength="768.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> NewStore now takes the log, so every caller has to decide whether it wants one.</text>
+<text x="947.2" y="90" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="111" textLength="758.4" lengthAdjust="spacingAndGlyphs" fill="#3fb950"> low risk: a constructor signature changes, but the compiler finds every caller</text>
+<text x="947.2" y="111" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="132" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="153" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Why a stop of its own</text>
+<text x="947.2" y="153" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="174" textLength="806.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">The struct field and the constructor change together: the field is useless until the</text>
+<text x="947.2" y="174" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="195" textLength="816.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">constructor fills it, so they are read as one step before the code that uses the log.</text>
+<text x="947.2" y="195" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="216" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> What it does and how</text>
+<text x="947.2" y="216" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="237" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#ffa657">Store</text>
+<text x="92.8" y="237" textLength="86.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> gains a </text>
+<text x="179.2" y="237" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#ffa657">log</text>
+<text x="208.0" y="237" textLength="115.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> field, and </text>
+<text x="323.2" y="237" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#ffa657">NewStore</text>
+<text x="400.0" y="237" textLength="422.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> takes the log as an argument and stores it.</text>
+<text x="947.2" y="237" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="258" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Passing </text>
+<text x="121.6" y="258" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#ffa657">nil</text>
+<text x="150.4" y="258" textLength="508.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> is allowed and means the store keeps no audit trail.</text>
+<text x="947.2" y="258" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="279" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Why</text>
+<text x="947.2" y="279" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="300" textLength="873.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Reserve needs somewhere to record each reservation. Taking the log in the constructor makes</text>
+<text x="947.2" y="300" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="321" textLength="825.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">every caller choose explicitly, instead of the store creating a hidden log of its own.</text>
+<text x="947.2" y="321" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="342" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="363" textLength="230.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Your calls in this stop</text>
+<text x="947.2" y="363" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="16.0" y="369" width="931.2" height="21" fill="#1f2a3a"/>
+<text x="16.0" y="384" textLength="844.8" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">▸ ☐ Should a store without an audit log still be allowed, or should support always get a</text>
+<text x="947.2" y="384" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="405" textLength="268.8" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff">      history? (stock.go:21)</text>
+<text x="947.2" y="405" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="426" textLength="182.4" lengthAdjust="spacingAndGlyphs" fill="#3fb950"> tests: TestReserve</text>
+<text x="947.2" y="426" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="447" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="468" textLength="931.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff">── inventory/stock.go · lines 3-12 · 3–12 · +5 -1 · no agent notes, read it yourself ────────────</text>
+<text x="947.2" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="489" textLength="633.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590" font-style="italic">The imports and the new error for a quantity that is not positive.</text>
+<text x="947.2" y="489" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="510" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  3</text>
+<text x="112.0" y="510" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">import</text>
+<text x="179.2" y="510" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(</text>
+<text x="947.2" y="510" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="531" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  4</text>
+<text x="150.4" y="531" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"errors"</text>
+<text x="947.2" y="531" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="537" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="552" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  5</text>
+<text x="83.2" y="552" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="150.4" y="552" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"fmt"</text>
+<text x="947.2" y="552" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="44.8" y="573" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  6</text>
+<text x="150.4" y="573" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"sync"</text>
+<text x="947.2" y="573" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="956.8" y="573" textLength="144.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> ↓ 3 more below</text>
+<rect x="16.0" y="579" width="96.0" height="21" fill="#161b22"/>
+<rect x="112.0" y="579" width="48.0" height="21" fill="#ff7b71"/>
+<rect x="160.0" y="579" width="9.6" height="21" fill="#161b22"/>
+<rect x="169.6" y="579" width="48.0" height="21" fill="#d29922"/>
+<rect x="217.6" y="579" width="9.6" height="21" fill="#161b22"/>
+<rect x="227.2" y="579" width="67.2" height="21" fill="#d2a8ff"/>
+<rect x="294.4" y="579" width="1152.0" height="21" fill="#161b22"/>
+<text x="25.6" y="594" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 0/13 </text>
+<text x="112.0" y="594" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ! 1 </text>
+<text x="169.6" y="594" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ? 1 </text>
+<text x="227.2" y="594" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ◆ 0/2 </text>
+<text x="304.0" y="594" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 0m · 18 lines read </text>
+<text x="1052.8" y="594" textLength="393.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> d hide removed · s side by side · H help</text>
+</svg>

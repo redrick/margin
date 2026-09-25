@@ -3,13 +3,14 @@ package tui
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/redrick/margin/internal/clip"
 	"github.com/redrick/margin/internal/control"
+	"github.com/redrick/margin/internal/coverage"
 	"github.com/redrick/margin/internal/doc"
 	"github.com/redrick/margin/internal/render"
 	"github.com/redrick/margin/internal/review"
@@ -43,6 +44,8 @@ type loadedMsg struct {
 type sentMsg struct {
 	id  string
 	err error
+	// drafts are comments to turn back into drafts when sending them failed.
+	drafts []string
 }
 
 type Model struct {
@@ -66,12 +69,15 @@ type Model struct {
 	notes         bool
 	whole         map[[2]int]bool
 
-	listOpen bool
-	listCur  int
-	asking   bool
-	input    textinput.Model
+	listOpen   bool
+	listCur    int
+	asking     bool
+	commenting bool
+	input      textinput.Model
 
+	clip      func(string) error
 	searching bool
+	spot      int
 	query     string
 	lastQuery string
 
@@ -105,6 +111,8 @@ func New(opts Options) *Model {
 		ghosts: true,
 		notes:  true,
 		note:   -1,
+		spot:   -1,
+		clip:   clip.Copy,
 		whole:  map[[2]int]bool{},
 		fresh:  map[string]bool{},
 		paint:  render.NewPainter(),
@@ -146,7 +154,13 @@ func Load(path string) (*doc.Doc, *state.State, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	return doc.Build(r, files), st, nil
+	d := doc.Build(r, files)
+	set, err := coverage.Load(review.CoveragePath(r.Path))
+	if err != nil {
+		d.Problems = append(d.Problems, doc.Problem{Station: "tests", Msg: err.Error()})
+	}
+	d.AttachCoverage(set)
+	return d, st, nil
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -191,8 +205,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.reload(nil)
 	case CtlMsg:
 		return m, m.control(msg)
+	case copiedMsg:
+		if msg.err != nil {
+			m.setStatus(true, "copying %s: %v", msg.what, msg.err)
+		} else {
+			m.setStatus(false, "copied %s to the clipboard", msg.what)
+		}
 	case sentMsg:
 		if msg.err != nil {
+			m.redraft(msg.drafts)
 			m.setStatus(true, "%s saved, not sent: %v", msg.id, msg.err)
 		} else {
 			m.setStatus(false, "%s sent to the agent pane", msg.id)
@@ -238,6 +259,9 @@ func (m *Model) applyLoad(msg loadedMsg) tea.Cmd {
 	} else {
 		stationID, file, line := m.position()
 		m.doc, m.loadErr = msg.doc, nil
+		if c := m.doc.Coverage; c == nil || m.spot >= len(c.Tests) {
+			m.spot = -1
+		}
 		if m.state == nil {
 			m.state = msg.state
 		}
@@ -366,7 +390,9 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 	case "F":
 		m.cycleFilter()
 	case "x":
-		m.dismiss()
+		if !m.deleteComment() {
+			m.dismiss()
+		}
 	case "v":
 		m.reveal()
 	case "H":
@@ -392,9 +418,17 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 	case "/":
 		return m.startSearch()
 	case "esc":
-		if m.query != "" {
+		switch {
+		case m.query != "":
 			m.endSearch()
+		case m.spot >= 0:
+			m.spot = -1
+			m.setStatus(false, "")
 		}
+	case "u":
+		m.nextUntested(1)
+	case "U":
+		m.nextUntested(-1)
 	case "f":
 		if r, ok := m.cursorRow(); ok {
 			k := [2]int{m.station, r.part}
@@ -407,6 +441,14 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 		m.mark(true)
 	case "a":
 		return m.startAsk()
+	case "c":
+		return m.startComment()
+	case "S":
+		return m.sendComments()
+	case "y":
+		return m.yank(false)
+	case "Y":
+		return m.yank(true)
 	case "r":
 		return m.reload(nil)
 	}
@@ -434,14 +476,19 @@ func (m *Model) updateList(msg tea.KeyMsg) {
 func (m *Model) updateAsk(msg tea.KeyMsg) tea.Cmd {
 	switch msg.Type {
 	case tea.KeyEsc:
-		m.asking = false
+		m.asking, m.commenting = false, false
 		m.input.Blur()
 		return nil
 	case tea.KeyEnter:
 		q := text.Line(m.input.Value())
-		m.asking = false
+		commenting := m.commenting
+		m.asking, m.commenting = false, false
 		m.input.Blur()
-		if q == "" {
+		switch {
+		case q == "":
+			return nil
+		case commenting:
+			m.comment(q)
 			return nil
 		}
 		return m.ask(q)
@@ -491,7 +538,7 @@ func (m *Model) startAsk() tea.Cmd {
 		return nil
 	}
 	p := m.doc.Stations[m.station].Parts[r.part]
-	m.asking = true
+	m.asking, m.commenting = true, false
 	m.input.Prompt = " ask › "
 	m.input.SetValue("")
 	m.input.Placeholder = fmt.Sprintf("question about %s:%d, enter sends, esc cancels", p.Spec.File, r.line+1)
@@ -499,27 +546,9 @@ func (m *Model) startAsk() tea.Cmd {
 }
 
 func (m *Model) ask(question string) tea.Cmd {
-	st := m.doc.Stations[m.station]
-	r, ok := m.cursorRow()
+	q, ok := m.lineQuestion(m.state.NextQuestionID(), question)
 	if !ok {
 		return nil
-	}
-	p := st.Parts[r.part]
-	line := r.line
-	needle := strings.TrimSpace(p.Lines[line])
-	for needle == "" && line > p.Range.Start {
-		line--
-		needle = strings.TrimSpace(p.Lines[line])
-	}
-	q := state.Question{
-		ID:      m.state.NextQuestionID(),
-		Station: st.ID,
-		File:    p.Spec.File,
-		Side:    p.Spec.Side,
-		Line:    r.line + 1,
-		Needle:  needle,
-		Text:    question,
-		Asked:   time.Now().UTC().Truncate(time.Second),
 	}
 	m.state.Questions = append(m.state.Questions, q)
 	if err := m.state.Save(); err != nil {

@@ -1,32 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1137" height="278" viewBox="0 0 1137 278">
-<style>text{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:14px;white-space:pre}</style>
-<rect width="1137" height="278" rx="10" fill="#0d1117" stroke="#30363d"/>
-<rect width="1137" height="34" rx="10" fill="#161b22"/><rect y="24" width="1137" height="10" fill="#161b22"/>
-<line x1="0" y1="34" x2="1137" y2="34" stroke="#30363d"/>
-<circle cx="20" cy="17.0" r="6" fill="#ff5f57"/>
-<circle cx="40" cy="17.0" r="6" fill="#febc2e"/>
-<circle cx="60" cy="17.0" r="6" fill="#28c840"/>
-<text x="568" y="22.0" text-anchor="middle" fill="#8b949e">margin</text>
-<rect x="14.0" y="48" width="1101.0" height="18" fill="#161b22"/>
-<text x="14.0" y="61" textLength="159.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › recap 6/7</text>
-<text x="190.4" y="61" textLength="42.0" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●●●●●</text>
-<text x="249.2" y="61" textLength="226.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Problems and open questions</text>
-<text x="887.6" y="61" textLength="226.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">example · current/ vs base/</text>
-<text x="14.0" y="79" textLength="1083.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> Every problem and open question from the tour. Enter jumps to the note. A problem without evidence is listed as a question until</text>
-<text x="14.0" y="97" textLength="193.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> the agent backs it up.</text>
-<text x="14.0" y="133" textLength="75.6" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Problems</text>
-<rect x="14.0" y="138" width="672.6" height="18" fill="#1f2a3a"/>
-<text x="14.0" y="151" textLength="672.0" lengthAdjust="spacingAndGlyphs" fill="#ff7b71" font-weight="bold">▸ store · stock.go:20 — Breaking signature. Every call site passes a log or nil.</text>
-<text x="14.0" y="187" textLength="84.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Questions</text>
-<text x="14.0" y="205" textLength="915.6" lengthAdjust="spacingAndGlyphs" fill="#d29922">  report · report.py:14 — Zero entries come from cancelled reservations. Should they still show up somewhere?</text>
-<rect x="14.0" y="246" width="84.6" height="18" fill="#161b22"/>
-<rect x="98.0" y="246" width="42.6" height="18" fill="#ff7b71"/>
-<rect x="140.0" y="246" width="9.0" height="18" fill="#161b22"/>
-<rect x="148.4" y="246" width="42.6" height="18" fill="#d29922"/>
-<rect x="190.4" y="246" width="924.6" height="18" fill="#161b22"/>
-<text x="22.4" y="259" textLength="58.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 0/10</text>
-<text x="98.0" y="259" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ! 1</text>
-<text x="148.4" y="259" textLength="33.6" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ? 1</text>
-<text x="198.8" y="259" textLength="159.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 0m · 50 lines read</text>
-<text x="1064.0" y="259" textLength="50.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">H help</text>
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1462" height="448" viewBox="0 0 1462 448">
+<style>text{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:16px;white-space:pre}</style>
+<rect width="1462" height="448" rx="10" fill="#0d1117" stroke="#30363d"/>
+<rect width="1462" height="38" rx="10" fill="#161b22"/><rect y="28" width="1462" height="10" fill="#161b22"/>
+<line x1="0" y1="38" x2="1462" y2="38" stroke="#30363d"/>
+<circle cx="22" cy="19.0" r="6.5" fill="#ff5f57"/>
+<circle cx="44" cy="19.0" r="6.5" fill="#febc2e"/>
+<circle cx="66" cy="19.0" r="6.5" fill="#28c840"/>
+<text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
+<rect x="16.0" y="54" width="1430.4" height="21" fill="#161b22"/>
+<text x="16.0" y="69" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › recap 6/7  </text>
+<text x="217.6" y="69" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●●●</text>
+<text x="246.4" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○</text>
+<text x="284.8" y="69" textLength="172.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Before you approve</text>
+<text x="1168.0" y="69" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  example · current/ vs base/</text>
+<text x="16.0" y="90" textLength="1401.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> The checklist before you approve: the calls only you can make, every problem and open question, and your own comments. Enter jumps to the line. A</text>
+<text x="16.0" y="111" textLength="748.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> problem without evidence is listed as a question until the agent backs it up.</text>
+<text x="16.0" y="153" textLength="441.6" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Your calls · space on the note marks one made</text>
+<rect x="16.0" y="159" width="1142.4" height="21" fill="#1f2a3a"/>
+<text x="16.0" y="174" textLength="1142.4" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">▸ ☐ store · stock.go:21 — Should a store without an audit log still be allowed, or should support always get a history?</text>
+<text x="16.0" y="195" textLength="1276.8" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff">  ☐ audit · audit.go:30 — The log keeps every entry in memory for the life of the process. Is that acceptable, or does it need a cap?</text>
+<text x="16.0" y="237" textLength="86.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Problems</text>
+<text x="16.0" y="258" textLength="768.0" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">  store · stock.go:20 — Breaking signature. Every call site passes a log or nil.</text>
+<text x="16.0" y="300" textLength="96.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Questions</text>
+<text x="16.0" y="321" textLength="1046.4" lengthAdjust="spacingAndGlyphs" fill="#d29922">  report · report.py:14 — Zero entries come from cancelled reservations. Should they still show up somewhere?</text>
+<text x="16.0" y="363" textLength="480.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Your comments · S sends the drafts, x deletes one</text>
+<text x="16.0" y="384" textLength="806.4" lengthAdjust="spacingAndGlyphs" fill="#e3b341">  c1 draft · stock.go:35 — Log the rejected quantity too, support will ask about it.</text>
+<rect x="16.0" y="411" width="96.0" height="21" fill="#161b22"/>
+<rect x="112.0" y="411" width="48.0" height="21" fill="#ff7b71"/>
+<rect x="160.0" y="411" width="9.6" height="21" fill="#161b22"/>
+<rect x="169.6" y="411" width="48.0" height="21" fill="#d29922"/>
+<rect x="217.6" y="411" width="9.6" height="21" fill="#161b22"/>
+<rect x="227.2" y="411" width="67.2" height="21" fill="#d2a8ff"/>
+<rect x="294.4" y="411" width="9.6" height="21" fill="#161b22"/>
+<rect x="304.0" y="411" width="201.6" height="21" fill="#e3b341"/>
+<rect x="505.6" y="411" width="940.8" height="21" fill="#161b22"/>
+<text x="25.6" y="426" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 0/13 </text>
+<text x="112.0" y="426" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ! 1 </text>
+<text x="169.6" y="426" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ? 1 </text>
+<text x="227.2" y="426" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ◆ 0/2 </text>
+<text x="304.0" y="426" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ✎ 1 draft · S sends </text>
+<text x="515.2" y="426" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 0m · 18 lines read </text>
+<text x="1379.2" y="426" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> H help</text>
 </svg>

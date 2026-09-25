@@ -70,12 +70,12 @@ func SetScalar(path, key, value string) error {
 			if value == "" {
 				root.Content = append(root.Content[:i], root.Content[i+2:]...)
 			} else {
-				root.Content[i+1] = scalar(value)
+				root.Content[i+1] = text(value)
 			}
 			return nil
 		}
 		if value != "" {
-			root.Content = append(root.Content, scalar(key), scalar(value))
+			root.Content = append(root.Content, scalar(key), text(value))
 		}
 		return nil
 	})
@@ -144,6 +144,13 @@ func literal(n *yaml.Node) {
 }
 
 func scalar(v string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: v} }
+
+// text is a string value, written as a literal block when it spans lines.
+func text(v string) *yaml.Node {
+	n := scalar(v)
+	literal(n)
+	return n
+}
 
 func mapValue(m *yaml.Node, key string) *yaml.Node {
 	if m == nil || m.Kind != yaml.MappingNode {

@@ -25,6 +25,11 @@ const (
 	colNoteSel   = "#f0f6fc"
 	colCursorNum = "#58a6ff"
 	colMatch     = "#e3b341"
+	colTested    = "#39c5cf"
+	colSpotDim   = "#484f58"
+	colDecide    = "#d2a8ff"
+	colMoved     = "#79c0ff"
+	colComment   = "#e3b341"
 
 	tintAdded      = "#12261e"
 	tintAddedCur   = "#1d4030"
@@ -34,6 +39,8 @@ const (
 	tintRemovedHL  = "#6e2b30"
 	tintCursor     = "#1f2a3a"
 	tintNoteSel    = "#1c2433"
+	tintMoved      = "#131d2e"
+	tintMovedCur   = "#1d2d4a"
 )
 
 type kindStyle struct {
@@ -43,6 +50,7 @@ type kindStyle struct {
 var kindStyles = map[string]kindStyle{
 	doc.KindIssue:    {"!", "problem", colProblem},
 	doc.KindQuestion: {"?", "question", colChanged},
+	doc.KindDecide:   {"◆", "your call", colDecide},
 	doc.KindOK:       {"✓", "looks right", colAdded},
 	doc.KindInfo:     {"i", "context", colHeading},
 	doc.KindNit:      {"·", "nit", colNit},

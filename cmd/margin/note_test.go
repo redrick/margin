@@ -56,8 +56,15 @@ stations:
 	if err := os.WriteFile(hunks, []byte(data), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if code := run([]string{"lint", hunks}); code == 0 {
+		t.Fatal("lint should fail while audit.go and stock_test.go are in no stop")
+	}
+	data += "skip:\n  - what: inventory/audit.go\n  - what: inventory/*_test.go\n"
+	if err := os.WriteFile(hunks, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if code := run([]string{"lint", hunks}); code != 0 {
-		t.Fatal("hunks review should lint")
+		t.Fatal("hunks review should lint once every change is placed")
 	}
 	if code := run([]string{"note", "--review", hunks, "inventory/stock.go:42", "logged under the lock"}); code != 0 {
 		t.Fatal("note on a changed line should work")

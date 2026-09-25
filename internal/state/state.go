@@ -26,8 +26,12 @@ type State struct {
 	path string
 }
 
+// Question is something the reader raised on a line: a question for the agent (id qN), or a review
+// comment (id cN, kind comment) that stays a draft until the reader sends the batch.
 type Question struct {
 	ID      string    `yaml:"id" json:"id"`
+	Kind    string    `yaml:"kind,omitempty" json:"kind,omitempty"`
+	Draft   bool      `yaml:"draft,omitempty" json:"draft,omitempty"`
 	Station string    `yaml:"station" json:"station"`
 	File    string    `yaml:"file" json:"file"`
 	Side    string    `yaml:"side,omitempty" json:"side,omitempty"`
@@ -80,15 +84,24 @@ func (s *State) Save() error {
 
 func (s *State) Path() string { return s.path }
 
-func (s *State) NextQuestionID() string {
+const KindComment = "comment"
+
+func (s *State) NextQuestionID() string { return s.nextID("q") }
+
+func (s *State) NextCommentID() string { return s.nextID("c") }
+
+func (s *State) nextID(prefix string) string {
 	n := 0
 	for _, q := range s.Questions {
-		if v, err := strconv.Atoi(strings.TrimPrefix(q.ID, "q")); err == nil && v > n {
+		rest, ok := strings.CutPrefix(q.ID, prefix)
+		if v, err := strconv.Atoi(rest); ok && err == nil && v > n {
 			n = v
 		}
 	}
-	return "q" + strconv.Itoa(n+1)
+	return prefix + strconv.Itoa(n+1)
 }
+
+func (q Question) IsComment() bool { return q.Kind == KindComment }
 
 func (s *State) Question(id string) (Question, bool) {
 	for _, q := range s.Questions {

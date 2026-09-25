@@ -8,12 +8,15 @@ import (
 
 	"github.com/redrick/margin/internal/doc"
 	"github.com/redrick/margin/internal/render"
+	"github.com/redrick/margin/internal/review"
+	"github.com/redrick/margin/internal/state"
 )
 
 const collapsedCardLines = 5
 
 // placeCards puts each card level with its anchor row, pushing it down while the previous card is in
-// the way. It returns each card's first screen line, or -1 when it no longer fits above limit.
+// the way, and up when it would run past limit but there is room above. It returns each card's
+// first screen line, or -1 when it no longer fits above limit.
 func placeCards(anchors, heights []int, top, first, limit int) []int {
 	starts := make([]int, len(anchors))
 	next := first
@@ -22,6 +25,9 @@ func placeCards(anchors, heights []int, top, first, limit int) []int {
 		if y >= limit {
 			starts[i] = -1
 			continue
+		}
+		if y+heights[i] > limit {
+			y = max(next, limit-heights[i])
 		}
 		starts[i] = y
 		next = y + heights[i] + 1
@@ -61,6 +67,7 @@ func (m *Model) notesPanel(w, h int) ([]string, map[int]string) {
 	type card struct {
 		note, row int
 		lines     []string
+		comment   *state.Question
 	}
 	var cards []card
 	above, below, loose := 0, 0, 0
@@ -83,6 +90,24 @@ func (m *Model) notesPanel(w, h int) ([]string, map[int]string) {
 			cards = append(cards, card{note: i, row: row})
 		}
 	}
+	resolved := m.doc.AnsweredQuestions()
+	for i := range m.state.Questions {
+		q := &m.state.Questions[i]
+		if !q.IsComment() || resolved[q.ID] || q.Station != st.ID {
+			continue
+		}
+		row, ok := rowOf[fmt.Sprintf("%v|%s|%d", q.Side == review.SideBase, q.File, q.Line-1)]
+		switch {
+		case !ok:
+			loose++
+		case row < m.top:
+			above++
+		case row >= m.top+h:
+			below++
+		default:
+			cards = append(cards, card{note: -1, row: row, comment: q})
+		}
+	}
 	sort.SliceStable(cards, func(a, b int) bool { return cards[a].row < cards[b].row })
 
 	first := 0
@@ -92,6 +117,11 @@ func (m *Model) notesPanel(w, h int) ([]string, map[int]string) {
 	}
 	anchors, heights := make([]int, len(cards)), make([]int, len(cards))
 	for i := range cards {
+		if q := cards[i].comment; q != nil {
+			cards[i].lines = m.commentCard(q, w)
+			anchors[i], heights[i] = cards[i].row, len(cards[i].lines)
+			continue
+		}
 		sel := cards[i].note == m.note
 		lines := m.noteCard(st, cards[i].note, w, sel)
 		if !sel && len(lines) > collapsedCardLines {
@@ -101,6 +131,25 @@ func (m *Model) notesPanel(w, h int) ([]string, map[int]string) {
 		anchors[i], heights[i] = cards[i].row, len(lines)
 	}
 	limit := h - 1
+	covTail := ""
+	if info := m.coverInfo(w); len(info) > 0 {
+		shown := func(lim int) int {
+			n := 0
+			for i, y := range placeCards(anchors, heights, m.top, first, lim) {
+				if y >= 0 && y+heights[i] <= lim {
+					n++
+				}
+			}
+			return n
+		}
+		// The coverage block only gets its rows when no note card has to give way for it.
+		if short := limit - len(info) - 1; h > len(info)+5 && shown(short) == shown(limit) {
+			limit = short
+			copy(out[limit+1:], info)
+		} else {
+			covTail = m.coverSummary()
+		}
+	}
 	for i, y := range placeCards(anchors, heights, m.top, first, limit) {
 		c := cards[i]
 		if y < 0 {
@@ -113,7 +162,10 @@ func (m *Model) notesPanel(w, h int) ([]string, map[int]string) {
 			}
 			out[y+j] = l
 		}
-		color := m.noteStyle(st.Notes[c.note]).color
+		color := colComment
+		if c.comment == nil {
+			color = m.noteStyle(st.Notes[c.note]).color
+		}
 		marks[c.row-m.top] = color
 		marks[y] = color
 	}
@@ -121,11 +173,14 @@ func (m *Model) notesPanel(w, h int) ([]string, map[int]string) {
 	pending := 0
 	answered := m.doc.AnsweredQuestions()
 	for _, q := range m.state.Questions {
-		if q.Station == st.ID && !answered[q.ID] {
+		if q.Station == st.ID && !answered[q.ID] && !q.IsComment() {
 			pending++
 		}
 	}
 	var tail []string
+	if covTail != "" {
+		tail = append(tail, covTail)
+	}
 	if below > 0 {
 		tail = append(tail, fmt.Sprintf("↓ %d more below", below))
 	}
@@ -200,7 +255,10 @@ func (m *Model) noteCard(st *doc.Station, i, w int, sel bool) []string {
 			lines = append(lines, p.Code([]render.Span{bar, {Text: l, Color: fg, Italic: italic}}, w, 0, bg))
 		}
 	}
-	if n.Q != "" {
+	switch {
+	case n.Q != "" && strings.HasPrefix(n.QID, "c"):
+		add("your comment: "+n.Q, colDim, true)
+	case n.Q != "":
 		add("Q: "+n.Q, colDim, true)
 	}
 	var bold, code bool
@@ -212,6 +270,21 @@ func (m *Model) noteCard(st *doc.Station, i, w int, sel bool) []string {
 	}
 	if changed {
 		add("Δ "+n.Changed, colChanged, false)
+	}
+	return lines
+}
+
+func (m *Model) commentCard(q *state.Question, w int) []string {
+	p := m.paint
+	status := "sent, waiting for the agent"
+	if q.Draft {
+		status = "draft · S sends"
+	}
+	head := fmt.Sprintf(" ✎ your comment %s · %s", q.ID, status)
+	lines := []string{p.Text(head, w, colComment, "", true, false)}
+	bar := render.Span{Text: "▌ ", Color: colComment}
+	for _, l := range wrap(q.Text, max(w-3, 8)) {
+		lines = append(lines, p.Code([]render.Span{bar, {Text: l, Color: colText}}, w, 0, ""))
 	}
 	return lines
 }

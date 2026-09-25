@@ -34,27 +34,33 @@ const usageText = `margin — review git changes with an agent beside you
   The review (code and comments) opens on top, a new claude (or $MARGIN_AGENT) reviewer below.
   Inside gw it gets its own sub-window; in plain tmux it splits the current pane; outside tmux
   it takes over the terminal.
-  --base REF   compare against REF    --fresh     start the review over
-  --no-agent   only open the viewer
+  --base REF        compare against REF          --fresh      start the review over
+  --staged          review the staged changes    --no-agent   only open the viewer
+  --pr N|URL        review a GitHub pull request (read-only through gh; its head must be fetched)
+  --intent TEXT     what the change was meant to do, when commit messages do not say
+  --instructions T  what the agent should pay attention to in this review
 
   Reviews are kept in $MARGIN_DIR, else in the vault of Claude Code's obsidian-memory skill,
   else in ~/.local/state/margin.
 
-keys: ] [ note · } { file · a ask about this line · space reviewed · tab list · q quit
+keys: ] [ note · } { stop · a ask · c comment · S send comments · space reviewed · tab list · q quit
 
 commands for the agent:
   margin note <file>:<line> "text"     add a note
   margin answer <qid> "text"           answer a question asked in the viewer
+  margin resolve <cid> "text"          close a review comment: what you changed, or why not
   margin goto <station>[:<note>] | <file>:<line>
   margin where | reload | questions | lint <review.yaml>
   margin open | split <review.yaml>    open a review file directly
+  margin coverage go | add-go | add    per-test coverage (the agent runs the tests)
   margin brief [--review FILE]         the review task for the agent
+  margin export [--format md|github]   your comments, flagged notes and calls, to post yourself
   margin agent-help                    instructions for the agent
 `
 
 var commands = map[string]bool{
 	"review": true, "open": true, "split": true, "lint": true, "goto": true, "where": true, "reload": true,
-	"questions": true, "answer": true, "note": true, "brief": true, "session": true, "agent-help": true, "version": true, "help": true,
+	"questions": true, "answer": true, "resolve": true, "export": true, "note": true, "brief": true, "session": true, "coverage": true, "agent-help": true, "version": true, "help": true,
 }
 
 func main() { os.Exit(run(os.Args[1:])) }
@@ -85,14 +91,18 @@ func run(args []string) int {
 		err = cmdControl("reload", rest, 0)
 	case "questions":
 		err = cmdQuestions(rest)
-	case "answer":
-		err = cmdAnswer(rest)
+	case "answer", "resolve":
+		err = cmdAnswer(cmd, rest)
+	case "export":
+		err = cmdExport(rest)
 	case "note":
 		err = cmdNote(rest)
 	case "brief":
 		err = cmdBrief(rest)
 	case "session":
 		err = cmdSession(rest)
+	case "coverage":
+		err = cmdCoverage(rest)
 	case "agent-help":
 		fmt.Print(agentHelp)
 	case "version":
@@ -383,21 +393,30 @@ func cmdQuestions(args []string) error {
 		return printJSON(data)
 	}
 	if len(qs) == 0 {
-		fmt.Println("no open questions")
+		fmt.Println("no open questions or comments")
 		return nil
 	}
 	for _, q := range qs {
 		status := "open"
-		if q.Answered {
+		switch {
+		case q.Draft:
+			status = "draft, not sent"
+		case q.Answered && q.IsComment():
+			status = "resolved"
+		case q.Answered:
 			status = "answered"
 		}
-		fmt.Printf("%s  %s  %s:%d  %s\n    line: %s\n    %s\n", q.ID, q.Station, q.File, q.Line, status, q.Needle, q.Text)
+		kind := "question"
+		if q.IsComment() {
+			kind = "comment"
+		}
+		fmt.Printf("%s  %s  %s  %s:%d  %s\n    line: %s\n    %s\n", q.ID, kind, q.Station, q.File, q.Line, status, q.Needle, q.Text)
 	}
 	return nil
 }
 
-func cmdAnswer(args []string) error {
-	fs := flag.NewFlagSet("answer", flag.ContinueOnError)
+func cmdAnswer(cmd string, args []string) error {
+	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
 	reviewFlag := fs.String("review", "", "")
 	noGoto := fs.Bool("no-goto", false, "")
 	pos, err := parseArgs(fs, args)
@@ -405,7 +424,7 @@ func cmdAnswer(args []string) error {
 		return err
 	}
 	if len(pos) < 2 {
-		return errors.New(`usage: margin answer <qid> "<answer>"   (use - to read the answer from stdin)`)
+		return fmt.Errorf(`usage: margin %s <id> "<text>"   (use - to read the text from stdin)`, cmd)
 	}
 	qid := pos[0]
 	answer, err := readText(pos[1:])
@@ -427,7 +446,10 @@ func cmdAnswer(args []string) error {
 	}
 	q, ok := st.Question(qid)
 	if !ok {
-		return fmt.Errorf("no question %s in %s", qid, review.StatePath(path))
+		return fmt.Errorf("no question or comment %s in %s", qid, review.StatePath(path))
+	}
+	if q.Draft {
+		return fmt.Errorf("%s is still a draft the reader has not sent", qid)
 	}
 	for _, s := range r.Stations {
 		for i, n := range s.Notes {
@@ -457,6 +479,10 @@ func cmdAnswer(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s answered: station %s note %d\n", q.ID, q.Station, idx+1)
+	verb := "answered"
+	if q.IsComment() {
+		verb = "resolved"
+	}
+	fmt.Printf("%s %s: station %s note %d\n", q.ID, verb, q.Station, idx+1)
 	return notifyViewer(sock, !*noGoto, q.Station, idx)
 }

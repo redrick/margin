@@ -1,6 +1,7 @@
 package target
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -109,5 +110,47 @@ func TestSafeName(t *testing.T) {
 		if got := safeName(in); got != want {
 			t.Errorf("safeName(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestFormatMessages(t *testing.T) {
+	if asked, from := formatMessages([]string{"", "Fix login\n\nSessions expired early.\n"}); asked != "Fix login\n\nSessions expired early." || from != "the commit message" {
+		t.Errorf("one commit = %q, %q", asked, from)
+	}
+	asked, from := formatMessages([]string{"", "Add log\n\nWhy:\nsupport asked\n", "Sort report\n"})
+	want := "- Add log\n\n  Why:\n  support asked\n- Sort report"
+	if asked != want || from != "2 commit messages" {
+		t.Errorf("two commits =\n%s\nfrom %q, want\n%s", asked, from, want)
+	}
+	many := make([]string, maxCommits+5)
+	for i := range many {
+		many[i] = fmt.Sprintf("commit %d", i)
+	}
+	asked, from = formatMessages(many)
+	if !strings.HasPrefix(asked, "(5 older commits left out)\n- commit 5\n") || from != fmt.Sprintf("%d commit messages", maxCommits+5) {
+		t.Errorf("a long branch keeps the newest commits: %q, %q", asked[:60], from)
+	}
+	if asked, _ := formatMessages([]string{"bad \x1b[31mred\x1b[0m"}); strings.Contains(asked, "\x1b") {
+		t.Errorf("commit messages must be sanitized, got %q", asked)
+	}
+}
+
+func TestPRRef(t *testing.T) {
+	for ref, ok := range map[string]bool{
+		"12": true, "#12": true, "https://github.com/o/r/pull/12": true,
+		"12; rm -rf /": false, "--repo=x": false, "main": false, "": false,
+	} {
+		if prRef.MatchString(ref) != ok {
+			t.Errorf("prRef(%q) = %v, want %v", ref, !ok, ok)
+		}
+	}
+}
+
+func TestStagedGetsItsOwnFile(t *testing.T) {
+	base := strings.Repeat("a", 40)
+	work := fileName(&Target{Mode: Worktree, Base: base}, false)
+	staged := fileName(&Target{Mode: Worktree, Base: base, Staged: true}, false)
+	if work == staged || !strings.HasPrefix(staged, "staged-") {
+		t.Errorf("staged and unstaged reviews must not share a file: %s, %s", work, staged)
 	}
 }

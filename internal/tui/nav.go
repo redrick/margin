@@ -11,6 +11,7 @@ import (
 	"github.com/redrick/margin/internal/control"
 	"github.com/redrick/margin/internal/diffmap"
 	"github.com/redrick/margin/internal/doc"
+	"github.com/redrick/margin/internal/render"
 	"github.com/redrick/margin/internal/review"
 	"github.com/redrick/margin/internal/state"
 	"github.com/redrick/margin/internal/text"
@@ -25,6 +26,7 @@ const (
 	rowGhost
 	rowFold
 	rowLink
+	rowTest
 )
 
 type tone uint8
@@ -51,9 +53,15 @@ type row struct {
 	fold   int
 	target int
 	noteAt int
+	spans  []render.Span
+	// file and comment make a link jump to a line, and tie it to one of the reader's comments.
+	file    string
+	comment int
 }
 
-func (r row) selectable() bool { return r.kind == rowCode || r.kind == rowLink || r.kind == rowFold }
+func (r row) selectable() bool {
+	return r.kind == rowCode || r.kind == rowLink || r.kind == rowFold || r.kind == rowTest
+}
 
 func (m *Model) bodyHeight() int { return max(m.height-2, 1) }
 
@@ -104,7 +112,19 @@ func (m *Model) colored(fg, s string) {
 }
 
 func (m *Model) link(fg, s string, target, note int) {
-	m.rows = append(m.rows, row{kind: rowLink, fg: fg, text: s, target: target, noteAt: note})
+	m.rows = append(m.rows, row{kind: rowLink, fg: fg, text: s, target: target, noteAt: note, comment: -1})
+}
+
+// wrappedLink is a link whose text wraps: the first line is the one the cursor lands on, and the
+// rest hang under it.
+func (m *Model) wrappedLink(fg, s string, target, note int) {
+	for i, l := range wrap(s, max(m.codeWidth()-6, 10)) {
+		if i == 0 {
+			m.link(fg, l, target, note)
+		} else {
+			m.colored(fg, "     "+l)
+		}
+	}
 }
 
 func (m *Model) wrapped(t tone, indent int, s string) {
@@ -124,10 +144,15 @@ func (m *Model) noteVisible(st *doc.Station, n *doc.Note) bool {
 		return false
 	}
 	switch m.filter {
+	case 0:
+		return true
 	case 1:
-		return n.Level() == doc.KindIssue || n.Level() == doc.KindQuestion
+		return n.Level() == doc.KindIssue || n.Level() == doc.KindQuestion || n.Level() == doc.KindDecide
 	case 2:
 		return n.Level() == doc.KindIssue && !n.Unbacked()
+	}
+	if fs := m.filters(); m.filter < len(fs) {
+		return "focus: "+n.Focus == fs[m.filter]
 	}
 	return true
 }
@@ -147,11 +172,16 @@ func (m *Model) overviewRows() {
 	} else {
 		m.wrapped(toneDim, 0, "no base: plain code, no diff marks")
 	}
+	m.intentRows(r)
 	if r.Summary != "" {
 		m.add(rowText, tonePlain, "")
 		m.add(rowText, toneHeading, "What and why")
 		m.wrapped(toneLede, 0, r.Summary)
 	}
+	if r.Complexity != "" {
+		m.wrapped(toneDim, 0, "complexity: "+text.Line(r.Complexity))
+	}
+	m.guidanceRows(r)
 	m.add(rowText, tonePlain, "")
 	if r.Flow != "" {
 		m.add(rowText, toneHeading, "Flow")
@@ -172,8 +202,18 @@ func (m *Model) overviewRows() {
 				dot = "●"
 				read += loc
 			}
-			m.link(colText, fmt.Sprintf("%2d %s %s · %s", i, dot, s.ID, s.Title), i, -1)
+			fg := colText
+			if s.Auto {
+				fg = colProblem
+			}
+			m.link(fg, fmt.Sprintf("%2d %s %s · %s", i, dot, s.ID, s.Title), i, -1)
 			m.colored(riskColor(s.Risk), "       "+m.stationMeta(s))
+			if s.RiskWhy != "" {
+				m.colored(riskColor(s.Risk), "       "+doc.Short("because "+s.RiskWhy, max(m.codeWidth()-9, 20)))
+			}
+			if line, fg, ok := m.covLine(s); ok {
+				m.colored(fg, "       "+line)
+			}
 		case doc.Recap:
 			issues, questions := 0, 0
 			for _, c := range m.doc.Stations {
@@ -182,11 +222,25 @@ func (m *Model) overviewRows() {
 			}
 			m.link(colProblem, fmt.Sprintf("%2d ▸ recap · %d problems, %d questions", i, issues, questions), i, -1)
 		case doc.Tests:
-			m.link(colText, fmt.Sprintf("%2d ▸ tests · %d files", i, len(s.Tests)), i, -1)
+			label := fmt.Sprintf("%d files", len(s.Tests))
+			if c := m.doc.Coverage; c != nil {
+				n := 0
+				for _, t := range c.Tests {
+					if !t.Synthetic {
+						n++
+					}
+				}
+				label = fmt.Sprintf("what %d tests run", n)
+			}
+			m.link(colText, fmt.Sprintf("%2d ▸ tests · %s", i, label), i, -1)
 		}
 	}
 	m.add(rowText, tonePlain, "")
 	m.wrapped(toneDim, 0, pacing(total, read))
+	if m.doc.Coverage == nil {
+		m.wrapped(toneDim, 0, "Test coverage is not measured yet; the agent can add it with margin coverage.")
+	}
+	m.focusRows()
 	if len(r.Renames) > 0 {
 		m.add(rowText, tonePlain, "")
 		m.add(rowText, toneHeading, "Renames")
@@ -205,6 +259,20 @@ func (m *Model) overviewRows() {
 			m.wrapped(tonePlain, 2, line)
 		}
 	}
+	if len(m.doc.Ignored) > 0 {
+		m.add(rowText, tonePlain, "")
+		m.add(rowText, toneHeading, fmt.Sprintf("Left out by .margin/ignore (%d)", len(m.doc.Ignored)))
+		for _, c := range m.doc.Ignored {
+			m.wrapped(toneDim, 2, fmt.Sprintf("%c %s", c.Status, c.Path))
+		}
+	}
+	if len(m.doc.Unshown) > 0 {
+		m.add(rowText, tonePlain, "")
+		m.add(rowText, toneHeading, fmt.Sprintf("Changed, but not shown as text (%d)", len(m.doc.Unshown)))
+		for _, u := range m.doc.Unshown {
+			m.wrapped(toneDim, 2, u.Path+" — "+u.Reason)
+		}
+	}
 	if len(m.doc.Problems) > 0 {
 		m.add(rowText, tonePlain, "")
 		m.add(rowText, toneProblem, fmt.Sprintf("Problems with the review file (%d)", len(m.doc.Problems)))
@@ -213,6 +281,110 @@ func (m *Model) overviewRows() {
 		}
 	}
 }
+
+// maxAskedLines keeps a long pull request description from pushing the tour off the overview.
+const maxAskedLines = 14
+
+// intentRows sets what the change was meant to do beside what it does, so the reader checks the
+// code against the ask rather than only against itself.
+func (m *Model) intentRows(r *review.Review) {
+	if r.Motivation != "" || r.Outcome != "" {
+		m.add(rowText, tonePlain, "")
+		m.add(rowText, toneHeading, "In plain words")
+		for _, s := range []string{r.Motivation, r.Outcome} {
+			if s = strings.TrimSpace(s); s != "" {
+				m.wrapped(toneLede, 2, s)
+			}
+		}
+	}
+	m.add(rowText, tonePlain, "")
+	if r.Asked == "" {
+		m.add(rowText, toneHeading, "Asked")
+		m.wrapped(toneDim, 2, "Nothing says what this change was meant to do. margin --intent \"...\" records it next time.")
+	} else {
+		m.add(rowText, toneHeading, "Asked · from "+text.Line(r.AskedFrom))
+		lines := text.Lines(text.Sanitize(strings.TrimSpace(r.Asked)))
+		for i, l := range lines {
+			if i == maxAskedLines {
+				m.wrapped(toneDim, 2, fmt.Sprintf("… %d more lines in the review file's asked", len(lines)-i))
+				break
+			}
+			m.wrapped(tonePlain, 2, l)
+		}
+	}
+	if r.Did == "" && r.Gap == "" {
+		m.wrapped(toneDim, 0, "The agent has not compared the change with what was asked yet.")
+		return
+	}
+	if r.Did != "" {
+		m.add(rowText, tonePlain, "")
+		m.add(rowText, toneHeading, "Did")
+		m.marked(2, r.Did, colText, false)
+	}
+	if r.Gap != "" {
+		m.add(rowText, tonePlain, "")
+		m.add(rowText, toneHeading, "Gap")
+		fg := colChanged
+		if noGap(r.Gap) {
+			fg = colAdded
+		}
+		m.marked(2, r.Gap, fg, false)
+	}
+}
+
+func noGap(s string) bool {
+	s = strings.ToLower(strings.Trim(strings.TrimSpace(s), ".!"))
+	return s == "none" || s == "no gap" || s == "nothing"
+}
+
+// guidanceRows shows what the agent was told to look at, so nothing steers the review unseen.
+func (m *Model) guidanceRows(r *review.Review) {
+	if r.Instructions == "" && m.doc.Guidance == "" {
+		return
+	}
+	m.add(rowText, tonePlain, "")
+	m.add(rowText, toneHeading, "The agent was asked to look at")
+	if r.Instructions != "" {
+		m.wrapped(tonePlain, 2, "you: "+text.Line(r.Instructions))
+	}
+	if g := strings.TrimSpace(m.doc.Guidance); g != "" {
+		lines := text.Lines(text.Sanitize(g))
+		m.wrapped(toneDim, 2, "the repository's .margin/instructions, from the base side:")
+		for i, l := range lines {
+			if i == 6 {
+				m.wrapped(toneDim, 4, fmt.Sprintf("… %d more lines", len(lines)-i))
+				break
+			}
+			m.wrapped(toneDim, 4, l)
+		}
+	}
+}
+
+// focusRows lists the notes tagged with a focus area, grouped by area; F filters by them.
+func (m *Model) focusRows() {
+	heading := false
+	for _, area := range review.FocusAreas {
+		for si, st := range m.doc.Stations {
+			for ni, n := range st.Notes {
+				if n.Focus != area || m.state.Dismissed[n.Key] || m.blind(st) {
+					continue
+				}
+				if !heading {
+					m.add(rowText, tonePlain, "")
+					m.add(rowText, toneHeading, "Focus areas · F filters by them")
+					heading = true
+				}
+				where := st.ID
+				if n.Part >= 0 {
+					where = fmt.Sprintf("%s · %s:%d", st.ID, path.Base(st.Parts[n.Part].Spec.File), n.Line+1)
+				}
+				m.wrappedLink(m.noteStyle(n).color, fmt.Sprintf("%s · %s — %s", area, where, oneLine(plain(n.Text))), si, ni)
+			}
+		}
+	}
+}
+
+func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }
 
 func (m *Model) stationMeta(s *doc.Station) string {
 	var meta []string
@@ -230,6 +402,9 @@ func (m *Model) stationMeta(s *doc.Station) string {
 	if questions > 0 {
 		meta = append(meta, fmt.Sprintf("? %d", questions))
 	}
+	if n := s.Decisions(); n > 0 {
+		meta = append(meta, fmt.Sprintf("◆ %d", n))
+	}
 	reviewed := 0
 	for _, n := range s.Notes {
 		if m.state.Reviewed[n.Key] {
@@ -240,7 +415,7 @@ func (m *Model) stationMeta(s *doc.Station) string {
 	switch {
 	case len(s.TestNames) > 0:
 		meta = append(meta, "tests: "+strings.Join(s.TestNames, ", "))
-	case s.NeedsTests():
+	case m.needsTests(s):
 		meta = append(meta, "no tests")
 	}
 	return strings.Join(meta, " · ")
@@ -256,8 +431,9 @@ func pacing(total, read int) string {
 }
 
 func (m *Model) recapRows() {
-	m.wrapped(toneLede, 0, "Every problem and open question from the tour. Enter jumps to the note. A problem without evidence is listed as a question until the agent backs it up.")
+	m.wrapped(toneLede, 0, "The checklist before you approve: the calls only you can make, every problem and open question, and your own comments. Enter jumps to the line. A problem without evidence is listed as a question until the agent backs it up.")
 	m.add(rowText, tonePlain, "")
+	found := m.callRows()
 	groups := []struct {
 		title string
 		fg    string
@@ -267,7 +443,6 @@ func (m *Model) recapRows() {
 		{"Problems without evidence", colChanged, func(n *doc.Note) bool { return n.Unbacked() }},
 		{"Questions", colChanged, func(n *doc.Note) bool { return n.Level() == doc.KindQuestion }},
 	}
-	found := false
 	for _, g := range groups {
 		heading := false
 		for si, st := range m.doc.Stations {
@@ -279,27 +454,98 @@ func (m *Model) recapRows() {
 					m.add(rowText, toneHeading, g.title)
 					heading, found = true, true
 				}
-				where := st.ID
-				if n.Part >= 0 {
-					where = fmt.Sprintf("%s · %s:%d", st.ID, path.Base(st.Parts[n.Part].Spec.File), n.Line+1)
-				}
 				mark := ""
 				if m.state.Reviewed[n.Key] {
 					mark = "✓ "
 				}
-				m.link(g.fg, fmt.Sprintf("%s%s — %s", mark, where, doc.Short(plain(n.Text), 400)), si, ni)
+				m.wrappedLink(g.fg, fmt.Sprintf("%s%s — %s", mark, noteWhere(st, n), oneLine(plain(n.Text))), si, ni)
 			}
 		}
 		if heading {
 			m.add(rowText, tonePlain, "")
 		}
 	}
+	if m.commentRows() {
+		found = true
+	}
 	if !found {
 		m.add(rowText, toneDim, "Nothing open: every problem and question was dismissed.")
 	}
 }
 
+func noteWhere(st *doc.Station, n *doc.Note) string {
+	if n.Part < 0 {
+		return st.ID
+	}
+	return fmt.Sprintf("%s · %s:%d", st.ID, path.Base(st.Parts[n.Part].Spec.File), n.Line+1)
+}
+
+// callRows lists the decide notes as a checklist; space on the note ticks it off.
+func (m *Model) callRows() bool {
+	heading := false
+	for si, st := range m.doc.Stations {
+		for ni, n := range st.Notes {
+			if n.Level() != doc.KindDecide || m.state.Dismissed[n.Key] {
+				continue
+			}
+			if !heading {
+				m.add(rowText, toneHeading, "Your calls · space on the note marks one made")
+				heading = true
+			}
+			box := "☐ "
+			if m.state.Reviewed[n.Key] {
+				box = "☑ "
+			}
+			m.wrappedLink(colDecide, box+noteWhere(st, n)+" — "+oneLine(plain(n.Text)), si, ni)
+		}
+	}
+	if heading {
+		m.add(rowText, tonePlain, "")
+	}
+	return heading
+}
+
+// commentRows lists the reader's own comments with where each one stands.
+func (m *Model) commentRows() bool {
+	resolved := m.doc.AnsweredQuestions()
+	heading := false
+	for i, q := range m.state.Questions {
+		if !q.IsComment() {
+			continue
+		}
+		if !heading {
+			m.add(rowText, toneHeading, "Your comments · S sends the drafts, x deletes one")
+			heading = true
+		}
+		status, fg := "sent", colComment
+		switch {
+		case q.Draft:
+			status = "draft"
+		case resolved[q.ID]:
+			status, fg = "resolved", colDim
+		}
+		si, _ := m.doc.Station(q.Station)
+		start := len(m.rows)
+		m.wrappedLink(fg, fmt.Sprintf("%s %s · %s:%d — %s", q.ID, status, path.Base(q.File), q.Line, q.Text), si, -1)
+		m.rows[start].file, m.rows[start].line, m.rows[start].comment = q.File, q.Line-1, i
+	}
+	if heading {
+		m.add(rowText, tonePlain, "")
+	}
+	return heading
+}
+
 func (m *Model) testRows(st *doc.Station) {
+	if m.doc.Coverage != nil {
+		m.gridRows()
+		if len(st.Tests) > 0 {
+			m.add(rowText, tonePlain, "")
+			m.add(rowText, toneHeading, "Test files")
+		}
+	} else {
+		m.wrapped(toneDim, 0, "Coverage is not measured yet, so this lists test names only. Ask the agent to run margin coverage to see what each test runs.")
+		m.add(rowText, tonePlain, "")
+	}
 	for _, g := range st.Tests {
 		title := g.File
 		if g.NewFile {
@@ -326,15 +572,38 @@ func (m *Model) testRows(st *doc.Station) {
 
 func (m *Model) codeRows(st *doc.Station) {
 	intro := false
+	if st.Auto {
+		m.wrapped(toneProblem, 0, "These changes are in no stop of the tour, so nobody has explained them. Read them here, or ask the agent to place them in a stop or in skip.")
+		m.add(rowText, tonePlain, "")
+	}
 	if st.Lede != "" {
 		m.wrapped(toneLede, 0, st.Lede)
+		intro = true
+	}
+	if st.RiskWhy != "" {
+		for _, l := range wrap(strings.TrimSpace(st.Risk+" risk: "+oneLine(st.RiskWhy)), max(m.codeWidth()-2, 10)) {
+			m.colored(riskColor(st.Risk), l)
+		}
+		intro = true
+	}
+	if !st.Auto && m.rationale(st) {
+		m.add(rowText, tonePlain, "")
+	}
+	if st.Flow != "" {
+		m.add(rowText, toneHeading, "Flow")
+		for _, l := range text.Lines(text.Sanitize(st.Flow)) {
+			m.add(rowText, toneFlow, "  "+l)
+		}
+		m.add(rowText, tonePlain, "")
+	}
+	if m.stopCalls(st) {
 		intro = true
 	}
 	switch {
 	case len(st.TestNames) > 0:
 		m.colored(colAdded, "tests: "+strings.Join(st.TestNames, ", "))
 		intro = true
-	case st.NeedsTests():
+	case m.needsTests(st):
 		m.colored(colChanged, "no tests cover this stop")
 		intro = true
 	}
@@ -348,6 +617,9 @@ func (m *Model) codeRows(st *doc.Station) {
 	all := st.NotesByLine()
 	for pi, p := range st.Parts {
 		m.rows = append(m.rows, row{kind: rowHeader, part: pi, text: m.partHeader(st, pi, p)})
+		if about := strings.TrimSpace(p.Spec.About); about != "" && p.Hunk <= 1 {
+			m.marked(2, about, colDim, true)
+		}
 		if p.Err != nil {
 			m.wrapped(toneProblem, 2, p.Err.Error())
 			m.add(rowText, tonePlain, "")
@@ -357,7 +629,7 @@ func (m *Model) codeRows(st *doc.Station) {
 		noted := func(i int) bool { return len(all[doc.LineKey(p, i)]) > 0 }
 		for _, sg := range foldPlan(p, rng, noted) {
 			if sg.fold && !m.unfold {
-				m.rows = append(m.rows, row{kind: rowFold, part: pi, line: sg.start, fold: sg.end - sg.start + 1})
+				m.rows = append(m.rows, row{kind: rowFold, part: pi, line: sg.start, fold: sg.end - sg.start + 1, text: foldLabel(p, sg)})
 				continue
 			}
 			split := m.splitPart(p)
@@ -381,12 +653,83 @@ func (m *Model) codeRows(st *doc.Station) {
 	}
 }
 
+// stopCalls lists the stop's decide notes up front, so the reader knows what to weigh while reading.
+func (m *Model) stopCalls(st *doc.Station) bool {
+	drawn := false
+	for ni, n := range st.Notes {
+		if n.Level() != doc.KindDecide || !m.noteVisible(st, n) {
+			continue
+		}
+		if !drawn {
+			m.add(rowText, toneHeading, "Your calls in this stop")
+			drawn = true
+		}
+		box := "☐ "
+		if m.state.Reviewed[n.Key] {
+			box = "☑ "
+		}
+		where := ""
+		if n.Part >= 0 {
+			where = fmt.Sprintf(" (%s:%d)", path.Base(st.Parts[n.Part].Spec.File), n.Line+1)
+		}
+		m.wrappedLink(colDecide, box+oneLine(plain(n.Text))+where, m.station, ni)
+	}
+	return drawn
+}
+
 func (m *Model) partRange(si, pi int) anchor.Range {
 	p := m.doc.Stations[si].Parts[pi]
 	if m.whole[[2]int{si, pi}] {
 		return anchor.Range{Start: 0, End: len(p.Lines) - 1}
 	}
 	return p.Range
+}
+
+// rationale draws the stop's opening: why its code is a stop of its own, what it does and how, and
+// why it changed. It reports whether anything was drawn.
+func (m *Model) rationale(st *doc.Station) bool {
+	drawn := false
+	for _, b := range rationaleOf(st) {
+		if strings.TrimSpace(b.text) == "" {
+			continue
+		}
+		if !drawn && st.Lede != "" {
+			m.add(rowText, tonePlain, "")
+		}
+		m.add(rowText, toneHeading, b.label)
+		m.marked(2, b.text, colText, false)
+		drawn = true
+	}
+	if !drawn {
+		m.colored(colDim, "no rationale yet: the agent has not said why this is a stop of its own, what it does, or why")
+	}
+	return drawn
+}
+
+type labelled struct{ label, text string }
+
+func rationaleOf(st *doc.Station) []labelled {
+	return []labelled{
+		{"Why a stop of its own", st.Scope},
+		{"What it does and how", st.What},
+		{"Why", st.Why},
+	}
+}
+
+// marked adds wrapped text with the notes' **bold** and `code` markup, keeping blank lines as paragraphs.
+func (m *Model) marked(indent int, s, fg string, italic bool) {
+	w := max(m.codeWidth()-2-indent, 10)
+	pad := render.Span{Text: strings.Repeat(" ", indent)}
+	var bold, code bool
+	for _, para := range text.Lines(text.Sanitize(strings.TrimSpace(s))) {
+		for _, l := range wrap(para, w) {
+			spans := markup(l, &bold, &code, fg)
+			for i := range spans {
+				spans[i].Italic = italic
+			}
+			m.rows = append(m.rows, row{kind: rowText, spans: append([]render.Span{pad}, spans...)})
+		}
+	}
 }
 
 // ghostRows adds the base lines removed before line, starting at the from-th one.
@@ -463,10 +806,13 @@ func (m *Model) partHeader(st *doc.Station, pi int, p *doc.Part) string {
 		a, c, r := doc.Counts([]*doc.Part{p})
 		s += fmt.Sprintf(" · +%d -%d", a+c, r)
 	}
+	if n := p.MovedCount(); n > 0 {
+		s += fmt.Sprintf(" · %d moved unchanged", n)
+	}
 	if m.whole[[2]int{m.station, pi}] {
 		s += " · whole file"
 	}
-	if p.Err == nil && !m.blind(st) && !partHasNotes(st, pi) {
+	if p.Err == nil && !m.blind(st) && !st.Auto && !partHasNotes(st, pi) {
 		s += " · no agent notes, read it yourself"
 	}
 	return s
@@ -759,6 +1105,9 @@ type Counts struct {
 	Changed   int `json:"changed"`
 	Lost      int `json:"lost"`
 	Open      int `json:"open_questions"`
+	Drafts    int `json:"draft_comments"`
+	Calls     int `json:"calls"`
+	CallsMade int `json:"calls_made"`
 }
 
 func (m *Model) counts() Counts {
@@ -788,10 +1137,19 @@ func (m *Model) counts() Counts {
 		if n.Problem != "" {
 			c.Lost++
 		}
+		if n.Level() == doc.KindDecide && !m.state.Dismissed[n.Key] {
+			c.Calls++
+			if m.state.Reviewed[n.Key] {
+				c.CallsMade++
+			}
+		}
 	}
 	answered := m.doc.AnsweredQuestions()
 	for _, q := range m.state.Questions {
-		if !answered[q.ID] {
+		switch {
+		case q.Draft:
+			c.Drafts++
+		case !answered[q.ID]:
 			c.Open++
 		}
 	}
@@ -799,13 +1157,14 @@ func (m *Model) counts() Counts {
 }
 
 type Where struct {
-	Review   string    `json:"review"`
-	Station  Station   `json:"station"`
-	Note     *NoteRef  `json:"note,omitempty"`
-	Cursor   *LineRef  `json:"cursor,omitempty"`
-	Visible  []Visible `json:"visible,omitempty"`
-	Counts   Counts    `json:"counts"`
-	Problems int       `json:"problems"`
+	Review    string    `json:"review"`
+	Station   Station   `json:"station"`
+	Note      *NoteRef  `json:"note,omitempty"`
+	Cursor    *LineRef  `json:"cursor,omitempty"`
+	Visible   []Visible `json:"visible,omitempty"`
+	Counts    Counts    `json:"counts"`
+	Problems  int       `json:"problems"`
+	Spotlight string    `json:"spotlight,omitempty"`
 }
 
 type Station struct {
@@ -827,11 +1186,14 @@ type NoteRef struct {
 }
 
 type LineRef struct {
-	File string `json:"file"`
-	Line int    `json:"line"`
-	Side string `json:"side,omitempty"`
-	Kind string `json:"kind"`
-	Text string `json:"text"`
+	File     string   `json:"file"`
+	Line     int      `json:"line"`
+	Side     string   `json:"side,omitempty"`
+	Kind     string   `json:"kind"`
+	Text     string   `json:"text"`
+	Coverage string   `json:"coverage,omitempty"`
+	Tests    []string `json:"tests,omitempty"`
+	Moved    string   `json:"moved,omitempty"`
 }
 
 type Visible struct {
@@ -851,6 +1213,9 @@ func (m *Model) where() Where {
 	w.Station = Station{Index: m.station, Last: len(m.doc.Stations) - 1, ID: st.ID, Title: st.Title}
 	w.Counts = m.counts()
 	w.Problems = len(m.doc.Problems)
+	if m.spotName() != "" {
+		w.Spotlight = m.doc.Coverage.Tests[m.spot].Name
+	}
 	if n := m.selectedNote(); n != nil {
 		w.Note = &NoteRef{Number: m.note + 1, Kind: n.Level(), At: n.At, Text: n.Text, Problem: n.Problem,
 			Reviewed: m.state.Reviewed[n.Key], Flagged: m.state.Flagged[n.Key], Dismissed: m.state.Dismissed[n.Key]}
@@ -861,7 +1226,11 @@ func (m *Model) where() Where {
 		if r.line < len(p.Kinds) {
 			kind = p.Kinds[r.line]
 		}
-		w.Cursor = &LineRef{File: p.Spec.File, Line: r.line + 1, Side: p.Spec.Side, Kind: kindNames[kind], Text: p.Lines[r.line]}
+		w.Cursor = &LineRef{File: p.Spec.File, Line: r.line + 1, Side: p.Spec.Side, Kind: kindNames[kind], Text: p.Lines[r.line],
+			Coverage: covName(m.doc.Coverage.Line(p, r.line)), Moved: p.Moved[r.line]}
+		for _, t := range m.doc.Coverage.TestsAt(p, r.line) {
+			w.Cursor.Tests = append(w.Cursor.Tests, m.doc.Coverage.Tests[t].Name)
+		}
 	}
 	for i := m.top; i < min(m.top+m.bodyHeight(), len(m.rows)); i++ {
 		r := m.rows[i]
@@ -894,7 +1263,7 @@ func Questions(r *review.Review, st *state.State, all bool) []QuestionRef {
 	}
 	out := []QuestionRef{}
 	for _, q := range st.Questions {
-		if all || !answered[q.ID] {
+		if all || (!answered[q.ID] && !q.Draft) {
 			out = append(out, QuestionRef{Question: q, Answered: answered[q.ID]})
 		}
 	}

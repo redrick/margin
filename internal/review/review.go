@@ -19,22 +19,33 @@ const (
 	MergeBasePrefix = "merge-base:"
 )
 
-var reservedIDs = map[string]bool{"overview": true, "tests": true, "recap": true}
+var reservedIDs = map[string]bool{"overview": true, "tests": true, "recap": true, "unplaced": true}
 
 type Review struct {
-	Version  int        `yaml:"version"`
-	Repo     string     `yaml:"repo"`
-	Base     string     `yaml:"base,omitempty"`
-	Head     string     `yaml:"head,omitempty"`
-	BaseDir  string     `yaml:"base_dir,omitempty"`
-	Kicker   string     `yaml:"kicker,omitempty"`
-	Title    string     `yaml:"title"`
-	Summary  string     `yaml:"summary,omitempty"`
-	Flow     string     `yaml:"flow,omitempty"`
-	Stations []Station  `yaml:"stations"`
-	Skip     []Skip     `yaml:"skip,omitempty"`
-	Renames  []Rename   `yaml:"renames,omitempty"`
-	Tests    []TestFile `yaml:"tests,omitempty"`
+	Version int    `yaml:"version"`
+	Repo    string `yaml:"repo"`
+	Base    string `yaml:"base,omitempty"`
+	Head    string `yaml:"head,omitempty"`
+	BaseDir string `yaml:"base_dir,omitempty"`
+	Staged  bool   `yaml:"staged,omitempty"`
+	Kicker  string `yaml:"kicker,omitempty"`
+	Title   string `yaml:"title"`
+	// Asked is what the change was meant to do, written by margin from commit messages, a pull
+	// request or --intent; the agent answers it with Did and Gap.
+	Asked        string     `yaml:"asked,omitempty"`
+	AskedFrom    string     `yaml:"asked_from,omitempty"`
+	Instructions string     `yaml:"instructions,omitempty"`
+	Did          string     `yaml:"did,omitempty"`
+	Gap          string     `yaml:"gap,omitempty"`
+	Motivation   string     `yaml:"motivation,omitempty"`
+	Outcome      string     `yaml:"outcome,omitempty"`
+	Summary      string     `yaml:"summary,omitempty"`
+	Complexity   string     `yaml:"complexity,omitempty"`
+	Flow         string     `yaml:"flow,omitempty"`
+	Stations     []Station  `yaml:"stations"`
+	Skip         []Skip     `yaml:"skip,omitempty"`
+	Renames      []Rename   `yaml:"renames,omitempty"`
+	Tests        []TestFile `yaml:"tests,omitempty"`
 
 	Path string `yaml:"-"`
 }
@@ -43,9 +54,14 @@ type Station struct {
 	ID      string   `yaml:"id"`
 	Title   string   `yaml:"title"`
 	Lede    string   `yaml:"lede,omitempty"`
+	Scope   string   `yaml:"scope,omitempty"`
+	What    string   `yaml:"what,omitempty"`
+	Why     string   `yaml:"why,omitempty"`
 	Risk    string   `yaml:"risk,omitempty"`
+	RiskWhy string   `yaml:"risk_why,omitempty"`
 	Concern string   `yaml:"concern,omitempty"`
 	Tests   []string `yaml:"tests,omitempty"`
+	Flow    string   `yaml:"flow,omitempty"`
 	Parts   []Part   `yaml:"parts"`
 	Notes   []Note   `yaml:"notes,omitempty"`
 }
@@ -58,6 +74,7 @@ type Part struct {
 	Lines string `yaml:"lines,omitempty"`
 	Hunks bool   `yaml:"hunks,omitempty"`
 	Side  string `yaml:"side,omitempty"`
+	About string `yaml:"about,omitempty"`
 
 	BaseFile string `yaml:"base_file,omitempty"`
 }
@@ -67,6 +84,7 @@ type Note struct {
 	Nth        int    `yaml:"nth,omitempty"`
 	File       string `yaml:"file,omitempty"`
 	Kind       string `yaml:"kind,omitempty"`
+	Focus      string `yaml:"focus,omitempty"`
 	Confidence string `yaml:"confidence,omitempty"`
 	Q          string `yaml:"q,omitempty"`
 	QID        string `yaml:"qid,omitempty"`
@@ -76,10 +94,15 @@ type Note struct {
 }
 
 var (
-	NoteKinds   = []string{"issue", "question", "ok", "info", "nit"}
+	NoteKinds  = []string{"issue", "question", "decide", "ok", "info", "nit"}
+	FocusAreas = []string{"security", "breaking-change", "data-integrity", "concurrency", "performance",
+		"complexity", "architecture", "new-pattern", "testing-gap"}
 	Confidences = []string{"high", "medium", "low"}
 	Risks       = []string{"high", "medium", "low"}
 )
+
+// Reserved reports a station id margin uses for a stop of its own.
+func Reserved(id string) bool { return reservedIDs[id] }
 
 func oneOf(v string, allowed []string) bool {
 	return v == "" || slices.Contains(allowed, v)
@@ -151,6 +174,9 @@ func (r *Review) validate() error {
 	if r.Head != "" && r.Base == "" {
 		add("head needs base")
 	}
+	if r.Staged && (r.Head != "" || r.Base == "") {
+		add("staged compares the index with base, so it needs base and no head")
+	}
 	seen := map[string]bool{}
 	for i, s := range r.Stations {
 		where := fmt.Sprintf("stations[%d]", i)
@@ -217,6 +243,9 @@ func (r *Review) validate() error {
 			if !oneOf(n.Kind, NoteKinds) {
 				add("%s: kind must be one of %s", nw, strings.Join(NoteKinds, ", "))
 			}
+			if !oneOf(n.Focus, FocusAreas) {
+				add("%s: focus must be one of %s", nw, strings.Join(FocusAreas, ", "))
+			}
 			if !oneOf(n.Confidence, Confidences) {
 				add("%s: confidence must be one of %s", nw, strings.Join(Confidences, ", "))
 			}
@@ -277,6 +306,14 @@ func StatePath(reviewPath string) string {
 		return base + ".review.state.yaml"
 	}
 	return strings.TrimSuffix(reviewPath, filepath.Ext(reviewPath)) + ".state.yaml"
+}
+
+// CoveragePath is where the review's per-test coverage lives, beside the review file.
+func CoveragePath(reviewPath string) string {
+	if base, ok := strings.CutSuffix(reviewPath, ".review.yaml"); ok {
+		return base + ".review.coverage.json"
+	}
+	return strings.TrimSuffix(reviewPath, filepath.Ext(reviewPath)) + ".coverage.json"
 }
 
 func (p Part) Label() string {

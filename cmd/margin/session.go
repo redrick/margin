@@ -51,7 +51,7 @@ func cmdSession(args []string) error {
 	return tmuxx.RunSession(tmuxx.Session{
 		Socket:   "margin-" + hex.EncodeToString(sum[:4]),
 		Dir:      r.RepoDir(),
-		AgentCmd: agent + " " + tmuxx.Quote(agentPrompt(r.Title, r.Kicker, r.Head != "", target.LocationOf(path), *isNew)),
+		AgentCmd: agent + " " + tmuxx.Quote(agentPrompt(r, target.LocationOf(path), *isNew)),
 		Viewer: func(pane string) []string {
 			return []string{exe, "open", "--agent-pane", pane, path}
 		},

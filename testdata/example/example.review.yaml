@@ -3,6 +3,22 @@ repo: current
 base_dir: base
 kicker: "example · current/ vs base/"
 title: Stock reservations get an audit trail
+asked: |-
+  Record every reservation in an audit log
+
+  Support asked for a history of stock changes so they can explain a missing item. Reserve should
+  also refuse a zero or negative quantity instead of failing later.
+asked_from: the commit message
+motivation: Nobody could tell why an item went out of stock, and a mistyped quantity of zero looked like a real order.
+outcome: Every reservation now leaves a record, and impossible quantities are turned away at once.
+did: >-
+  Adds an in-memory AuditLog that the store fills on every successful reservation, rejects
+  quantities of zero or less before taking the lock, and makes the report skip zero entries.
+gap: >-
+  The ask covers recording reservations only; the change also deletes ReleaseAll and sorts the
+  report output, neither of which was asked for. The log lives in memory, so the history is gone
+  after a restart, which may fall short of what support needs.
+complexity: medium · a new type with its own lock, wired into the store's locked path
 summary: |
   Reservations are now recorded in an audit log, and Reserve rejects bad quantities before it takes
   the lock. Verdict: correct, with one breaking constructor change to check at every call site.
@@ -16,10 +32,23 @@ stations:
   - id: store
     title: The store carries an audit log
     lede: NewStore now takes the log, so every caller has to decide whether it wants one.
+    scope: >-
+      The struct field and the constructor change together: the field is useless until the
+      constructor fills it, so they are read as one step before the code that uses the log.
+    what: >-
+      `Store` gains a `log` field, and `NewStore` takes the log as an argument and stores it.
+      Passing `nil` is allowed and means the store keeps no audit trail.
+    why: >-
+      Reserve needs somewhere to record each reservation. Taking the log in the constructor makes
+      every caller choose explicitly, instead of the store creating a hidden log of its own.
     risk: low
+    risk_why: a constructor signature changes, but the compiler finds every caller
     concern: feature
     tests: [TestReserve]
     parts:
+      - file: inventory/stock.go
+        lines: 3-12
+        about: The imports and the new error for a quantity that is not positive.
       - file: inventory/stock.go
         from: "type Store struct"
       - file: inventory/stock.go
@@ -30,18 +59,34 @@ stations:
         text: Optional. A nil log is valid, see the audit station.
       - at: "func NewStore(log *AuditLog)"
         kind: issue
+        focus: breaking-change
         evidence: stock_test.go calls NewStore(nil); callers outside this change are not shown.
         text: "**Breaking signature.** Every call site passes a log or `nil`."
+      - at: "return &Store{items: make(map[string]int), log: log}"
+        kind: decide
+        text: Should a store without an audit log still be allowed, or should support always get a history?
 
   - id: reserve
     title: Reserve validates before locking
     lede: The quantity check moved in front of the mutex, and failures now say what was missing.
+    scope: >-
+      This is the only function whose behaviour changes for existing callers, so it gets a stop of
+      its own, read right after the constructor it depends on.
+    what: >-
+      Reserve now rejects a quantity of zero or less before it takes the lock. Under the lock it
+      reads the stock once into `available`, fails with a wrapped `ErrInsufficient` that says how
+      much was there, and otherwise takes the stock and records the reservation in the log.
+    why: >-
+      A bad request used to wait for the lock before failing, and the old error did not say what was
+      missing. Recording under the lock keeps the log in the same order as the stock changes.
     risk: medium
+    risk_why: every reservation goes through it, and it now calls into the log while holding the store lock
     concern: fix
     tests: [TestReserve, TestAuditLogRecords]
     parts:
       - file: inventory/stock.go
         func: Store.Reserve
+        about: The whole of Reserve, since the check, the error and the log call all moved.
     notes:
       - at: "if qty <= 0"
         kind: info
@@ -56,18 +101,37 @@ stations:
   - id: audit
     title: The new audit log
     lede: A new file, so every line shows as added.
+    scope: >-
+      A new type with its own lock and no dependency on the store, so it reads best on its own,
+      after the store code that calls it.
+    what: >-
+      `Record` appends an entry with the time, the SKU and the change in stock; `Entries` returns a
+      copy of everything recorded so far. Both take the log's own lock, and `Record` does nothing on
+      a nil log.
+    why: >-
+      Reservations had no history. A separate lock keeps a slow reader of the log from blocking the
+      store, and the nil check lets stores built without a log keep working.
     risk: high
+    risk_why: a second lock, taken while the store's lock is held
     concern: feature
     tests: [TestAuditLogRecords]
     parts:
       - file: inventory/audit.go
+        lines: 1-22
+        about: The entry type, the log and its constructor.
+      - file: inventory/audit.go
         func: AuditLog.Record
+        about: Writing an entry, the only method the store calls.
       - file: inventory/audit.go
         func: AuditLog.Entries
     notes:
       - at: "if l == nil"
         kind: info
         text: A nil log is allowed, so stores built without one keep working.
+      - at: "l.entries = append(l.entries"
+        kind: decide
+        focus: performance
+        text: The log keeps every entry in memory for the life of the process. Is that acceptable, or does it need a cap?
       - at: "append([]Entry(nil), l.entries...)"
         kind: ok
         text: Returns a copy; callers cannot mutate the log.
@@ -75,6 +139,9 @@ stations:
   - id: removed
     title: ReleaseAll is gone
     lede: Nothing called it. Shown from the base side because it no longer exists.
+    scope: A pure deletion, kept apart so it can be checked in one look.
+    what: The old `ReleaseAll` removed a SKU and returned how much stock it had.
+    why: Nothing called it, and deleting the key also dropped the SKU from listings.
     risk: low
     concern: refactor
     parts:
@@ -88,11 +155,20 @@ stations:
 
   - id: report
     title: Report skips zero deltas
+    scope: The only Python in the change, and independent of the Go code apart from the log format.
+    what: >-
+      `summarize` sums the deltas per SKU, now skips entries whose delta is zero, and returns the
+      totals sorted by SKU.
+    why: Zero entries cluttered the report, and unsorted output changed between runs.
     risk: low
     concern: fix
     parts:
       - file: scripts/report.py
+        lines: 1-3
+      - file: scripts/report.py
         func: summarize
+      - file: scripts/report.py
+        lines: 20-22
     notes:
       - at: 'if entry["delta"] == 0'
         kind: question
