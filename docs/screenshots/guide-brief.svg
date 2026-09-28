@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1462" height="1036" viewBox="0 0 1462 1036">
+<style>text{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:16px;white-space:pre}</style>
+<rect width="1462" height="1036" rx="10" fill="#0d1117" stroke="#30363d"/>
+<rect width="1462" height="38" rx="10" fill="#161b22"/><rect y="28" width="1462" height="10" fill="#161b22"/>
+<line x1="0" y1="38" x2="1462" y2="38" stroke="#30363d"/>
+<circle cx="22" cy="19.0" r="6.5" fill="#ff5f57"/>
+<circle cx="44" cy="19.0" r="6.5" fill="#febc2e"/>
+<circle cx="66" cy="19.0" r="6.5" fill="#28c840"/>
+<text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
+<rect x="16.0" y="54" width="288.0" height="21" fill="#161b22"/>
+<rect x="304.0" y="54" width="124.8" height="21" fill="#d29922"/>
+<rect x="428.8" y="54" width="115.2" height="21" fill="#3fb950"/>
+<rect x="544.0" y="54" width="902.4" height="21" fill="#161b22"/>
+<text x="16.0" y="69" textLength="220.8" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › reserve 2/7  </text>
+<text x="236.8" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐</text>
+<text x="246.4" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc">●</text>
+<text x="256.0" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○</text>
+<text x="275.2" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐</text>
+<text x="304.0" y="69" textLength="240.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> MEDIUM RISK  7/7 tested </text>
+<text x="553.6" y="69" textLength="172.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> fix · 15 lines   </text>
+<text x="726.4" y="69" textLength="307.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Reserve validates before locking</text>
+<text x="1168.0" y="69" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  example · current/ vs base/</text>
+<text x="16.0" y="90" textLength="700.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff"> orient ─ ② Walk ─ decide   stop 2 of 5 · step 1 of 5 · what this stop is</text>
+<text x="947.2" y="90" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="111" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> ━────</text>
+<text x="947.2" y="111" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="132" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="153" textLength="316.8" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> Reserve validates before locking</text>
+<text x="947.2" y="153" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="174" textLength="835.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> The quantity check moved in front of the mutex, and failures now say what was missing.</text>
+<text x="947.2" y="174" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="195" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="216" textLength="864.0" lengthAdjust="spacingAndGlyphs" fill="#d29922"> Risk       medium: every reservation goes through it, and it now calls into the log while</text>
+<text x="947.2" y="216" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="237" textLength="326.4" lengthAdjust="spacingAndGlyphs" fill="#d29922">            holding the store lock</text>
+<text x="947.2" y="237" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="258" textLength="643.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> Why now    the method that calls the log, on the store from stop 1</text>
+<text x="947.2" y="258" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="279" textLength="892.8" lengthAdjust="spacingAndGlyphs" fill="#d29922"> Check      Can a zero or negative quantity still reach the stock anywhere Reserve is called?</text>
+<text x="947.2" y="279" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="300" textLength="307.2" lengthAdjust="spacingAndGlyphs" fill="#d29922">            (+1 more at the end)</text>
+<text x="947.2" y="300" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="321" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="342" textLength="912.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> Ahead: 1 piece of code to know first, then 1 change, then 1 import edit at a glance, 15 lines.</text>
+<text x="947.2" y="342" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="363" textLength="134.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> space starts.</text>
+<text x="947.2" y="363" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="384" textLength="633.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> e shows what and why, 3 before/after examples and all the checks.</text>
+<text x="947.2" y="384" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="405" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="426" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="447" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="489" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="510" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="531" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="552" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="573" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="594" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="615" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="636" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="657" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="678" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="699" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="720" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="741" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="762" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="783" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="804" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="825" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="846" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="888" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="909" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="930" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="951" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="972" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="993" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="16.0" y="999" width="96.0" height="21" fill="#161b22"/>
+<rect x="112.0" y="999" width="48.0" height="21" fill="#ff7b71"/>
+<rect x="160.0" y="999" width="9.6" height="21" fill="#161b22"/>
+<rect x="169.6" y="999" width="48.0" height="21" fill="#d29922"/>
+<rect x="217.6" y="999" width="9.6" height="21" fill="#161b22"/>
+<rect x="227.2" y="999" width="67.2" height="21" fill="#d2a8ff"/>
+<rect x="294.4" y="999" width="1152.0" height="21" fill="#161b22"/>
+<text x="25.6" y="1014" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 0/14 </text>
+<text x="112.0" y="1014" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ! 1 </text>
+<text x="169.6" y="1014" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ? 1 </text>
+<text x="227.2" y="1014" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ◆ 0/2 </text>
+<text x="304.0" y="1014" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 0m · 33 lines read </text>
+<text x="937.6" y="1014" textLength="508.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> space next · b back · e more · w whole stop · H help</text>
+</svg>

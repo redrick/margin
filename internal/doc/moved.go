@@ -66,7 +66,7 @@ func (d *Doc) markMoved(b builder) {
 				i = j
 			}
 		case !c.Base && c.Kinds != nil:
-			base := ghostBaseLines(c)
+			base := GhostBaseLines(c)
 			for at, g := range c.Ghosts {
 				runs = append(runs, &removed{part: c, lines: g, at: at, start: base[at], ghost: true})
 				total += len(g)
@@ -138,9 +138,9 @@ func (d *Doc) markMoved(b builder) {
 	}
 }
 
-// ghostBaseLines maps each current line with removed lines before it to the base line number of
+// GhostBaseLines maps each current line with removed lines before it to the base line number of
 // the first of them.
-func ghostBaseLines(p *Part) map[int]int {
+func GhostBaseLines(p *Part) map[int]int {
 	out := map[int]int{}
 	base := 0
 	for i := 0; i <= len(p.Kinds); i++ {

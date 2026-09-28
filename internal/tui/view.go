@@ -81,8 +81,14 @@ func (m *Model) progressDots() []seg {
 		switch {
 		case i == m.station:
 			dot, fg = "●", colTitle
+		case m.state.Verdicts[m.doc.Stations[i].ID] != "":
+			for _, v := range verdicts {
+				if v.id == m.state.Verdicts[m.doc.Stations[i].ID] {
+					dot, fg = "●", v.fg
+				}
+			}
 		case m.state.Visited[m.doc.Stations[i].ID]:
-			dot, fg = "●", colAdded
+			dot, fg = "◐", colText
 		}
 		segs = append(segs, seg{text: dot, fg: fg, bg: colBar})
 	}
@@ -90,6 +96,9 @@ func (m *Model) progressDots() []seg {
 }
 
 func (m *Model) footerView() string {
+	if m.labeling {
+		return m.labelBar()
+	}
 	if m.asking || m.searching {
 		return ansi.Truncate(m.input.View(), m.width, "")
 	}
@@ -151,8 +160,14 @@ func (m *Model) footerView() string {
 // red lines are on screen at all.
 func (m *Model) viewHint() string {
 	switch {
+	case m.guide && m.doc.Stations[m.station].Kind == doc.Overview:
+		return "y n ? answer · e more · "
+	case m.guide && m.doc.Stations[m.station].Kind != doc.Code:
+		return "space next · w whole stops · "
 	case m.doc.Stations[m.station].Kind != doc.Code:
 		return ""
+	case m.guideOn():
+		return "space next · b back · e more · w whole stop · "
 	case m.sideBySide():
 		return "s one column · "
 	case m.ghosts:
@@ -187,14 +202,17 @@ func (m *Model) bodyView() string {
 		}
 	}
 	switch {
+	case m.peek != nil:
+		entries, at := m.peekLines()
+		m.overlay(lines, entries, at, peekWidth)
 	case m.helpOpen:
-		m.overlay(lines, helpLines, -1)
+		m.overlay(lines, helpLines, -1, 84)
 	case m.listOpen:
 		entries := []string{" stations · enter jumps · esc closes"}
 		for i, s := range m.doc.Stations {
 			entries = append(entries, fmt.Sprintf(" %2d  %s", i, s.Title))
 		}
-		m.overlay(lines, entries, m.listCur+1)
+		m.overlay(lines, entries, m.listCur+1, 84)
 	}
 	return strings.Join(lines, "\n")
 }
@@ -284,6 +302,8 @@ func (m *Model) renderRow(idx, width, numW int) string {
 			bg, prefix = tintCursor, "▸ "
 		}
 		return p.Code(append([]render.Span{{Text: prefix, Color: colText, Bold: true}}, r.spans...), width, 0, bg)
+	case rowPainted:
+		return r.text
 	case rowFold:
 		bg := ""
 		if sel {
@@ -315,6 +335,9 @@ func (m *Model) renderRow(idx, width, numW int) string {
 	kind := lineKind(part, r.line)
 	bg, barFg := tint(kind, sel)
 	mark := sign(kind, "▎")
+	if part.Spec.Background {
+		mark, barFg = "┊  ", colDim
+	}
 	if part.Moved[r.line] != "" {
 		bg, barFg, mark = tintMoved, colMoved, "▎→ "
 		if part.Base {
@@ -475,13 +498,17 @@ func (m *Model) spansFor(part *doc.Part) [][]render.Span {
 var helpLines = []string{
 	" keys · any key closes",
 	"",
-	" j k  ↑ ↓   move                 enter  open a link, unfold",
+	" space      next step            b      previous step",
+	" y n ?      first screen: does the change make sense? e  more text: overview, stop card",
+	" 1 2 3      verdict: good, needs changes, not sure    w  guided walk / whole stop",
+	"",
+	" j k  ↑ ↓   move                 enter  open a link, unfold, peek at a caller",
 	" ] [        next / previous note N      next new note",
 	" } {        next / previous stop tab    station list",
-	" space      mark note reviewed   x      dismiss note; in the recap, delete a draft",
-	" ?          flag note            v      show notes (your pass first)",
+	" space      whole stop: mark note x      dismiss note; in the recap, delete a draft",
+	" ?          flag note            v      show notes (blind mode, margin open --blind)",
 	" a          ask the agent        F      filter: all, findings, problems, focus areas",
-	" c          comment (a draft)    S      send the draft comments to the agent",
+	" c          comment: pick a kind (issue, suggestion, …), then write it; S sends the drafts",
 	" y          copy the note        Y      copy the stop: rationale and every note",
 	" z          fold unchanged lines f      whole file",
 	" d          removed lines        n      notes column",
@@ -491,9 +518,13 @@ var helpLines = []string{
 	" h l        scroll sideways      q      quit",
 }
 
-// overlay draws a centred box of entries over the body; highlight is the selected entry or -1.
-func (m *Model) overlay(lines, entries []string, highlight int) {
-	w := min(84, m.width-4)
+// peekWidth is the widest the peek overlay gets.
+const peekWidth = 124
+
+// overlay draws a centred box of entries over the body, at most maxW wide; highlight is the
+// selected entry or -1.
+func (m *Model) overlay(lines, entries []string, highlight, maxW int) {
+	w := min(maxW, m.width-4)
 	if w < 30 {
 		return
 	}
@@ -509,6 +540,10 @@ func (m *Model) overlay(lines, entries []string, highlight int) {
 			fg, bold = colHeading, true
 		case i == highlight:
 			fg, bg, bold = colInk, colCursorNum, true
+		}
+		if m.peekStyled && m.peek != nil && i > 0 {
+			lines[y] = pad + e
+			continue
 		}
 		lines[y] = pad + m.paint.Text(e, w, fg, bg, bold, false)
 	}

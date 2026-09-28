@@ -9,9 +9,9 @@
 <text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
 <rect x="16.0" y="54" width="1430.4" height="21" fill="#161b22"/>
 <text x="16.0" y="69" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › tests 7/7  </text>
-<text x="217.6" y="69" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●●●</text>
-<text x="246.4" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○</text>
-<text x="256.0" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●</text>
+<text x="217.6" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐◐</text>
+<text x="236.8" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○</text>
+<text x="256.0" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐</text>
 <text x="284.8" y="69" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Tests</text>
 <text x="1168.0" y="69" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  example · current/ vs base/</text>
 <text x="16.0" y="90" textLength="499.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> What each test runs · enter on a test spotlights it</text>

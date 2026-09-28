@@ -27,6 +27,8 @@ const (
 	rowFold
 	rowLink
 	rowTest
+	// rowPainted holds a line already painted to the code width, such as a note card.
+	rowPainted
 )
 
 type tone uint8
@@ -57,6 +59,12 @@ type row struct {
 	// file and comment make a link jump to a line, and tie it to one of the reader's comments.
 	file    string
 	comment int
+	// peek opens the line, or the commit sha, in an overlay instead of jumping.
+	peek bool
+	sha  string
+	// toggle ticks a mark in the reader's state; verdict gives the stop that verdict.
+	toggle  string
+	verdict string
 }
 
 func (r row) selectable() bool {
@@ -95,7 +103,12 @@ func (m *Model) rebuild() {
 	case doc.Tests:
 		m.testRows(st)
 	case doc.Code:
-		m.codeRows(st)
+		if m.guide {
+			m.guideRows(st)
+		} else {
+			m.codeRows(st)
+		}
+		m.padForCards()
 	}
 	if m.status == splitNarrow && (!m.split || m.splitFits()) {
 		m.status = ""
@@ -136,7 +149,7 @@ func (m *Model) wrapped(t tone, indent int, s string) {
 }
 
 func (m *Model) blind(st *doc.Station) bool {
-	return st.Kind == doc.Code && st.Risk == "high" && m.state != nil && !m.state.Revealed[st.ID]
+	return st.Kind == doc.Code && st.Risk == "high" && m.state != nil && m.state.Blind && !m.state.Revealed[st.ID]
 }
 
 func (m *Model) noteVisible(st *doc.Station, n *doc.Note) bool {
@@ -158,6 +171,10 @@ func (m *Model) noteVisible(st *doc.Station, n *doc.Note) bool {
 }
 
 func (m *Model) overviewRows() {
+	if m.guide && !m.more {
+		m.orientRows()
+		return
+	}
 	r := m.doc.Review
 	m.wrapped(toneTitle, 0, r.Title)
 	if r.Kicker != "" {
@@ -171,6 +188,10 @@ func (m *Model) overviewRows() {
 		m.wrapped(toneDim, 0, "base: "+m.doc.BaseDesc+" · showing: "+shown)
 	} else {
 		m.wrapped(toneDim, 0, "no base: plain code, no diff marks")
+	}
+	if m.guide {
+		m.add(rowText, tonePlain, "")
+		m.wrapped(toneDim, 0, "Everything the agent wrote about the change. e goes back to the short version.")
 	}
 	m.intentRows(r)
 	if r.Summary != "" {
@@ -210,6 +231,9 @@ func (m *Model) overviewRows() {
 			m.colored(riskColor(s.Risk), "       "+m.stationMeta(s))
 			if s.RiskWhy != "" {
 				m.colored(riskColor(s.Risk), "       "+doc.Short("because "+s.RiskWhy, max(m.codeWidth()-9, 20)))
+			}
+			if s.OrderWhy != "" {
+				m.colored(colDim, "       "+doc.Short("comes now: "+s.OrderWhy, max(m.codeWidth()-9, 20)))
 			}
 			if line, fg, ok := m.covLine(s); ok {
 				m.colored(fg, "       "+line)
@@ -431,6 +455,11 @@ func pacing(total, read int) string {
 }
 
 func (m *Model) recapRows() {
+	if m.guide {
+		m.phaseRow(3, "")
+		m.add(rowText, tonePlain, "")
+	}
+	m.verdictRows()
 	m.wrapped(toneLede, 0, "The checklist before you approve: the calls only you can make, every problem and open question, and your own comments. Enter jumps to the line. A problem without evidence is listed as a question until the agent backs it up.")
 	m.add(rowText, tonePlain, "")
 	found := m.callRows()
@@ -489,7 +518,11 @@ func (m *Model) callRows() bool {
 				continue
 			}
 			if !heading {
-				m.add(rowText, toneHeading, "Your calls · space on the note marks one made")
+				title := "Your calls · space on the note marks one made"
+				if m.guide {
+					title = "Your calls · enter goes to one, tick it off at the end of its stop"
+				}
+				m.add(rowText, toneHeading, title)
 				heading = true
 			}
 			box := "☐ "
@@ -596,6 +629,9 @@ func (m *Model) codeRows(st *doc.Station) {
 		}
 		m.add(rowText, tonePlain, "")
 	}
+	if m.exampleRows(st) {
+		m.add(rowText, tonePlain, "")
+	}
 	if m.stopCalls(st) {
 		intro = true
 	}
@@ -609,6 +645,13 @@ func (m *Model) codeRows(st *doc.Station) {
 	}
 	if m.blind(st) {
 		m.colored(colChanged, "your pass first: the agent's notes stay hidden on this high-risk stop until you press v")
+		intro = true
+	}
+	if intro {
+		m.add(rowText, tonePlain, "")
+		intro = false
+	}
+	if m.aroundRows(st) {
 		intro = true
 	}
 	if intro {
@@ -803,8 +846,9 @@ func (m *Model) partHeader(st *doc.Station, pi int, p *doc.Part) string {
 		s += " · new file"
 	}
 	if p.Err == nil && (p.Kinds != nil) && !p.NewFile && !p.Base {
-		a, c, r := doc.Counts([]*doc.Part{p})
-		s += fmt.Sprintf(" · +%d -%d", a+c, r)
+		if a, c, r := doc.Counts([]*doc.Part{p}); a+c+r > 0 || !p.Spec.Background {
+			s += fmt.Sprintf(" · +%d -%d", a+c, r)
+		}
 	}
 	if n := p.MovedCount(); n > 0 {
 		s += fmt.Sprintf(" · %d moved unchanged", n)
@@ -812,7 +856,9 @@ func (m *Model) partHeader(st *doc.Station, pi int, p *doc.Part) string {
 	if m.whole[[2]int{m.station, pi}] {
 		s += " · whole file"
 	}
-	if p.Err == nil && !m.blind(st) && !st.Auto && !partHasNotes(st, pi) {
+	if p.Spec.Background {
+		s += " · background, read first"
+	} else if p.Err == nil && !m.blind(st) && !st.Auto && !partHasNotes(st, pi) {
 		s += " · no agent notes, read it yourself"
 	}
 	return s
@@ -890,8 +936,15 @@ func (m *Model) move(delta int) {
 		}
 		i = j
 	}
+	// Past the first or last line the cursor can stop on, the view still scrolls, so text above
+	// or below it, such as notes drawn under the code, comes into sight.
 	if i == m.cur && delta < 0 {
-		m.top = 0
+		m.top = max(m.top+delta, 0)
+		return
+	}
+	if i == m.cur && delta > 0 {
+		m.top += delta
+		m.clampTop()
 		return
 	}
 	m.setCursor(i)
@@ -918,7 +971,40 @@ func (m *Model) follow() {
 	if m.cur > m.top+h-1-margin {
 		m.top = m.cur - h + 1 + margin
 	}
+	// The cards of the cursor line's notes hang down from it; scroll until they fit.
+	if hc := m.cardsHeight(m.rows[m.cur]); hc > 0 && m.cur-m.top+hc > h-1 {
+		m.top = min(m.cur, m.cur+hc-(h-1))
+	}
 	m.clampTop()
+}
+
+// cardsHeight is how many screen lines the notes column needs for a row's notes, with the selected
+// one open in full.
+func (m *Model) cardsHeight(r row) int {
+	if !m.notesShown() || r.kind != rowCode || len(r.notes) == 0 {
+		return 0
+	}
+	st := m.doc.Stations[m.station]
+	w := m.width - m.codeWidth() - 1
+	n := 0
+	for _, ni := range r.notes {
+		n += len(m.noteCard(st, ni, w, true)) + 1
+	}
+	return n
+}
+
+// padForCards adds blank rows after the last line when a note near the end has a card taller than
+// the rows below it, so the view can scroll far enough to show the whole card.
+func (m *Model) padForCards() {
+	pad := 0
+	for i, r := range m.rows {
+		if hc := m.cardsHeight(r); hc > 0 {
+			pad = max(pad, i+hc+1-len(m.rows))
+		}
+	}
+	for range min(pad, m.bodyHeight()) {
+		m.add(rowText, tonePlain, "")
+	}
 }
 
 func (m *Model) setStation(i int) {
@@ -927,6 +1013,7 @@ func (m *Model) setStation(i int) {
 	}
 	m.station = min(max(i, 0), len(m.doc.Stations)-1)
 	m.cur, m.top, m.hoff, m.note = 0, 0, 0, -1
+	m.step, m.nudged = 0, false
 	m.rebuild()
 	st := m.doc.Stations[m.station]
 	if len(st.Notes) > 0 {
@@ -963,6 +1050,7 @@ func (m *Model) gotoNote(i int) {
 	}
 	n := st.Notes[i]
 	if n.Part >= 0 {
+		m.showStep(n.Part, n.Line)
 		key := doc.LineKey(st.Parts[n.Part], n.Line)
 		for idx, r := range m.rows {
 			if r.kind == rowCode && doc.LineKey(st.Parts[r.part], r.line) == key {
@@ -1083,6 +1171,7 @@ func (m *Model) gotoFileLine(file string, line int) error {
 					m.whole[[2]int{si, pi}] = true
 					m.rebuild()
 				}
+				m.showStep(pi, line-1)
 				for idx, r := range m.rows {
 					if r.kind == rowCode && r.part == pi && r.line == line-1 {
 						m.setCursor(idx)

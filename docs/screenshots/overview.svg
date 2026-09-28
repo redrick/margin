@@ -9,37 +9,38 @@
 <text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
 <rect x="16.0" y="54" width="1430.4" height="21" fill="#161b22"/>
 <text x="16.0" y="69" textLength="230.4" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › overview 0/7  </text>
-<text x="246.4" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●●</text>
+<text x="246.4" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐◐</text>
 <text x="265.6" y="69" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○○</text>
 <text x="313.6" y="69" textLength="355.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Stock reservations get an audit trail</text>
 <text x="1168.0" y="69" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  example · current/ vs base/</text>
-<text x="16.0" y="90" textLength="489.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">                                  │               │</text>
-<text x="16.0" y="111" textLength="921.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">                                  │               └─► ErrInsufficient (wrapped, still errors.Is)</text>
-<text x="16.0" y="132" textLength="537.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">                                  └─► ErrInvalidQuantity</text>
-<text x="16.0" y="174" textLength="249.6" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Tour · enter opens a stop</text>
-<text x="16.0" y="195" textLength="432.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   1 ● store · The store carries an audit log</text>
-<text x="16.0" y="216" textLength="748.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        low risk · feature · 18 lines · ! 1 · ◆ 1 · ✓ 0/3 · tests: TestReserve</text>
-<text x="16.0" y="237" textLength="806.4" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        because a constructor signature changes, but the compiler finds every caller</text>
-<text x="16.0" y="258" textLength="432.0" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        tested ████████████ 2/2 changed lines</text>
-<text x="16.0" y="279" textLength="470.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   2 ● reserve · Reserve validates before locking</text>
-<text x="16.0" y="300" textLength="825.6" lengthAdjust="spacingAndGlyphs" fill="#d29922">        medium risk · fix · 15 lines · ✓ 0/4 · tests: TestReserve, TestAuditLogRecords</text>
-<text x="16.0" y="321" textLength="1046.4" lengthAdjust="spacingAndGlyphs" fill="#d29922">        because every reservation goes through it, and it now calls into the log while holding the store lock</text>
-<text x="16.0" y="342" textLength="432.0" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        tested ████████████ 7/7 changed lines</text>
-<text x="16.0" y="363" textLength="307.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   3 ○ audit · The new audit log</text>
-<text x="16.0" y="384" textLength="777.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">        high risk · feature · 35 lines · ◆ 1 · ✓ 0/3 · tests: TestAuditLogRecords</text>
-<text x="16.0" y="405" textLength="643.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">        because a second lock, taken while the store's lock is held</text>
-<text x="16.0" y="426" textLength="451.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        tested ████████████ 12/12 changed lines</text>
-<text x="16.0" y="447" textLength="336.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   4 ○ removed · ReleaseAll is gone</text>
-<text x="16.0" y="468" textLength="432.0" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        low risk · refactor · 7 lines · ✓ 0/1</text>
-<text x="16.0" y="489" textLength="384.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   5 ○ report · Report skips zero deltas</text>
-<text x="16.0" y="510" textLength="451.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        low risk · fix · 13 lines · ? 1 · ✓ 0/2</text>
-<text x="16.0" y="531" textLength="556.8" lengthAdjust="spacingAndGlyphs" fill="#d29922">        tested ███████░░░░░ 4/7 changed lines · 3 untested</text>
-<text x="16.0" y="552" textLength="364.8" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">   6 ▸ recap · 1 problems, 1 questions</text>
-<text x="16.0" y="573" textLength="297.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   7 ▸ tests · what 6 tests run</text>
-<text x="16.0" y="615" textLength="1344.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 88 lines to read, 33 read so far. At about 400 lines an hour that is 13 minutes; reviews catch less after 60 to 90 minutes, so take breaks.</text>
-<text x="16.0" y="657" textLength="307.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Focus areas · F filters by them</text>
-<rect x="16.0" y="663" width="940.8" height="21" fill="#1f2a3a"/>
-<text x="16.0" y="678" textLength="940.8" lengthAdjust="spacingAndGlyphs" fill="#ff7b71" font-weight="bold">▸ breaking-change · store · stock.go:20 — Breaking signature. Every call site passes a log or nil.</text>
+<text x="16.0" y="90" textLength="748.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        low risk · feature · 18 lines · ! 1 · ◆ 1 · ✓ 0/3 · tests: TestReserve</text>
+<text x="16.0" y="111" textLength="806.4" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        because a constructor signature changes, but the compiler finds every caller</text>
+<text x="16.0" y="132" textLength="508.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">        comes now: the store every later stop changes</text>
+<text x="16.0" y="153" textLength="432.0" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        tested ████████████ 2/2 changed lines</text>
+<text x="16.0" y="174" textLength="470.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   2 ● reserve · Reserve validates before locking</text>
+<text x="16.0" y="195" textLength="825.6" lengthAdjust="spacingAndGlyphs" fill="#d29922">        medium risk · fix · 15 lines · ✓ 0/4 · tests: TestReserve, TestAuditLogRecords</text>
+<text x="16.0" y="216" textLength="1046.4" lengthAdjust="spacingAndGlyphs" fill="#d29922">        because every reservation goes through it, and it now calls into the log while holding the store lock</text>
+<text x="16.0" y="237" textLength="710.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">        comes now: the method that calls the log, on the store from stop 1</text>
+<text x="16.0" y="258" textLength="432.0" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        tested ████████████ 7/7 changed lines</text>
+<text x="16.0" y="279" textLength="307.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   3 ○ audit · The new audit log</text>
+<text x="16.0" y="300" textLength="777.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">        high risk · feature · 35 lines · ◆ 1 · ✓ 0/3 · tests: TestAuditLogRecords</text>
+<text x="16.0" y="321" textLength="643.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">        because a second lock, taken while the store's lock is held</text>
+<text x="16.0" y="342" textLength="556.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">        comes now: the log itself, which Reserve writes to</text>
+<text x="16.0" y="363" textLength="451.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        tested ████████████ 12/12 changed lines</text>
+<text x="16.0" y="384" textLength="336.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   4 ○ removed · ReleaseAll is gone</text>
+<text x="16.0" y="405" textLength="432.0" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        low risk · refactor · 7 lines · ✓ 0/1</text>
+<text x="16.0" y="426" textLength="451.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590">        comes now: independent; only a deletion</text>
+<text x="16.0" y="447" textLength="384.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   5 ○ report · Report skips zero deltas</text>
+<text x="16.0" y="468" textLength="451.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950">        low risk · fix · 13 lines · ? 1 · ✓ 0/2</text>
+<text x="16.0" y="489" textLength="604.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">        comes now: independent; the script that reads the stock</text>
+<text x="16.0" y="510" textLength="556.8" lengthAdjust="spacingAndGlyphs" fill="#d29922">        tested ███████░░░░░ 4/7 changed lines · 3 untested</text>
+<text x="16.0" y="531" textLength="364.8" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">   6 ▸ recap · 1 problems, 1 questions</text>
+<text x="16.0" y="552" textLength="297.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   7 ▸ tests · what 6 tests run</text>
+<text x="16.0" y="594" textLength="1344.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 88 lines to read, 33 read so far. At about 400 lines an hour that is 13 minutes; reviews catch less after 60 to 90 minutes, so take breaks.</text>
+<text x="16.0" y="636" textLength="307.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Focus areas · F filters by them</text>
+<text x="16.0" y="657" textLength="940.8" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">  breaking-change · store · stock.go:20 — Breaking signature. Every call site passes a log or nil.</text>
+<rect x="16.0" y="663" width="1392.0" height="21" fill="#1f2a3a"/>
+<text x="16.0" y="678" textLength="1392.0" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">▸ performance · audit · audit.go:30 — The log keeps every entry in memory for the life of the process. Is that acceptable, or does it need a cap?</text>
 <text x="16.0" y="720" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Renames</text>
 <text x="16.0" y="741" textLength="393.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   NewStore()  →  NewStore(log *AuditLog)</text>
 <rect x="16.0" y="747" width="96.0" height="21" fill="#161b22"/>

@@ -21,7 +21,8 @@ margin --pr 123     # review a GitHub pull request (read-only)
 ```
 
 > Status: early, but the whole loop works. See the roadmap below. New to it? Jump to
-> [How to use it, really](#how-to-use-it-really) for a whole review, step by step.
+> [How to use it, really](#how-to-use-it-really): margin walks you through the review one step at
+> a time.
 
 ## Install
 
@@ -46,8 +47,9 @@ margin open testdata/example/example.review.yaml
    was meant to do, from the commit messages, the pull request description or `--intent`. The
    viewer shows it at once.
 2. The agent starts with instructions to shape the tour first: it compares the change with what
-   was asked, groups related files into stops, orders them riskiest first, says why each stop is
-   risky and writes a summary. Every change has to land in a stop or in the list of things safe to
+   was asked, groups related files into 3 to 6 stops, orders them so each needs only the ones
+   before it (riskier first where they do not depend on each other), says why each stop comes
+   where it does and why it is risky, and writes a summary. Every change has to land in a stop or in the list of things safe to
    skip. Then it comments on every change: why it is there and whether it looks correct. Its notes
    appear beside the code as it writes them.
 3. The agent measures which tests run which changed lines (see [Test coverage](#test-coverage)),
@@ -87,11 +89,12 @@ becomes what the change was asked to do.
 
 ## How to use it, really
 
-A whole review, from the first command to the posted comments. The keys are the only thing to
-learn; `H` shows them at any time.
+margin walks you through a review in three phases, always in the same order, and the top line
+always says where you are: **① Orient**, **② Walk**, **③ Decide**. You need four keys: `space` to go
+on, `b` to go back, `c` to comment, `a` to ask. `H` lists the rest, and `e` shows more text wherever
+the screen keeps it short.
 
-**1. Start it where the change is.** In the repository, run the command that matches what you are
-reviewing:
+**1. Start it where the change is.**
 
 ```sh
 margin                            # your own uncommitted work, before you commit it
@@ -101,51 +104,116 @@ margin --pr 123                   # someone's pull request (git fetch origin pul
 margin --intent "Support needs a history of stock changes"   # when the commits do not say why
 ```
 
-The review opens on top and the agent below. Add `--instructions "check the migration is
-reversible"` when you already know what worries you.
+Add `--instructions "check the migration is reversible"` when you already know what worries you.
 
-**2. Read the overview while the agent works.** For the first minute or two the agent shapes the
-tour, and the overview fills in as it saves. Read *Asked*, *Did* and *Gap* first: if the change
-does something nobody asked for, or misses part of the ask, that is the most important finding of
-the review and you have it before reading any code. Then look over the tour: which stops are high
-risk and why, which have calls for you, which have untested lines. Check *Problems with the review
-file* at the bottom; "changes no stop shows" there means the agent has not placed everything yet.
+**2. Orient: one screen, one question.** The review opens on a single screen: what the change is
+*for* (from the commits, the pull request or `--intent`), what it *does*, and the *gap* between the
+two when there is one. Below that is the route: the stops in the order you will read them, each
+with a few words on why it comes there ("the errors every later stop returns", "uses the resolver
+from stop 1"). For the first minute or two the agent shapes the route and the screen fills in.
 
-**3. Walk the stops in order.** Press `enter` on the first stop, or `}`. For each stop:
+Then it asks one question before any code: **does this change make sense, done this way?** `y`
+walks it. `?` walks it too, when you are not sure yet. `n` asks you why, and that answer is the
+review: it blocks the change and takes you straight to the decision, because details do not matter
+when the approach is wrong. `e` shows everything the agent wrote about the whole change.
 
-- Read the lede, the risk line and the three rationale paragraphs, then the calls listed under
-  *Your calls in this stop*, so you know what you are weighing before you see the code.
-- Read the code. On a high-risk stop the notes are hidden: form your own view, then press `v` and
-  compare.
-- Step through the notes with `]` and `[`. `space` marks one read (or a call made), `?` flags one
-  you want in your review, `x` dismisses one that did not help.
-- Something unclear? `a` asks the agent about the cursor line and the answer arrives as a note.
-  Something to change? `c` writes a comment and keeps reading; press `S` at the end of the stop to
-  hand over every comment at once. For bigger requests, click the agent's pane and type.
-- `u` jumps to the next changed line no test runs. If it matters, comment on it.
-- `}` moves to the next stop. The dots in the header show which stops you have visited.
+**3. Walk: each stop, one step at a time.** Each stop opens with a card of a few lines: what it is,
+its risk, why it comes now, and the one thing to **check**. Then:
 
-Short on time? `F` narrows the notes to problems, questions and calls, or to one focus area such
-as `security`.
+- **Know this first** (only where needed) shows unchanged code the change leans on. There is nothing
+  to judge in it.
+- **One change per step.** A step is one reading unit: the edits of one function, or close together,
+  shown with a little context and the agent's notes beside their lines (`]` `[` step through them).
+  Every step ends with the question to answer before going on, and `space` means "yes, go on". A
+  call to make or a problem the agent found is settled right there: `enter` ticks a call, `?`
+  agrees with a problem, `x` dismisses it. If a function it changes is called from a few places
+  outside the review, the step lists them; `enter` peeks at one.
+- **Housekeeping.** Import edits need no judgment, so they come together in one step at the end of
+  the stop, to glance over.
+- **Your verdict.** The last step lists the checks as a reminder and whatever is still open, then asks
+  one question: `1` looks good, `2` needs changes, `3` not sure yet. "Not sure" is a fine answer: go
+  back with `b` and ask about the line that bothers you.
 
-**4. Let the agent fix things.** After `S`, the agent works through your comments in its pane,
-changes code where you asked, and closes each comment with its answer. The review reloads by
-itself: `N` jumps to the new notes, notes marked Δ changed with the code, and coverage is measured
-again.
+`space` after the verdict moves on to the next stop. Moving past a change counts its notes as read, so
+there is nothing to tick off by hand. The walk is a suggestion, not a cage: `tab` lists the stops and
+`}` `{` jump between them.
 
-**5. Finish on the recap.** The last stop is the checklist: every call you still have to make,
-every problem and open question, and each of your comments with its state. Settle each one, and
-`enter` on an entry takes you back to its line.
+**4. Write comments the author can act on.** `c` first asks what kind of comment it is, after
+[Conventional Comments](https://conventionalcomments.org/): `i` issue, `s` suggestion, `q`
+question, `n` nitpick, `p` praise, `t` thought. An issue blocks the change and the rest do not; `!`
+flips that. While you type, the prompt says what a good comment of that kind contains ("what goes
+wrong, for which input, and what you would do instead"). Comments stay drafts until `S` sends them all
+to the agent, which fixes the code or explains why not and closes each one. The review reloads by
+itself: `N` jumps to the new notes, and notes marked Δ changed along with the code.
 
-**6. Post it.** `margin export` prints your comments with the agent's answers, the notes you
-flagged and your calls, ready to paste into the pull request. `margin export --format github`
-prints a review to post with `gh api`. margin never posts on its own.
+**5. Decide: the recap tells you what to do.** After the last stop, the recap recommends *approve*, *request
+changes*, or says the review is *not finished* and lists exactly what is left: stops without a
+verdict, calls not made, problems neither flagged nor dismissed, blocking comments not resolved.
+
+**6. Post it.** `margin export` prints the recommendation, your comments with the agent's answers,
+the notes you flagged and your calls, ready to paste into the pull request. `margin export --format
+github` prints a review for `gh api` with the matching event (approve, request changes or comment).
+margin never posts on its own.
 
 **7. Stop any time.** Press `q`. Running the same `margin` command later reopens the review where
-you left it, with your marks, comments and the agent's notes; new changes since then are added.
+you left it, with your verdicts, marks, comments and the agent's notes.
+
+Prefer to see a whole stop at once? `w` switches to the whole-stop view described in [A walk through
+the viewer](#a-walk-through-the-viewer), with the notes in a column beside the code, and remembers the
+choice. `w` again switches back. `margin open --full` starts in it.
 
 The footer tracks how long and how much you have read, because review quality drops after roughly
 400 lines or 90 minutes. Take a break there; `margin` resumes where you stopped.
+
+### The guided walk in pictures
+
+Orient: what the change is for, what it does, the route, and the one question before any code.
+
+![The orient screen: for, does and gap, the route with why each stop comes where it does, and the question whether the change makes sense](docs/screenshots/guide-overview.svg)
+
+The card of a stop: what it is, its risk, why it comes now and the one thing to check. `e` adds
+what and why, the flow and the before/after examples.
+
+![The card of the reserve stop: risk, why now, the check, and what is ahead](docs/screenshots/guide-brief.svg)
+
+One change, with the agent's notes beside the lines they are about and the question to answer.
+
+![One change of the reserve stop, the notes numbered in the gutter and shown beside their lines](docs/screenshots/guide-change.svg)
+
+`c` asks what kind of comment you are writing.
+
+![The comment kinds in the footer: issue, suggestion, question, nitpick, praise, thought](docs/screenshots/comment-kind.svg)
+
+The end of a stop: questions, calls, and your verdict.
+
+![The wrap-up of the audit stop with its questions, the call to make, and the verdict set to needs changes](docs/screenshots/guide-wrap.svg)
+
+The recap turns your verdicts into a recommendation and says what is left.
+
+![The recap recommending request changes, listing why, and each stop with its verdict](docs/screenshots/guide-recap.svg)
+
+### Why it works this way
+
+- Orient, then the main part, then the rest: [Google's guide to navigating a change](https://google.github.io/eng-practices/review/reviewer/navigate.html)
+  first asks whether the change makes sense at all, and sends design comments before any detail,
+  because the rest may not survive them.
+- Few, coarse steps rather than a long checklist: a strictly guided, step-by-step checklist helped on
+  a small change but got in the way on large ones ([Gonçalves et al., 2022](https://dl.acm.org/doi/abs/10.1007/s10664-022-10123-8)),
+  so each step is a whole reading unit, mechanical edits share one step, and long texts wait behind `e`.
+- The order is shown and explained: reviewers get lost in an order they cannot follow, and prefer
+  reading what is used before what uses it ([Baum et al., 2017](https://sback.it/publications/icsme2017.pdf)),
+  so stops come in dependency order and the route says why each one comes where it does.
+- One change at a time, related changes next to each other: reviewers keep only a few change parts
+  in mind at once, and find more defects when the order follows the code's relations rather than
+  file names ([Baum et al., 2019](https://link.springer.com/article/10.1007/s10664-018-9676-8)).
+- A step-by-step tour with an explanation at every step is how
+  [CodeTour](https://github.com/microsoft/codetour) walks people into unfamiliar code.
+- Risky parts early: what a reviewer reads last gets fewer comments ([Fregnan et al., 2022](https://arxiv.org/abs/2208.04259)),
+  so among stops that do not depend on each other, the riskier one comes first.
+- The checks default to what [Google's review guide](https://google.github.io/eng-practices/review/reviewer/looking-for.html)
+  asks per kind of change, until the agent writes ones for the stop.
+- Comment kinds follow [Conventional Comments](https://conventionalcomments.org/), so the author
+  knows what is a request and what is a thought.
 
 ### Making a repository margin-friendly
 
@@ -154,6 +222,10 @@ generated files that need no stop, and `instructions` for what reviewers should 
 [Repository settings](#repository-settings).
 
 ## A walk through the viewer
+
+This part shows the whole-stop view (`w`, or `margin open --full`): each stop drawn at once, with
+the agent's notes in a column beside the code. Everything in it also exists in the guided walk,
+spread over the steps.
 
 ### What was asked, and what was done
 
@@ -235,11 +307,47 @@ one filter per focus area the notes use. The footer names the filter that is on.
 
 ![The store stop filtered to breaking changes: only the problem note is left, the filter named in the footer](docs/screenshots/filter.svg)
 
+A card too tall for the column ends in `… enter reads it all`: `enter` on its line opens every note
+on that line in an overlay, which scrolls with `j` `k` when it is long.
+
 A part without notes says so, which tells you the agent never looked at it, as opposed to having
 looked and found it fine. The viewer uses the mouse for scrolling, so text cannot be selected with
 a drag; press `y` to copy the selected note instead, or `Y` for the whole stop. Copying uses
 `wl-copy`, `xclip` or `xsel` when installed, and otherwise hands the text to tmux. A note marked Δ was changed after the agent edited the code; read it
 again.
+
+### Around a stop: examples, callers and history
+
+Most of getting lost in a pull request comes from what the diff does not show: what the code did
+before, who else depends on it, and why the old code was written that way. Each stop answers those
+three before its code.
+
+- **Before and after** is written by the agent, which runs the old and the new code on a few
+  telling inputs, edge cases first. Red is what the old code did, green what the new code does;
+  `same` marks an input whose result did not change. Below, the first row shows a bug the change
+  fixes that the rationale did not mention: a negative quantity used to add stock.
+- **Around this stop** is computed by margin itself when you open the stop. For every function or
+  type the stop changes or removes, it lists the places outside the tour that use it. Those are the
+  callers whose behaviour may change without the diff showing it. A removed function nobody uses
+  says so in green. For a review of commits it also lists the commits that wrote the replaced lines,
+  so you can see what the old code was for before judging the new one. A name used in too many
+  places to be useful is counted, not listed.
+- **Background parts** are unchanged code the agent put in front of the change because you need it
+  first. They are dimmed, marked `┊`, say `background, read first` in their header, and do not
+  count as lines to review.
+
+![The reserve stop: before and after examples, the callers of Reserve outside the tour, and Store.Add as background](docs/screenshots/around.svg)
+
+`enter` on a caller opens the code around it in an overlay, and any key closes it, so checking a
+caller does not lose your place in the stop.
+
+![Peeking at a caller of Reserve in a test file](docs/screenshots/peek.svg)
+
+Callers are found by name with `git grep` over the reviewed side (functions by their call, types
+by any mention), which is quick and works for any language margin recognises (Go, Python,
+JavaScript and TypeScript, Rust, Ruby, PHP). Being text search, it can list a same-named function
+from elsewhere and miss calls through an interface or a function value. Treat the list as the
+places to check, not as proof of who is affected.
 
 ### Your calls
 
@@ -251,10 +359,11 @@ counts how many you have made. Press `space` on a call once you have made it.
 
 ![A stop opening with the call to make in it](docs/screenshots/calls.svg)
 
-### High-risk stops: read first
+### Blind mode: read high-risk stops first
 
-On a high-risk stop the notes stay hidden, so the agent's findings do not steer what you notice.
-Read the code, then press `v` to compare with what the agent found.
+`margin open --blind` hides the notes on high-risk stops, so the agent's findings do not steer what
+you notice. Read the code, then press `v` to compare with what the agent found. The review remembers
+the setting. It is off by default, because it takes the help away where the code is hardest.
 
 ![A high-risk stop with the notes hidden until v is pressed](docs/screenshots/hidden.svg)
 
@@ -274,8 +383,10 @@ it affected with Δ and the review reloads.
 ### Commenting as you read
 
 `a` interrupts the agent with each question. When you would rather read on and hand over your
-remarks in one go, press `c` on a line instead: the comment is kept as a draft, marked `✎` in the
-gutter and shown in the notes column. Press `S` to send every draft to the agent in one message.
+remarks in one go, press `c` on a line instead. margin first asks what kind of comment it is
+(issue, suggestion, question, nitpick, praise or thought; `!` flips whether it blocks), then shows
+what a good comment of that kind says while you type. The comment is kept as a draft, marked `✎` in
+the gutter and shown in the notes column. Press `S` to send every draft to the agent in one message.
 The agent handles each comment, by changing the code or by explaining why not, and closes it with
 `margin resolve`; the answer lands on that line as a note under your comment. The recap lists your
 comments with where each stands, and `x` on a draft there deletes it.
@@ -433,6 +544,12 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 
 | Key | Action |
 | --- | --- |
+| `space` | guided walk: next step; after a stop's verdict, the next stop |
+| `y` `n` `?` | on the orient screen: the change makes sense / does not (say why) / not sure yet |
+| `e` | more text: the whole overview on the orient screen, what and why and examples on a stop's card |
+| `b` | guided walk: previous step |
+| `1` `2` `3` | the stop's verdict: looks good, needs changes, not sure yet |
+| `w` | switch between the guided walk and whole stops (remembered) |
 | `j` `k` / arrows, `ctrl+d` `ctrl+u`, `g` `G` | move |
 | `}` `{` | next / previous stop |
 | `tab` | list of stops |
@@ -441,16 +558,17 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 | `u` `U` | next / previous changed line that no test runs |
 | `enter` on a test in the Tests stop | spotlight it: dim every line it does not run, `esc` ends |
 | `/` | search the code in every stop; `n` `N` then jump to the next / previous match, `esc` ends the search |
-| `enter` | open the selected link, or unfold |
+| `enter` | open the selected link, tick a question or call in a wrap-up, or unfold |
+| `enter` on a caller or commit under *Around this stop* | peek at it in an overlay; any key closes |
 | `a` | ask about the current line |
-| `c` | comment on the current line, kept as a draft |
+| `c` | comment on the current line: pick its kind (`i` `s` `q` `n` `p` `t`, `!` flips blocking), then write it; kept as a draft |
 | `S` | send the draft comments to the agent |
-| `space` | mark the note reviewed, or a call made, and move on (again to undo) |
+| `space` in whole stops | mark the note reviewed, or a call made, and move on (again to undo) |
 | `?` | flag the note to come back to (again to undo) |
 | `x` | dismiss the note as not useful; in the recap, delete a draft comment |
 | `y` | copy the selected note to the clipboard, with its file:line |
 | `Y` | copy the whole stop: its rationale, part intros and every note, ready to paste into a PR |
-| `v` | show the notes on a high-risk stop you read first |
+| `v` | blind mode: show the notes on a high-risk stop you read first |
 | `F` | filter: all notes, problems with questions and calls, problems only, then each focus area |
 | `z` `d` `n` `f` | fold unchanged lines, removed lines, notes column, whole file |
 | `s` | side by side: old code left, new code right |
@@ -461,10 +579,11 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 
 ## Posting your review
 
-margin never posts anywhere. `margin export` prints your comments (with the agent's resolution),
-the notes you flagged with `?`, and your calls as a checklist, as markdown to paste into a pull
-request. `margin export --format github` prints the same as the body of a GitHub review, which you
-can post yourself:
+margin never posts anywhere. `margin export` prints the recommendation with its reasons, your
+comments (with the agent's resolution), the notes you flagged with `?`, and your calls as a
+checklist, as markdown to paste into a pull request. `margin export --format github` prints the
+same as a GitHub review, with the event set from the recommendation (`APPROVE`, `REQUEST_CHANGES`,
+or `COMMENT` while the review is not finished), which you can post yourself:
 
 ```sh
 margin export --format github > review.json
@@ -507,7 +626,10 @@ margin coverage clear          # forget the coverage
 
 The review file is plain YAML the agent can also edit to set a summary, `did` and `gap`, regroup
 files into stations, write each stop's rationale (`scope`, `what`, `why`), `risk_why` and each
-part's `about` line, or add notes anchored by text rather than line numbers, so they survive edits. The agent is asked to
+part's `about` line, add unchanged code as a `background: true` part, list `examples` of what the
+code did before and does now, write `checks` (the questions the reader should be able to answer
+after the stop) and a part's `check` (the question under each of its changes), say in `order_why`
+why a stop comes where it does, or add notes anchored by text rather than line numbers, so they survive edits. The agent is asked to
 annotate generously, with a note on every changed block rather than only on problems. A
 hand-written example is in [`testdata/example`](testdata/example/example.review.yaml) and opens
 with `margin open testdata/example/example.review.yaml`.

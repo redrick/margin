@@ -169,6 +169,7 @@ func (m *Model) jump(h hit) {
 	if m.station != h.station {
 		m.setStation(h.station)
 	}
+	m.showStep(h.part, h.line)
 	idx := m.rowOf(h)
 	if idx < 0 && !m.unfold {
 		m.unfold = true

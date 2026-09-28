@@ -1,6 +1,8 @@
 package doc_test
 
 import (
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/redrick/margin/internal/diffmap"
@@ -130,5 +132,39 @@ func TestLostAndAmbiguousAnchors(t *testing.T) {
 	_, store := d.Station("store")
 	if got := len(store.Hits("inventory/stock.go", "Store")); got < 2 {
 		t.Errorf("expected Store to match several lines, got %d", got)
+	}
+}
+
+func TestBackgroundKeepsAnchors(t *testing.T) {
+	path := testutil.Example(t)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := strings.Replace(string(data), "    parts:\n      - file: inventory/stock.go\n        func: Store.Reserve\n",
+		"    parts:\n      - file: inventory/stock.go\n        func: Store.Add\n        background: true\n      - file: inventory/stock.go\n        func: Store.Reserve\n", 1)
+	if err := os.WriteFile(path, []byte(s), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := review.Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := source.Open(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer files.Close()
+	_, st := doc.Build(r, files).Station("reserve")
+	if len(st.Parts) != 2 || !st.Parts[0].Spec.Background {
+		t.Fatalf("parts = %d", len(st.Parts))
+	}
+	for _, n := range st.Notes {
+		if n.Problem != "" || n.Part != 1 {
+			t.Errorf("note %q should stay on Reserve: part %d, %s", n.At, n.Part, n.Problem)
+		}
+	}
+	if hits := st.Hits("", "s.mu.Lock()"); len(hits) != 2 || hits[0].Part != 1 {
+		t.Errorf("hits in the change come before hits in background: %+v", hits)
 	}
 }

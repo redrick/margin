@@ -62,8 +62,14 @@ type Station struct {
 	Concern string   `yaml:"concern,omitempty"`
 	Tests   []string `yaml:"tests,omitempty"`
 	Flow    string   `yaml:"flow,omitempty"`
-	Parts   []Part   `yaml:"parts"`
-	Notes   []Note   `yaml:"notes,omitempty"`
+	// Checks are the questions the reader should be able to answer after reading the stop.
+	Checks []string `yaml:"checks,omitempty"`
+	// OrderWhy says in a few words why the stop comes where it does in the tour.
+	OrderWhy string `yaml:"order_why,omitempty"`
+	// Examples show what the code did before and does now for a few inputs, run by the agent.
+	Examples []Example `yaml:"examples,omitempty"`
+	Parts    []Part    `yaml:"parts"`
+	Notes    []Note    `yaml:"notes,omitempty"`
 }
 
 type Part struct {
@@ -75,8 +81,19 @@ type Part struct {
 	Hunks bool   `yaml:"hunks,omitempty"`
 	Side  string `yaml:"side,omitempty"`
 	About string `yaml:"about,omitempty"`
+	// Background marks unchanged code the reader needs before the change, drawn dimmed.
+	Background bool `yaml:"background,omitempty"`
+	// Check is the one question the reader answers after reading the part.
+	Check string `yaml:"check,omitempty"`
 
 	BaseFile string `yaml:"base_file,omitempty"`
+}
+
+type Example struct {
+	Input  string `yaml:"input"`
+	Before string `yaml:"before"`
+	After  string `yaml:"after"`
+	Note   string `yaml:"note,omitempty"`
 }
 
 type Note struct {
@@ -225,6 +242,14 @@ func (r *Review) validate() error {
 			}
 			if p.Side != "" && p.Side != SideCurrent && p.Side != SideBase {
 				add("%s: side must be %q or %q", pw, SideCurrent, SideBase)
+			}
+			if p.Background && p.Hunks {
+				add("%s: a background part shows unchanged code; give it func, from/to or lines, not hunks", pw)
+			}
+		}
+		for j, e := range s.Examples {
+			if strings.TrimSpace(e.Input) == "" {
+				add("%s examples[%d]: input is required", where, j)
 			}
 		}
 		for j, n := range s.Notes {

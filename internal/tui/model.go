@@ -18,6 +18,7 @@ import (
 	"github.com/redrick/margin/internal/state"
 	"github.com/redrick/margin/internal/text"
 	"github.com/redrick/margin/internal/tmuxx"
+	"github.com/redrick/margin/internal/verdict"
 	"github.com/redrick/margin/internal/watch"
 )
 
@@ -25,6 +26,10 @@ type Options struct {
 	ReviewPath string
 	AgentPane  string
 	Submit     bool
+	// Guide walks each stop one step at a time, unless the reader switched to whole stops before.
+	Guide bool
+	// Blind hides the agent's notes on high-risk stops until the reader revealed them, and remembers it.
+	Blind bool
 }
 
 type ChangedMsg struct{}
@@ -93,6 +98,26 @@ type Model struct {
 	seen  map[string]bool
 	fresh map[string]bool
 
+	guide  bool
+	step   int
+	nudged bool
+	// more shows the long texts the cards leave out: the stop's what and why, its examples, the
+	// whole overview.
+	more bool
+	// designing is set while the reader writes why the change does not make sense as done.
+	designing bool
+	// labeling is set while the reader picks what kind of comment to write.
+	labeling bool
+	label    string
+	blocking bool
+
+	around  map[string]*aroundEntry
+	peek    []string
+	peekAt  int
+	peekTop int
+	// peekStyled means the peek lines are already painted to the overlay's width.
+	peekStyled bool
+
 	filter       int
 	unfold       bool
 	helpOpen     bool
@@ -115,6 +140,7 @@ func New(opts Options) *Model {
 		clip:   clip.Copy,
 		whole:  map[[2]int]bool{},
 		fresh:  map[string]bool{},
+		around: map[string]*aroundEntry{},
 		paint:  render.NewPainter(),
 		spans:  map[string][][]render.Span{},
 		input:  in,
@@ -193,7 +219,17 @@ func (m *Model) reload(reply chan control.Response) tea.Cmd {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	model, cmd := m.update(msg)
+	if look := m.lookAround(); look != nil {
+		return model, tea.Batch(cmd, look)
+	}
+	return model, cmd
+}
+
+func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case aroundMsg:
+		m.gotAround(msg)
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.input.Width = max(msg.Width-12, 10)
@@ -235,6 +271,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		m.lastInput = time.Now()
 		switch {
+		case m.labeling:
+			return m, m.updateLabel(msg)
 		case m.asking:
 			return m, m.updateAsk(msg)
 		case m.searching:
@@ -244,6 +282,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case m.helpOpen:
 			m.helpOpen = false
+			return m, nil
+		case m.peek != nil:
+			m.peekKey(msg)
 			return m, nil
 		}
 		return m, m.key(msg)
@@ -266,6 +307,7 @@ func (m *Model) applyLoad(msg loadedMsg) tea.Cmd {
 			m.state = msg.state
 		}
 		m.spans = map[string][][]render.Span{}
+		m.around, m.peek = map[string]*aroundEntry{}, nil
 		if m.watcher != nil {
 			m.watcher.Set(m.doc.WatchPaths())
 		}
@@ -273,7 +315,18 @@ func (m *Model) applyLoad(msg loadedMsg) tea.Cmd {
 		switch {
 		case !m.loaded:
 			m.loaded = true
-			m.setStation(min(1, len(m.doc.Stations)-1))
+			m.guide = m.opts.Guide && !m.state.Full
+			if m.opts.Blind && !m.state.Blind {
+				m.state.Blind = true
+				if err := m.state.Save(); err != nil {
+					m.setStatus(true, "saving view: %v", err)
+				}
+			}
+			first := min(1, len(m.doc.Stations)-1)
+			if m.guide && len(m.state.Visited) == 0 {
+				first = 0
+			}
+			m.setStation(first)
 		case added > 0:
 			m.restore(stationID, file, line)
 			m.setStatus(false, "%s", freshStatus(added, stations))
@@ -347,6 +400,34 @@ func (m *Model) restore(stationID, file string, line int) {
 
 func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 	h := m.bodyHeight()
+	if m.doc != nil {
+		switch k := msg.String(); {
+		case k == "w":
+			m.toggleGuide()
+			return nil
+		case k == "e":
+			m.more = !m.more
+			m.rebuildKeep()
+			return nil
+		case m.guide && m.doc.Stations[m.station].Kind == doc.Overview && (k == "y" || k == "n" || k == "?"):
+			return m.orient(map[string]string{"y": verdict.OrientYes, "n": verdict.OrientNo, "?": verdict.OrientUnsure}[k])
+		case k == "1" || k == "2" || k == "3":
+			m.setVerdict(verdicts[k[0]-'1'].id)
+			return nil
+		case m.guideOn() && k == " ":
+			m.nextStep()
+			return nil
+		case m.guideOn() && (k == "b" || k == "backspace"):
+			m.prevStep()
+			return nil
+		case m.guide && k == " " && m.doc.Stations[m.station].Kind != doc.Code:
+			m.setStation(m.station + 1)
+			if m.guideOn() {
+				m.enterStep()
+			}
+			return nil
+		}
+	}
 	switch msg.String() {
 	case "q", "ctrl+c":
 		return tea.Quit
@@ -476,16 +557,19 @@ func (m *Model) updateList(msg tea.KeyMsg) {
 func (m *Model) updateAsk(msg tea.KeyMsg) tea.Cmd {
 	switch msg.Type {
 	case tea.KeyEsc:
-		m.asking, m.commenting = false, false
+		m.asking, m.commenting, m.designing, m.label, m.blocking = false, false, false, "", false
 		m.input.Blur()
 		return nil
 	case tea.KeyEnter:
 		q := text.Line(m.input.Value())
-		commenting := m.commenting
-		m.asking, m.commenting = false, false
+		commenting, designing := m.commenting, m.designing
+		m.asking, m.commenting, m.designing = false, false, false
 		m.input.Blur()
 		switch {
 		case q == "":
+			return nil
+		case designing:
+			m.design(q)
 			return nil
 		case commenting:
 			m.comment(q)
@@ -534,7 +618,7 @@ func (m *Model) mark(flag bool) {
 func (m *Model) startAsk() tea.Cmd {
 	r, ok := m.cursorRow()
 	if !ok {
-		m.setStatus(false, "move the cursor onto a code line to ask about it")
+		m.setStatus(false, "%s", m.needLine("ask about it"))
 		return nil
 	}
 	p := m.doc.Stations[m.station].Parts[r.part]

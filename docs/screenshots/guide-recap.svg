@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1462" height="700" viewBox="0 0 1462 700">
+<style>text{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:16px;white-space:pre}</style>
+<rect width="1462" height="700" rx="10" fill="#0d1117" stroke="#30363d"/>
+<rect width="1462" height="38" rx="10" fill="#161b22"/><rect y="28" width="1462" height="10" fill="#161b22"/>
+<line x1="0" y1="38" x2="1462" y2="38" stroke="#30363d"/>
+<circle cx="22" cy="19.0" r="6.5" fill="#ff5f57"/>
+<circle cx="44" cy="19.0" r="6.5" fill="#febc2e"/>
+<circle cx="66" cy="19.0" r="6.5" fill="#28c840"/>
+<text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
+<rect x="16.0" y="54" width="1430.4" height="21" fill="#161b22"/>
+<text x="16.0" y="69" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › recap 6/7  </text>
+<text x="217.6" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●●</text>
+<text x="236.8" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">●</text>
+<text x="246.4" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○</text>
+<text x="256.0" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐</text>
+<text x="284.8" y="69" textLength="172.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Before you approve</text>
+<text x="1168.0" y="69" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  example · current/ vs base/</text>
+<text x="16.0" y="90" textLength="240.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff"> orient ─ walk ─ ③ Decide</text>
+<text x="16.0" y="132" textLength="307.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71"> Recommendation: request changes</text>
+<text x="16.0" y="153" textLength="384.0" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">   · you marked audit as needing changes</text>
+<text x="16.0" y="174" textLength="393.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   · no verdict yet on removed and report</text>
+<text x="16.0" y="195" textLength="345.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   · 2 calls are still yours to make</text>
+<text x="16.0" y="216" textLength="681.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   · 1 problem the agent found is neither flagged (?) nor dismissed (x)</text>
+<text x="16.0" y="258" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Stops</text>
+<rect x="16.0" y="264" width="528.0" height="21" fill="#1f2a3a"/>
+<text x="16.0" y="279" textLength="528.0" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▸ ● store · looks good — The store carries an audit log</text>
+<text x="16.0" y="300" textLength="566.4" lengthAdjust="spacingAndGlyphs" fill="#3fb950">  ● reserve · looks good — Reserve validates before locking</text>
+<text x="16.0" y="321" textLength="432.0" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">  ● audit · needs changes — The new audit log</text>
+<text x="16.0" y="342" textLength="432.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  ○ removed · no verdict — ReleaseAll is gone</text>
+<text x="16.0" y="363" textLength="480.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  ○ report · no verdict — Report skips zero deltas</text>
+<text x="16.0" y="405" textLength="1401.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> The checklist before you approve: the calls only you can make, every problem and open question, and your own comments. Enter jumps to the line. A</text>
+<text x="16.0" y="426" textLength="748.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> problem without evidence is listed as a question until the agent backs it up.</text>
+<text x="16.0" y="468" textLength="643.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Your calls · enter goes to one, tick it off at the end of its stop</text>
+<text x="16.0" y="489" textLength="1142.4" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff">  ☐ store · stock.go:21 — Should a store without an audit log still be allowed, or should support always get a history?</text>
+<text x="16.0" y="510" textLength="1276.8" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff">  ☐ audit · audit.go:30 — The log keeps every entry in memory for the life of the process. Is that acceptable, or does it need a cap?</text>
+<text x="16.0" y="552" textLength="86.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Problems</text>
+<text x="16.0" y="573" textLength="768.0" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">  store · stock.go:20 — Breaking signature. Every call site passes a log or nil.</text>
+<text x="16.0" y="615" textLength="96.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Questions</text>
+<text x="16.0" y="636" textLength="1046.4" lengthAdjust="spacingAndGlyphs" fill="#d29922">  report · report.py:14 — Zero entries come from cancelled reservations. Should they still show up somewhere?</text>
+<rect x="16.0" y="663" width="96.0" height="21" fill="#161b22"/>
+<rect x="112.0" y="663" width="48.0" height="21" fill="#ff7b71"/>
+<rect x="160.0" y="663" width="9.6" height="21" fill="#161b22"/>
+<rect x="169.6" y="663" width="48.0" height="21" fill="#d29922"/>
+<rect x="217.6" y="663" width="9.6" height="21" fill="#161b22"/>
+<rect x="227.2" y="663" width="67.2" height="21" fill="#d2a8ff"/>
+<rect x="294.4" y="663" width="1152.0" height="21" fill="#161b22"/>
+<text x="25.6" y="678" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 2/14 </text>
+<text x="112.0" y="678" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ! 1 </text>
+<text x="169.6" y="678" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ? 1 </text>
+<text x="227.2" y="678" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ◆ 0/2 </text>
+<text x="304.0" y="678" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 0m · 33 lines read </text>
+<text x="505.6" y="678" textLength="182.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">reserve: looks good</text>
+<text x="1100.8" y="678" textLength="345.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> space next · w whole stops · H help</text>
+</svg>

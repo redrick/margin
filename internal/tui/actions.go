@@ -46,6 +46,18 @@ func (m *Model) activate() {
 	}
 	switch r := m.rows[m.cur]; r.kind {
 	case rowLink:
+		switch {
+		case r.toggle != "":
+			m.toggle(r.toggle)
+			return
+		case r.verdict != "":
+			m.setVerdict(r.verdict)
+			return
+		}
+		if r.peek {
+			m.openPeek(r)
+			return
+		}
 		m.setStation(r.target)
 		switch {
 		case r.noteAt >= 0:
@@ -55,6 +67,8 @@ func (m *Model) activate() {
 				m.setStatus(true, "%v", err)
 			}
 		}
+	case rowCode:
+		m.readNotes(r)
 	case rowFold:
 		m.unfold = true
 		m.rebuildKeep()

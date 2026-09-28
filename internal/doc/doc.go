@@ -71,6 +71,9 @@ type Station struct {
 	RiskWhy   string
 	Concern   string
 	Flow      string
+	Examples  []review.Example
+	Checks    []string
+	OrderWhy  string
 	TestNames []string
 	// Auto marks a stop margin made itself, for changes no stop of the review shows.
 	Auto  bool
@@ -116,7 +119,7 @@ func Build(r *review.Review, files *source.Files) *Doc {
 	d.Guidance = files.RepoConfig("instructions")
 	for _, s := range r.Stations {
 		st := &Station{Kind: Code, ID: s.ID, Title: s.Title, Lede: s.Lede, Scope: s.Scope, What: s.What, Why: s.Why,
-			Risk: s.Risk, RiskWhy: s.RiskWhy, Concern: s.Concern, Flow: s.Flow, TestNames: s.Tests}
+			Risk: s.Risk, RiskWhy: s.RiskWhy, Concern: s.Concern, Flow: s.Flow, Examples: s.Examples, Checks: s.Checks, OrderWhy: s.OrderWhy, TestNames: s.Tests}
 		for _, ps := range s.Parts {
 			for _, p := range b.parts(ps) {
 				if p.Err != nil {
@@ -294,9 +297,10 @@ func (b builder) load(p *Part) {
 	p.Kinds, p.Ghosts, p.Pairs = m.Kinds, m.Ghosts, m.Pairs
 }
 
-// Hits finds needle across the station's parts, each file line counted once.
+// Hits finds needle across the station's parts, each file line counted once. Hits in background
+// parts come last, so adding background code does not renumber the anchors of existing notes.
 func (st *Station) Hits(file, needle string) []Hit {
-	var hits []Hit
+	var hits, background []Hit
 	seen := map[string]bool{}
 	for pi, p := range st.Parts {
 		if p.Err != nil || (file != "" && p.Spec.File != file) {
@@ -306,11 +310,15 @@ func (st *Station) Hits(file, needle string) []Hit {
 			k := fmt.Sprintf("%v|%s|%d", p.Base, p.Spec.File, l)
 			if !seen[k] {
 				seen[k] = true
-				hits = append(hits, Hit{pi, l})
+				if p.Spec.Background {
+					background = append(background, Hit{pi, l})
+				} else {
+					hits = append(hits, Hit{pi, l})
+				}
 			}
 		}
 	}
-	return hits
+	return append(hits, background...)
 }
 
 func (st *Station) resolve(n review.Note) *Note {
@@ -322,7 +330,7 @@ func (st *Station) resolve(n review.Note) *Note {
 		h = &hits[n.Nth-1]
 	case n.Nth > 0:
 		out.Problem = fmt.Sprintf("lost anchor (nth %d of %d matches)", n.Nth, len(hits))
-	case len(hits) == 1:
+	case len(hits) == 1, len(hits) > 1 && st.changedHits(hits) == 1:
 		h = &hits[0]
 	case len(hits) == 0:
 		out.Problem = "lost anchor"
@@ -333,6 +341,17 @@ func (st *Station) resolve(n review.Note) *Note {
 		out.Part, out.Line = h.Part, h.Line
 	}
 	return out
+}
+
+// changedHits counts the hits outside background parts, which Hits puts first.
+func (st *Station) changedHits(hits []Hit) int {
+	n := 0
+	for _, h := range hits {
+		if !st.Parts[h.Part].Spec.Background {
+			n++
+		}
+	}
+	return n
 }
 
 // Level is the note's kind; a note without one counts as context, or as an issue when it starts with ⚠.
@@ -377,11 +396,11 @@ func (st *Station) Decisions() int {
 	return n
 }
 
-// LOC counts the distinct lines the station shows.
+// LOC counts the distinct lines the station shows, leaving out background.
 func (st *Station) LOC() int {
 	seen := map[string]bool{}
 	for _, p := range st.Parts {
-		if p.Err != nil {
+		if p.Err != nil || p.Spec.Background {
 			continue
 		}
 		for i := p.Range.Start; i <= p.Range.End; i++ {
@@ -399,7 +418,7 @@ func (st *Station) NeedsTests() bool {
 		return false
 	}
 	for _, p := range st.Parts {
-		if p.Err != nil || p.Base || isTestFile(p.Spec.File) {
+		if p.Err != nil || p.Base || p.Spec.Background || isTestFile(p.Spec.File) {
 			continue
 		}
 		for i := p.Range.Start; i <= p.Range.End && i < len(p.Kinds); i++ {

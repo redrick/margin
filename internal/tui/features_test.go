@@ -14,6 +14,7 @@ import (
 
 func TestIntentOnOverview(t *testing.T) {
 	m := newModel(t)
+	m.state.Blind = true
 	mustGoto(t, m, "0")
 	text := strings.Join(strings.Fields(rowsText(m)), " ")
 	for _, want := range []string{
@@ -56,7 +57,7 @@ func TestCallsChecklist(t *testing.T) {
 func TestComments(t *testing.T) {
 	m := newModel(t)
 	mustGoto(t, m, "reserve:1")
-	press(m, "c", "log the rejected quantity too", "enter")
+	press(m, "c", "enter", "log the rejected quantity too", "enter")
 	if len(m.state.Questions) != 1 {
 		t.Fatalf("questions = %+v", m.state.Questions)
 	}
@@ -189,5 +190,145 @@ stations:
 	}
 	if w.Station.Title != "Changes no stop shows" {
 		t.Errorf("where = %+v", w.Station)
+	}
+}
+
+func TestAroundBackgroundAndExamples(t *testing.T) {
+	dir := t.TempDir()
+	caller := "package a\n\nfunc Total(xs []int) int {\n\tt := 0\n\tfor _, x := range xs {\n\t\tt += Price(x)\n\t}\n\treturn t\n}\n"
+	money := "package a\n\ntype Money int\n\nfunc Cents(m Money) int { return int(m) * 100 }\n"
+	for name, content := range map[string]string{
+		"base/a.go":    "package a\n\nfunc Price(x int) int {\n\treturn x\n}\n",
+		"current/a.go": "package a\n\nfunc Price(x int) int {\n\treturn Cents(Money(x))\n}\n",
+		"base/b.go":    caller,
+		"current/b.go": caller,
+		"base/m.go":    money,
+		"current/m.go": money,
+		"x.review.yaml": `version: 1
+repo: current
+base_dir: base
+title: price in cents
+stations:
+  - id: a
+    title: a
+    examples:
+      - input: Price(3)
+        before: "3"
+        after: "300"
+        note: callers now get cents
+      - input: Price(0)
+        before: "0"
+        after: "0"
+    parts:
+      - file: m.go
+        func: Cents
+        background: true
+      - file: a.go
+        hunks: true
+`,
+	} {
+		p := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	path := filepath.Join(dir, "x.review.yaml")
+	m := New(Options{ReviewPath: path})
+	d, st, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.Update(tea.WindowSizeMsg{Width: width, Height: height})
+	m.Update(loadedMsg{doc: d, state: st})
+	mustGoto(t, m, "a")
+	if text := rowsText(m); !strings.Contains(text, "looking for callers") {
+		t.Fatalf("the stop should say it is looking around:\n%s", text)
+	}
+	cmd := m.lookAround()
+	if cmd != nil {
+		t.Fatal("the stop was already being looked at when it opened")
+	}
+	m.around = map[string]*aroundEntry{}
+	m.Update(m.lookAround()())
+
+	text := rowsText(m)
+	for _, want := range []string{
+		"Before and after", "▸ Price(3)", "before  3", "after   300", "callers now get cents", "same    0",
+		"Around this stop", "func Price, changed (a.go:3): 1 outside the tour", "b.go:6  t += Price(x)",
+		"Cents · 5–5 · background, read first",
+	} {
+		if !strings.Contains(text, want) {
+			t.Errorf("stop misses %q:\n%s", want, text)
+		}
+	}
+	if view := ansi.Strip(m.View()); !strings.Contains(view, "┊") {
+		t.Errorf("background lines are drawn dimmed with ┊:\n%s", view)
+	}
+	if loc := m.doc.Stations[m.station].LOC(); loc != 5 {
+		t.Errorf("background code must not count as lines to review, LOC = %d", loc)
+	}
+
+	for i, r := range m.rows {
+		if r.peek && r.file == "b.go" {
+			m.setCursor(i)
+		}
+	}
+	press(m, "enter")
+	if m.peek == nil || !strings.Contains(ansi.Strip(m.View()), "b.go:6 · any key closes") || !strings.Contains(m.peek[m.peekAt], "t += Price(x)") {
+		t.Fatalf("enter on a caller should peek at it: %q", m.peek)
+	}
+	if m.where().Station.ID != "a" {
+		t.Error("peeking must not leave the stop")
+	}
+	press(m, "esc")
+	if m.peek != nil {
+		t.Error("any key but the scrolling ones closes the peek")
+	}
+}
+
+func TestReadNotesKeepsCardStyle(t *testing.T) {
+	m := newModel(t)
+	found := false
+	for s := range m.doc.Stations {
+		m.setStation(s)
+		for i, r := range m.rows {
+			if r.kind == rowCode && len(r.notes) > 0 && !m.blind(m.doc.Stations[m.station]) {
+				m.setCursor(i)
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	if !found {
+		t.Skip("example has no noted line")
+	}
+	press(m, "enter")
+	if m.peek == nil || !m.peekStyled {
+		t.Fatal("enter on a noted line should open its notes")
+	}
+	st := m.doc.Stations[m.station]
+	n := st.Notes[m.rows[m.cur].notes[0]]
+	view := ansi.Strip(m.View())
+	if head := m.noteStyle(n).icon + " " + m.noteStyle(n).label; !strings.Contains(view, head) {
+		t.Errorf("the full note should keep the card's heading %q:\n%s", head, view)
+	}
+	if !strings.Contains(view, "▌ ") {
+		t.Errorf("the full note should keep the card's kind bar:\n%s", view)
+	}
+	w := min(peekWidth, width-4)
+	for _, l := range m.peek[1:] {
+		if got := ansi.StringWidth(l); got != w {
+			t.Fatalf("every note line should fill the box, %d wide, got %d: %q", w, got, ansi.Strip(l))
+		}
+	}
+	press(m, "q")
+	if m.peek != nil {
+		t.Error("any key closes the notes")
 	}
 }

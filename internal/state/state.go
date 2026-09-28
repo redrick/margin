@@ -21,7 +21,17 @@ type State struct {
 	Seen      map[string]string `yaml:"seen,omitempty"`
 	Revealed  map[string]bool   `yaml:"revealed,omitempty"`
 	Visited   map[string]bool   `yaml:"visited,omitempty"`
-	Questions []Question        `yaml:"questions,omitempty"`
+	// Verdicts holds the reader's verdict on each stop they finished: good, changes or unsure.
+	Verdicts map[string]string `yaml:"verdicts,omitempty"`
+	// Full is set when the reader switched from the guided walk to seeing each stop whole.
+	Full bool `yaml:"full_view,omitempty"`
+	// Blind hides the agent's notes on high-risk stops until the reader revealed them.
+	Blind bool `yaml:"blind,omitempty"`
+	// Orient is the reader's answer to whether the change makes sense as done: yes, no or unsure;
+	// Design is what they wrote when the answer was no.
+	Orient    string     `yaml:"orient,omitempty"`
+	Design    string     `yaml:"design,omitempty"`
+	Questions []Question `yaml:"questions,omitempty"`
 
 	path string
 }
@@ -65,6 +75,9 @@ func (s *State) init() *State {
 	}
 	if s.Seen == nil {
 		s.Seen = map[string]string{}
+	}
+	if s.Verdicts == nil {
+		s.Verdicts = map[string]string{}
 	}
 	for _, m := range []*map[string]bool{&s.Dismissed, &s.Revealed, &s.Visited} {
 		if *m == nil {

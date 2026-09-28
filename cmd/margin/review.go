@@ -159,9 +159,10 @@ func agentPrompt(r *review.Review, loc target.Location, created bool) string {
 		"Where it helps, add cues for understanding: what calls this and when, what the old behaviour was, a small example of input and result, " +
 		"or which other note to read first.\n")
 	if created {
-		b.WriteString("Then shape the tour first (agent-help step 0: did and gap against what was asked, riskiest stop first, risk with risk_why, concern and tests per stop, summary of what and why). " +
+		b.WriteString("Then shape the tour first (agent-help step 0: short did and gap against what was asked, 3 to 6 stops in dependency order with order_why, riskier first among independent ones, risk with risk_why, concern and tests per stop, summary of what and why). " +
 			"Place every change in a stop or in skip; margin lint lists what is left. " +
-			"Open every stop with its rationale (scope, what, why) and give every part an about line. " +
+			"Open every stop with its rationale (scope, what, why), give it 1 to 3 checks the reader should be able to answer, and give every part an about line. " +
+			"Where a stop leans on unchanged code I need first, add it as a background part; where it changes behaviour, add before/after examples you actually ran. " +
 			"After that annotate every change generously with `margin note`, giving each note a --kind; a problem (--kind issue) needs --evidence or it is shown as a question. " +
 			"Mark parts you checked and found fine with a short --kind ok note, so parts without notes honestly mean not examined. " +
 			"Leave --kind decide notes only for the few calls that need my judgment rather than a check. " +

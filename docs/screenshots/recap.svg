@@ -9,22 +9,24 @@
 <text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
 <rect x="16.0" y="54" width="1430.4" height="21" fill="#161b22"/>
 <text x="16.0" y="69" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › recap 6/7  </text>
-<text x="217.6" y="69" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●●●</text>
-<text x="246.4" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○</text>
+<text x="217.6" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐◐</text>
+<text x="236.8" y="69" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○○</text>
 <text x="284.8" y="69" textLength="172.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Before you approve</text>
 <text x="1168.0" y="69" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  example · current/ vs base/</text>
-<text x="16.0" y="90" textLength="1401.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> The checklist before you approve: the calls only you can make, every problem and open question, and your own comments. Enter jumps to the line. A</text>
-<text x="16.0" y="111" textLength="748.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> problem without evidence is listed as a question until the agent backs it up.</text>
-<text x="16.0" y="153" textLength="441.6" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Your calls · space on the note marks one made</text>
-<rect x="16.0" y="159" width="1142.4" height="21" fill="#1f2a3a"/>
-<text x="16.0" y="174" textLength="1142.4" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">▸ ☐ store · stock.go:21 — Should a store without an audit log still be allowed, or should support always get a history?</text>
-<text x="16.0" y="195" textLength="1276.8" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff">  ☐ audit · audit.go:30 — The log keeps every entry in memory for the life of the process. Is that acceptable, or does it need a cap?</text>
-<text x="16.0" y="237" textLength="86.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Problems</text>
-<text x="16.0" y="258" textLength="768.0" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">  store · stock.go:20 — Breaking signature. Every call site passes a log or nil.</text>
-<text x="16.0" y="300" textLength="96.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Questions</text>
-<text x="16.0" y="321" textLength="1046.4" lengthAdjust="spacingAndGlyphs" fill="#d29922">  report · report.py:14 — Zero entries come from cancelled reservations. Should they still show up somewhere?</text>
-<text x="16.0" y="363" textLength="480.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Your comments · S sends the drafts, x deletes one</text>
-<text x="16.0" y="384" textLength="806.4" lengthAdjust="spacingAndGlyphs" fill="#e3b341">  c1 draft · stock.go:35 — Log the rejected quantity too, support will ask about it.</text>
+<text x="16.0" y="90" textLength="163.2" lengthAdjust="spacingAndGlyphs" fill="#d29922"> Not finished yet</text>
+<text x="16.0" y="111" textLength="288.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   · no verdict yet on 5 stops</text>
+<text x="16.0" y="132" textLength="345.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   · 2 calls are still yours to make</text>
+<text x="16.0" y="153" textLength="681.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   · 1 problem the agent found is neither flagged (?) nor dismissed (x)</text>
+<text x="16.0" y="174" textLength="384.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590">   · 1 non-blocking comment goes with it</text>
+<text x="16.0" y="216" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Stops</text>
+<rect x="16.0" y="222" width="528.0" height="21" fill="#1f2a3a"/>
+<text x="16.0" y="237" textLength="528.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590" font-weight="bold">▸ ○ store · no verdict — The store carries an audit log</text>
+<text x="16.0" y="258" textLength="566.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  ○ reserve · no verdict — Reserve validates before locking</text>
+<text x="16.0" y="279" textLength="403.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  ○ audit · no verdict — The new audit log</text>
+<text x="16.0" y="300" textLength="432.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  ○ removed · no verdict — ReleaseAll is gone</text>
+<text x="16.0" y="321" textLength="480.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  ○ report · no verdict — Report skips zero deltas</text>
+<text x="16.0" y="363" textLength="1401.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> The checklist before you approve: the calls only you can make, every problem and open question, and your own comments. Enter jumps to the line. A</text>
+<text x="16.0" y="384" textLength="748.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> problem without evidence is listed as a question until the agent backs it up.</text>
 <rect x="16.0" y="411" width="96.0" height="21" fill="#161b22"/>
 <rect x="112.0" y="411" width="48.0" height="21" fill="#ff7b71"/>
 <rect x="160.0" y="411" width="9.6" height="21" fill="#161b22"/>

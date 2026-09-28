@@ -80,6 +80,8 @@ func (m *Model) notesPanel(w, h int) ([]string, map[int]string) {
 			row, ok = rowOf[doc.LineKey(st.Parts[n.Part], n.Line)]
 		}
 		switch {
+		case !ok && n.Part >= 0 && m.guideOn():
+			// Anchored in another step of the guided walk.
 		case !ok:
 			loose++
 		case row < m.top:
@@ -98,6 +100,7 @@ func (m *Model) notesPanel(w, h int) ([]string, map[int]string) {
 		}
 		row, ok := rowOf[fmt.Sprintf("%v|%s|%d", q.Side == review.SideBase, q.File, q.Line-1)]
 		switch {
+		case !ok && m.guideOn():
 		case !ok:
 			loose++
 		case row < m.top:
@@ -158,6 +161,10 @@ func (m *Model) notesPanel(w, h int) ([]string, map[int]string) {
 		}
 		for j, l := range c.lines {
 			if y+j >= limit {
+				// A selected card too tall for the column says where to read the rest.
+				if c.note == m.note {
+					out[limit-1] = p.Text("  … enter reads it all", w, colDim, "", false, true)
+				}
 				break
 			}
 			out[y+j] = l
@@ -202,10 +209,15 @@ func hasKey(m map[string]int, k string) bool {
 }
 
 func (m *Model) noteCard(st *doc.Station, i, w int, sel bool) []string {
+	return m.noteCardOn(st, i, w, sel, "")
+}
+
+// noteCardOn is noteCard painted over base, so a card can sit inside a box with its own background.
+func (m *Model) noteCardOn(st *doc.Station, i, w int, sel bool, base string) []string {
 	n := st.Notes[i]
 	ks := m.noteStyle(n)
 	p := m.paint
-	bg := ""
+	bg := base
 	if sel {
 		bg = tintNoteSel
 	}

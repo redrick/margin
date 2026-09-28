@@ -12,7 +12,7 @@
 <rect x="496.0" y="54" width="950.4" height="21" fill="#161b22"/>
 <text x="16.0" y="69" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › store 1/7  </text>
 <text x="217.6" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc">●</text>
-<text x="227.2" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●</text>
+<text x="227.2" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐</text>
 <text x="236.8" y="69" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○○</text>
 <text x="284.8" y="69" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> LOW RISK  2/2 tested </text>
 <text x="505.6" y="69" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> feature · 18 lines   </text>
@@ -59,24 +59,17 @@
 <text x="16.0" y="426" textLength="182.4" lengthAdjust="spacingAndGlyphs" fill="#3fb950"> tests: TestReserve</text>
 <text x="947.2" y="426" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
 <text x="947.2" y="447" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="16.0" y="468" textLength="931.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff">── inventory/stock.go · lines 3-12 · 3–12 · +5 -1 · no agent notes, read it yourself ────────────</text>
+<text x="16.0" y="468" textLength="163.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Around this stop</text>
 <text x="947.2" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="44.8" y="489" textLength="633.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590" font-style="italic">The imports and the new error for a quantity that is not positive.</text>
+<text x="16.0" y="489" textLength="768.0" lengthAdjust="spacingAndGlyphs" fill="#d29922">   type Store, changed (stock.go:14): 1 outside the tour, 3 inside · enter peeks</text>
 <text x="947.2" y="489" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="44.8" y="510" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  3</text>
-<text x="112.0" y="510" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">import</text>
-<text x="179.2" y="510" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(</text>
+<text x="16.0" y="510" textLength="681.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">      inventory/stock.go:24  func (s *Store) Add(sku string, qty int) {</text>
 <text x="947.2" y="510" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="44.8" y="531" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  4</text>
-<text x="150.4" y="531" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"errors"</text>
+<text x="16.0" y="531" textLength="796.8" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">   func NewStore, removed (stock.go:20): 4 outside the tour, 1 inside · enter peeks</text>
 <text x="947.2" y="531" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<rect x="83.2" y="537" width="864.0" height="21" fill="#12261e"/>
-<text x="44.8" y="552" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  5</text>
-<text x="83.2" y="552" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
-<text x="150.4" y="552" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"fmt"</text>
+<text x="16.0" y="552" textLength="499.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">      inventory/stock_test.go:11  s := NewStore(nil)</text>
 <text x="947.2" y="552" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="44.8" y="573" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  6</text>
-<text x="150.4" y="573" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"sync"</text>
+<text x="16.0" y="573" textLength="499.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">      inventory/stock_test.go:18  s := NewStore(nil)</text>
 <text x="947.2" y="573" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
 <text x="956.8" y="573" textLength="144.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> ↓ 3 more below</text>
 <rect x="16.0" y="579" width="96.0" height="21" fill="#161b22"/>

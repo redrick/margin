@@ -32,7 +32,7 @@ EOF
 open_viewer() {
 	T kill-server 2>/dev/null || true
 	while m where >/dev/null 2>&1; do sleep 0.1; done
-	T new-session -d -x 150 -y "$1" "env TERM=xterm-256color COLORTERM=truecolor $work/margin open $review" \; set -g status off
+	T new-session -d -x 150 -y "$1" "env TERM=xterm-256color COLORTERM=truecolor $work/margin open ${VIEW-"--full"} $review" \; set -g status off
 	until m where >/dev/null 2>&1; do sleep 0.1; done
 	sleep 0.6
 }
@@ -86,14 +86,11 @@ shot calls
 
 open_viewer 34
 go_to reserve:1
-keys j j j c
+keys j j j c s
 text "Log the rejected quantity too, support will ask about it."
 keys Enter
 shot comment
 
-open_viewer 22
-go_to audit
-shot hidden
 
 open_viewer 24
 go_to reserve
@@ -219,7 +216,7 @@ d() { "$work/margin" "$@" --review "$review_demo"; }
 open_demo() {
 	T kill-server 2>/dev/null || true
 	while d where >/dev/null 2>&1; do sleep 0.1; done
-	T new-session -d -x 150 -y "$1" "env TERM=xterm-256color COLORTERM=truecolor $work/margin open $review_demo" \; set -g status off
+	T new-session -d -x 150 -y "$1" "env TERM=xterm-256color COLORTERM=truecolor $work/margin open --full $review_demo" \; set -g status off
 	until d where >/dev/null 2>&1; do sleep 0.1; done
 	sleep 0.6
 }
@@ -232,5 +229,86 @@ open_demo 18
 d goto unplaced >/dev/null
 sleep 0.3
 shot unplaced
+
+# The reserve stop again, with before/after examples and a background part the agent added.
+python3 - "$review" <<'EOF'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+old = """    parts:
+      - file: inventory/stock.go
+        func: Store.Reserve
+"""
+new = """    examples:
+      - input: 'Reserve("apple", -2) with 5 in stock'
+        before: nil, and apple goes up to 7
+        after: ErrInvalidQuantity, stock stays 5
+        note: A negative quantity used to add stock; the new check fixes that too.
+      - input: 'Reserve("pear", 2) with 1 in stock'
+        before: insufficient stock
+        after: "insufficient stock: pear has 1, want 2"
+      - input: 'Reserve("apple", 3) with 5 in stock'
+        before: nil, 2 left
+        after: nil, 2 left, and one audit entry
+    parts:
+      - file: inventory/stock.go
+        func: Store.Add
+        background: true
+        about: The other writer on the same lock, unchanged. Reserve takes out what Add puts in.
+      - file: inventory/stock.go
+        func: Store.Reserve
+"""
+assert s.count(old) == 1
+open(p, "w").write(s.replace(old, new))
+EOF
+open_viewer 30
+go_to reserve
+keys j
+shot around
+
+open_viewer 30
+go_to reserve
+keys k Enter
+shot peek
+
+# The guided walk, the default: one step at a time.
+VIEW=
+open_viewer 40
+go_to 0
+shot guide-overview
+
+open_viewer 46
+go_to reserve
+shot guide-brief
+
+open_viewer 50
+go_to reserve
+keys Space Space
+shot guide-change
+
+open_viewer 30
+go_to reserve:1
+keys c
+shot comment-kind
+
+open_viewer 32
+go_to audit
+keys Space Space Space Space 2
+shot guide-wrap
+
+open_viewer 30
+go_to store
+keys 1
+go_to reserve
+keys 1
+go_to recap
+shot guide-recap
+
+# Last: blind mode is remembered in the state file.
+VIEW="--full --blind"
+open_viewer 22
+go_to audit
+shot hidden
+unset VIEW
 
 echo "wrote $(ls "$out"/*.svg | wc -l) screenshots to $out"

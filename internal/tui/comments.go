@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -12,20 +13,81 @@ import (
 	"github.com/redrick/margin/internal/tmuxx"
 )
 
-// startComment opens the prompt for a review comment on the cursor line. Comments stay drafts
-// until S sends them all to the agent in one message.
+// startComment asks what kind of comment the reader is writing, then opens the prompt for it on the
+// cursor line. Comments stay drafts until S sends them all to the agent in one message.
 func (m *Model) startComment() tea.Cmd {
+	if _, ok := m.cursorRow(); !ok {
+		m.setStatus(false, "%s", m.needLine("comment on it"))
+		return nil
+	}
+	m.labeling, m.label, m.blocking = true, "", false
+	return nil
+}
+
+// needLine says how to get the cursor onto code, which differs in the guided walk.
+func (m *Model) needLine(what string) string {
+	if m.guideOn() {
+		return "go to a change first (space or b), then move onto its line to " + what
+	}
+	return "move the cursor onto a code line to " + what
+}
+
+func (m *Model) updateLabel(msg tea.KeyMsg) tea.Cmd {
+	switch k := msg.String(); k {
+	case "esc":
+		m.labeling = false
+		return nil
+	case "!":
+		m.blocking = !m.blocking
+		return nil
+	case "enter":
+		m.labeling = false
+		return m.openComment("", false)
+	default:
+		if l, ok := state.LabelByKey(k); ok {
+			m.labeling = false
+			return m.openComment(l.Name, l.Blocking != m.blocking)
+		}
+	}
+	return nil
+}
+
+func (m *Model) openComment(label string, blocking bool) tea.Cmd {
 	r, ok := m.cursorRow()
 	if !ok {
-		m.setStatus(false, "move the cursor onto a code line to comment on it")
 		return nil
 	}
 	p := m.doc.Stations[m.station].Parts[r.part]
 	m.asking, m.commenting = true, true
-	m.input.Prompt = " comment › "
+	m.label, m.blocking = label, blocking
 	m.input.SetValue("")
-	m.input.Placeholder = fmt.Sprintf("comment on %s:%d, kept as a draft until S sends them, esc cancels", p.Spec.File, r.line+1)
+	if label == "" {
+		m.input.Prompt = " comment › "
+		m.input.Placeholder = fmt.Sprintf("comment on %s:%d, kept as a draft until S sends them, esc cancels", p.Spec.File, r.line+1)
+		return m.input.Focus()
+	}
+	m.input.Prompt = " " + strings.TrimSuffix(state.Prefix(label, blocking), " ") + " "
+	for _, l := range state.Labels {
+		if l.Name == label {
+			m.input.Placeholder = fmt.Sprintf("%s (%s:%d)", l.Tip, path.Base(p.Spec.File), r.line+1)
+		}
+	}
 	return m.input.Focus()
+}
+
+// labelBar is the footer while the reader picks what kind of comment to write.
+func (m *Model) labelBar() string {
+	var b strings.Builder
+	b.WriteString(" comment kind:")
+	for _, l := range state.Labels {
+		fmt.Fprintf(&b, " %s %s", l.Key, l.Name)
+	}
+	extra := "issue blocks"
+	if m.blocking {
+		extra = "blocking flipped"
+	}
+	fmt.Fprintf(&b, " · ! %s · enter none · esc cancels", extra)
+	return m.paint.Text(b.String(), m.width, colInk, colComment, true, false)
 }
 
 // lineQuestion describes the cursor line the way questions and comments anchor to it.
@@ -55,6 +117,10 @@ func (m *Model) lineQuestion(id, text string) (state.Question, bool) {
 }
 
 func (m *Model) comment(text string) {
+	if m.label != "" {
+		text = state.Prefix(m.label, m.blocking) + text
+	}
+	m.label, m.blocking = "", false
 	q, ok := m.lineQuestion(m.state.NextCommentID(), text)
 	if !ok {
 		return

@@ -30,6 +30,7 @@ flow: |
 
 stations:
   - id: store
+    order_why: the store every later stop changes
     title: The store carries an audit log
     lede: NewStore now takes the log, so every caller has to decide whether it wants one.
     scope: >-
@@ -67,6 +68,7 @@ stations:
         text: Should a store without an audit log still be allowed, or should support always get a history?
 
   - id: reserve
+    order_why: the method that calls the log, on the store from stop 1
     title: Reserve validates before locking
     lede: The quantity check moved in front of the mutex, and failures now say what was missing.
     scope: >-
@@ -83,10 +85,14 @@ stations:
     risk_why: every reservation goes through it, and it now calls into the log while holding the store lock
     concern: fix
     tests: [TestReserve, TestAuditLogRecords]
+    checks:
+      - Can a zero or negative quantity still reach the stock anywhere Reserve is called?
+      - Does every caller that checks for ErrInsufficient still find it?
     parts:
       - file: inventory/stock.go
         func: Store.Reserve
         about: The whole of Reserve, since the check, the error and the log call all moved.
+        check: Is a quantity of zero or less refused before the lock is taken?
     notes:
       - at: "if qty <= 0"
         kind: info
@@ -99,6 +105,7 @@ stations:
         text: Recorded while the lock is held, so the log order matches the stock order.
 
   - id: audit
+    order_why: the log itself, which Reserve writes to
     title: The new audit log
     lede: A new file, so every line shows as added.
     scope: >-
@@ -137,6 +144,7 @@ stations:
         text: Returns a copy; callers cannot mutate the log.
 
   - id: removed
+    order_why: independent; only a deletion
     title: ReleaseAll is gone
     lede: Nothing called it. Shown from the base side because it no longer exists.
     scope: A pure deletion, kept apart so it can be checked in one look.
@@ -154,6 +162,7 @@ stations:
         text: Deleting the key also dropped the SKU from listings, which surprised callers.
 
   - id: report
+    order_why: independent; the script that reads the stock
     title: Report skips zero deltas
     scope: The only Python in the change, and independent of the Go code apart from the log format.
     what: >-

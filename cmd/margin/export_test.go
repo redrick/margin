@@ -70,6 +70,7 @@ func TestResolveAndExport(t *testing.T) {
 	md := capture(t, "export", "--review", path)
 	for _, want := range []string{
 		"# Review: Stock reservations get an audit trail",
+		"**Recommendation: request changes**",
 		"## Compared with what was asked",
 		"`inventory/stock.go:32`: log the rejected quantity\n\n  > Logged now.",
 		"**Breaking signature.**",
@@ -94,7 +95,7 @@ func TestResolveAndExport(t *testing.T) {
 	if err := json.Unmarshal([]byte(capture(t, "export", "--format", "github", "--review", path)), &gh); err != nil {
 		t.Fatal(err)
 	}
-	if gh.Event != "COMMENT" || len(gh.Comments) != 3 || !strings.Contains(gh.Body, "Decisions") {
+	if gh.Event != "REQUEST_CHANGES" || !strings.Contains(gh.Body, "1 problem the agent found is flagged by you") || len(gh.Comments) != 3 || !strings.Contains(gh.Body, "Decisions") {
 		t.Fatalf("github export = %+v", gh)
 	}
 	if c := gh.Comments[0]; c.Path != "inventory/stock.go" || c.Line != 32 || c.Side != "RIGHT" {

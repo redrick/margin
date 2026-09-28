@@ -209,6 +209,11 @@ func TestYourPassFirstAndFilter(t *testing.T) {
 		return n
 	}
 	mustGoto(t, m, "audit")
+	if markers() == 0 {
+		t.Fatal("notes show on a high-risk stop unless blind mode is on")
+	}
+	m.state.Blind = true
+	m.rebuild()
 	if markers() != 0 {
 		t.Fatal("a high-risk stop should hide the agent's notes until v")
 	}
@@ -515,6 +520,7 @@ func TestYank(t *testing.T) {
 		}
 	}
 
+	m.state.Blind = true
 	mustGoto(t, m, "audit")
 	got = ""
 	run(m.yank(true))
@@ -533,7 +539,8 @@ func TestRecapWraps(t *testing.T) {
 			t.Errorf("recap should wrap long notes instead of cutting them, missing %q:\n%s", want, view)
 		}
 	}
-	press(m, "j", "j", "j")
+	// The recap opens with a link per stop under the recommendation; the entries follow.
+	press(m, "j", "j", "j", "j", "j", "j", "j", "j")
 	press(m, "enter")
 	if w := m.where(); w.Station.ID != "report" || w.Note.Number != 1 {
 		t.Fatalf("j should skip the wrapped lines to the next entry, enter opened %s %+v", w.Station.ID, w.Note)

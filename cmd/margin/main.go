@@ -43,7 +43,7 @@ const usageText = `margin — review git changes with an agent beside you
   Reviews are kept in $MARGIN_DIR, else in the vault of Claude Code's obsidian-memory skill,
   else in ~/.local/state/margin.
 
-keys: ] [ note · } { stop · a ask · c comment · S send comments · space reviewed · tab list · q quit
+keys: space next · b back · y n ? first question · 1 2 3 verdict · c comment · a ask · S send comments · e more · w whole stop · H all keys · q quit
 
 commands for the agent:
   margin note <file>:<line> "text"     add a note
@@ -172,6 +172,8 @@ func cmdOpen(args []string) error {
 	fs := flag.NewFlagSet("open", flag.ContinueOnError)
 	agent := fs.String("agent-pane", "", "")
 	noSubmit := fs.Bool("no-submit", false, "")
+	full := fs.Bool("full", false, "")
+	blind := fs.Bool("blind", false, "")
 	pos, err := parseArgs(fs, args)
 	if err != nil {
 		return err
@@ -185,7 +187,7 @@ func cmdOpen(args []string) error {
 		return fmt.Errorf("%s is already open (socket %s)", pos[0], sock)
 	}
 
-	m := tui.New(tui.Options{ReviewPath: path, AgentPane: *agent, Submit: !*noSubmit})
+	m := tui.New(tui.Options{ReviewPath: path, AgentPane: *agent, Submit: !*noSubmit, Guide: !*full, Blind: *blind})
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if w, err := watch.New(func() { p.Send(tui.ChangedMsg{}) }); err == nil {
 		defer w.Close()
@@ -273,6 +275,9 @@ func cmdLint(args []string) int {
 		files.Close()
 		for _, p := range d.Problems {
 			fmt.Printf("%s: %s: %s\n", path, p.Station, p.Msg)
+		}
+		for _, a := range advice(d) {
+			fmt.Printf("%s: hint: %s\n", path, a)
 		}
 		if len(d.Problems) > 0 {
 			fmt.Printf("%s: %d problems · %s\n", path, len(d.Problems), doc.Summary(d))
@@ -485,4 +490,37 @@ func cmdAnswer(cmd string, args []string) error {
 	}
 	fmt.Printf("%s %s: station %s note %d\n", q.ID, verb, q.Station, idx+1)
 	return notifyViewer(sock, !*noGoto, q.Station, idx)
+}
+
+// advice lists what makes a review harder to follow than it needs to be. It never fails the lint:
+// the review still works, it is only longer or less ordered than the reader can take in.
+func advice(d *doc.Doc) []string {
+	r := d.Review
+	var out []string
+	long := func(field, s string, most int) {
+		if n := len([]rune(strings.TrimSpace(s))); n > most {
+			out = append(out, fmt.Sprintf("%s is %d characters; the first screen shows about %d, keep it shorter", field, n, most))
+		}
+	}
+	long("did", r.Did, 300)
+	long("gap", r.Gap, 450)
+	var stops []*doc.Station
+	for _, s := range d.Stations {
+		if s.Kind == doc.Code && !s.Auto {
+			stops = append(stops, s)
+		}
+	}
+	if len(stops) > 6 {
+		out = append(out, fmt.Sprintf("%d stops; 3 to 6 are easier to keep in mind, merge the closely related ones", len(stops)))
+	}
+	for _, s := range stops {
+		long(s.ID+": lede", s.Lede, 200)
+		if len(stops) > 1 && s.OrderWhy == "" {
+			out = append(out, s.ID+": no order_why; say in a few words why the stop comes where it does")
+		}
+		if n := s.LOC(); n > 200 {
+			out = append(out, fmt.Sprintf("%s: %d lines; stops of at most about 150 lines are easier to review, split it if it has parts that stand alone", s.ID, n))
+		}
+	}
+	return out
 }

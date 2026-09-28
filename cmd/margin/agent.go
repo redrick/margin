@@ -11,19 +11,28 @@ little context, opened the viewer beside you and started you with the review fil
    margin lint after):
      asked     what the change was meant to do, written by margin from the commit messages, the
                pull request or the reader's --intent. Read it; do not edit it.
-     did       what the change actually does, in two or three plain sentences
+     did       what the change actually does, in one or two plain sentences (the reader's first
+               screen shows two lines of it)
      gap       where the change does more, less or something other than asked: scope that crept
                in, a part of the ask that is missing, behaviour nobody asked for. Write "none" when
                it matches; when asked is empty, say the intent is unknown and what you assumed.
+               At most two or three sentences; the details belong in the stops' examples and notes.
      motivation, outcome   optional, one sentence each, for someone in their first week: what was
                annoying, broken or missing for a person, and what is better for them now. No code
                words. Leave them out rather than guess.
      summary   what the change does and why, then your overall verdict, in at most 5 short lines
      complexity  one line: low | medium | high | very high, and why ("new schema plus two services")
-     stations  group related files into a few stops, caller next to callee, declaration next to use
-               order them riskiest first: reviewers catch far fewer problems in what they read last,
-               but keep a stop that introduces a type before the stop that uses it
-               per stop set  risk: high | medium | low
+     stations  group related files into 3 to 6 stops of at most about 150 lines each, caller next
+               to callee, declaration next to use. Order them so that each stop needs only the
+               stops before it: what is called or declared before what calls or uses it. Among
+               stops that do not depend on each other, put the riskier one first, since reviewers
+               catch far fewer problems in what they read last; never leave a risky change for a
+               trailing catch-all stop.
+               per stop set  order_why: why the stop comes where it does, in a few words ("the
+                                    errors every later stop returns", "uses the resolver from
+                                    stop 1", "independent; config only"). The first screen lists
+                                    it beside each stop so the reader can follow the order.
+                             risk: high | medium | low
                              risk is how bad it would be if the reader missed a problem here, not
                              how likely a bug is. High: security, auth, data loss or migration,
                              concurrency, money, public API, a production dependency (with its
@@ -33,7 +42,12 @@ little context, opened the viewer beside you and started you with the review fil
                                     lock; changes a public signature"), never line counts
                              concern: feature | fix | refactor | tests | config | docs
                              tests: [TestNames or test files that cover it]
-                             lede: one or two sentences on what this stop is about
+                             lede: one sentence on what this stop is about
+                             checks: 1 to 3 questions the reader should be able to answer
+                                    after reading the stop, specific to this code ("Can qty
+                                    still be negative anywhere Reserve is called?"), never
+                                    generic ("is it tested?"). Put the most important first:
+                                    the stop's card shows only that one, the wrap-up all.
                              flow: optional ASCII diagram when the stop wires several parts together
                and open every stop with its rationale, a short paragraph each, in plain sentences:
                              scope: why this code is a stop of its own: what ties its parts
@@ -43,6 +57,24 @@ little context, opened the viewer beside you and started you with the review fil
                              why:   why it changed, and why it is built this way rather than
                                     the obvious alternative
                per part set  about: one sentence on what this part shows and why it is in the stop
+                             check: optional, the one question the reader answers after reading
+                                    this part ("Does a 401 still count as not found?"). The walk
+                                    shows it under each change of the part, instead of a generic
+                                    question.
+               Background: when the change leans on unchanged code the reader has to know first (a
+               type it fills in, a function it now calls, the old contract it keeps), add that code
+               as a part with background: true, listed before the change. It is drawn dimmed and
+               not counted as lines to review. Give it func, from/to or lines, never hunks, and keep
+               it short: one or two per stop, only where the change is hard to follow without it.
+               Examples: when a stop changes what a function returns or does, run the old and the
+               new code on 2 to 5 telling inputs (edge cases first) and add them to the stop:
+                             examples: [{input: "Reserve(sku, 0)", before: "ok, stock -0",
+                                         after: "error: quantity must be positive", note: "..."}]
+               Write what you actually observed (a test, a REPL, git stash), never what you expect;
+               leave examples out when you could not run the code.
+               margin itself lists, per stop, who outside the tour calls the functions it changes
+               and which commits wrote the replaced code. Check those callers and note the ones
+               whose behaviour changes.
                Moved code: a function moved to another file is one change; put both ends in one
                stop. The viewer marks lines moved unchanged and folds them.
      flow      optional ASCII diagram for the whole change (write flow: |2 if a line starts at column 0)
@@ -93,6 +125,10 @@ little context, opened the viewer beside you and started you with the review fil
    Review comments arrive as a batch, "[margin comments] ...", one line per comment cN. They are
    the reader's own remarks: handle each one, by changing the code or by explaining why not,
    then close it with margin resolve cN "Fixed: ..." or "Not changed, because ...".
+   Most start with a Conventional Comments label. Handle "(blocking)" ones first and never close
+   one without a change or a reason the reader can check. A question gets an answer (and a code
+   comment if the answer was not obvious from the code); a suggestion or nitpick is yours to take
+   or decline with a reason; praise needs no change, resolve it with a short thanks.
    margin questions lists what is still open.
 
 4. Code changes requested during the review: edit the code, add changed: "what and why" to the
@@ -125,10 +161,14 @@ Review file format
   did, gap, motivation, outcome, summary, complexity, flow
   stations:
     - id: short-id            no spaces or ':'
-      title, lede, scope, what, why, risk, risk_why, concern, tests, flow
+      title, lede, order_why, scope, what, why, risk, risk_why, concern, tests, flow
+      checks: ["question the reader should be able to answer"]
+      examples: [{input, before, after, note}]
       parts:
         - file: path
           about: "one sentence"
+          check: "the question to answer after reading it"
+          background: true    unchanged code to read first, dimmed
           hunks: true         or func: Name | from: "needle" [to: "needle"] | lines: 10-40 | none = whole file
           side: base          show the base version (deleted code)
           base_file: old/path for renamed files

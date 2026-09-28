@@ -14,61 +14,72 @@
 <text x="16.0" y="69" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › audit 3/7  </text>
 <text x="217.6" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●●</text>
 <text x="236.8" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc">●</text>
-<text x="246.4" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○</text>
+<text x="246.4" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○</text>
+<text x="256.0" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐</text>
 <text x="284.8" y="69" textLength="240.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> HIGH RISK  12/12 tested </text>
 <text x="534.4" y="69" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> feature · 35 lines   </text>
 <text x="745.6" y="69" textLength="163.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">The new audit log</text>
 <text x="1168.0" y="69" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  example · current/ vs base/</text>
-<text x="16.0" y="90" textLength="403.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> A new file, so every line shows as added.</text>
+<text x="16.0" y="90" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Why a stop of its own</text>
 <text x="947.2" y="90" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="16.0" y="111" textLength="604.8" lengthAdjust="spacingAndGlyphs" fill="#ff7b71"> high risk: a second lock, taken while the store's lock is held</text>
+<text x="44.8" y="111" textLength="854.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">A new type with its own lock and no dependency on the store, so it reads best on its own,</text>
 <text x="947.2" y="111" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
 <text x="956.8" y="111" textLength="153.6" lengthAdjust="spacingAndGlyphs" fill="#d29922" font-weight="bold"> your pass first</text>
+<text x="44.8" y="132" textLength="336.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">after the store code that calls it.</text>
 <text x="947.2" y="132" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="16.0" y="153" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Why a stop of its own</text>
+<text x="16.0" y="153" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> What it does and how</text>
 <text x="947.2" y="153" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
 <text x="956.8" y="153" textLength="336.0" lengthAdjust="spacingAndGlyphs" fill="#d29922"> This station is high risk. Read it</text>
-<text x="44.8" y="174" textLength="854.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">A new type with its own lock and no dependency on the store, so it reads best on its own,</text>
+<text x="44.8" y="174" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ffa657">Record</text>
+<text x="102.4" y="174" textLength="633.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> appends an entry with the time, the SKU and the change in stock; </text>
+<text x="736.0" y="174" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#ffa657">Entries</text>
+<text x="803.2" y="174" textLength="96.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> returns a</text>
 <text x="947.2" y="174" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
 <text x="956.8" y="174" textLength="355.2" lengthAdjust="spacingAndGlyphs" fill="#d29922"> before the agent's notes, then press</text>
-<text x="44.8" y="195" textLength="336.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">after the store code that calls it.</text>
+<text x="44.8" y="195" textLength="672.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">copy of everything recorded so far. Both take the log's own lock, and </text>
+<text x="716.8" y="195" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ffa657">Record</text>
+<text x="774.4" y="195" textLength="124.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> does nothing</text>
 <text x="947.2" y="195" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
 <text x="956.8" y="195" textLength="316.8" lengthAdjust="spacingAndGlyphs" fill="#d29922"> v to compare with what it found.</text>
-<text x="16.0" y="216" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> What it does and how</text>
+<text x="44.8" y="216" textLength="124.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">on a nil log.</text>
 <text x="947.2" y="216" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="44.8" y="237" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ffa657">Record</text>
-<text x="102.4" y="237" textLength="633.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> appends an entry with the time, the SKU and the change in stock; </text>
-<text x="736.0" y="237" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#ffa657">Entries</text>
-<text x="803.2" y="237" textLength="96.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> returns a</text>
+<text x="16.0" y="237" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Why</text>
 <text x="947.2" y="237" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="44.8" y="258" textLength="672.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">copy of everything recorded so far. Both take the log's own lock, and </text>
-<text x="716.8" y="258" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ffa657">Record</text>
-<text x="774.4" y="258" textLength="124.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> does nothing</text>
+<text x="44.8" y="258" textLength="892.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Reservations had no history. A separate lock keeps a slow reader of the log from blocking the</text>
 <text x="947.2" y="258" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="44.8" y="279" textLength="124.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">on a nil log.</text>
+<text x="44.8" y="279" textLength="672.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">store, and the nil check lets stores built without a log keep working.</text>
 <text x="947.2" y="279" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="16.0" y="300" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Why</text>
 <text x="947.2" y="300" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="44.8" y="321" textLength="892.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">Reservations had no history. A separate lock keeps a slow reader of the log from blocking the</text>
+<text x="16.0" y="321" textLength="259.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950"> tests: TestAuditLogRecords</text>
 <text x="947.2" y="321" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="44.8" y="342" textLength="672.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">store, and the nil check lets stores built without a log keep working.</text>
+<text x="16.0" y="342" textLength="844.8" lengthAdjust="spacingAndGlyphs" fill="#d29922"> your pass first: the agent's notes stay hidden on this high-risk stop until you press v</text>
 <text x="947.2" y="342" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
 <text x="947.2" y="363" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="16.0" y="384" textLength="259.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950"> tests: TestAuditLogRecords</text>
+<text x="16.0" y="384" textLength="931.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff">── inventory/audit.go · lines 1-22 · 1–22 · new file ────────────────────────────────────────────</text>
 <text x="947.2" y="384" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="16.0" y="405" textLength="844.8" lengthAdjust="spacingAndGlyphs" fill="#d29922"> your pass first: the agent's notes stay hidden on this high-risk stop until you press v</text>
+<text x="44.8" y="405" textLength="422.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590" font-style="italic">The entry type, the log and its constructor.</text>
 <text x="947.2" y="405" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="44.8" y="411" width="28.8" height="21" fill="#58a6ff"/>
+<rect x="83.2" y="411" width="864.0" height="21" fill="#1d4030"/>
+<text x="44.8" y="426" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold">  1</text>
+<text x="83.2" y="426" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="112.0" y="426" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">package</text>
+<text x="188.8" y="426" textLength="86.4" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">inventory</text>
 <text x="947.2" y="426" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="16.0" y="447" textLength="931.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff">── inventory/audit.go · lines 1-22 · 1–22 · new file ────────────────────────────────────────────</text>
+<rect x="83.2" y="432" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="447" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  2</text>
+<text x="83.2" y="447" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
 <text x="947.2" y="447" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="44.8" y="468" textLength="422.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590" font-style="italic">The entry type, the log and its constructor.</text>
+<rect x="83.2" y="453" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="468" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  3</text>
+<text x="83.2" y="468" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="112.0" y="468" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">import</text>
+<text x="179.2" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(</text>
 <text x="947.2" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<rect x="44.8" y="474" width="28.8" height="21" fill="#58a6ff"/>
-<rect x="83.2" y="474" width="864.0" height="21" fill="#1d4030"/>
-<text x="44.8" y="489" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold">  1</text>
+<rect x="83.2" y="474" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="489" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  4</text>
 <text x="83.2" y="489" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
-<text x="112.0" y="489" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">package</text>
-<text x="188.8" y="489" textLength="86.4" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">inventory</text>
+<text x="150.4" y="489" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"sync"</text>
 <text x="947.2" y="489" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
 <rect x="16.0" y="495" width="96.0" height="21" fill="#161b22"/>
 <rect x="112.0" y="495" width="48.0" height="21" fill="#ff7b71"/>
@@ -76,14 +87,11 @@
 <rect x="169.6" y="495" width="48.0" height="21" fill="#d29922"/>
 <rect x="217.6" y="495" width="9.6" height="21" fill="#161b22"/>
 <rect x="227.2" y="495" width="67.2" height="21" fill="#d2a8ff"/>
-<rect x="294.4" y="495" width="9.6" height="21" fill="#161b22"/>
-<rect x="304.0" y="495" width="201.6" height="21" fill="#e3b341"/>
-<rect x="505.6" y="495" width="940.8" height="21" fill="#161b22"/>
-<text x="25.6" y="510" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 0/13 </text>
+<rect x="294.4" y="495" width="1152.0" height="21" fill="#161b22"/>
+<text x="25.6" y="510" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 2/14 </text>
 <text x="112.0" y="510" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ! 1 </text>
 <text x="169.6" y="510" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ? 1 </text>
 <text x="227.2" y="510" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ◆ 0/2 </text>
-<text x="304.0" y="510" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ✎ 1 draft · S sends </text>
-<text x="515.2" y="510" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 0m · 53 lines read </text>
+<text x="304.0" y="510" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 0m · 53 lines read </text>
 <text x="1052.8" y="510" textLength="393.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> d hide removed · s side by side · H help</text>
 </svg>

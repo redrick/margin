@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1462" height="742" viewBox="0 0 1462 742">
+<style>text{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:16px;white-space:pre}</style>
+<rect width="1462" height="742" rx="10" fill="#0d1117" stroke="#30363d"/>
+<rect width="1462" height="38" rx="10" fill="#161b22"/><rect y="28" width="1462" height="10" fill="#161b22"/>
+<line x1="0" y1="38" x2="1462" y2="38" stroke="#30363d"/>
+<circle cx="22" cy="19.0" r="6.5" fill="#ff5f57"/>
+<circle cx="44" cy="19.0" r="6.5" fill="#febc2e"/>
+<circle cx="66" cy="19.0" r="6.5" fill="#28c840"/>
+<text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
+<rect x="16.0" y="54" width="268.8" height="21" fill="#161b22"/>
+<rect x="284.8" y="54" width="105.6" height="21" fill="#ff7b71"/>
+<rect x="390.4" y="54" width="134.4" height="21" fill="#3fb950"/>
+<rect x="524.8" y="54" width="921.6" height="21" fill="#161b22"/>
+<text x="16.0" y="69" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › audit 3/7  </text>
+<text x="217.6" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐◐</text>
+<text x="236.8" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc">●</text>
+<text x="246.4" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○</text>
+<text x="256.0" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐</text>
+<text x="284.8" y="69" textLength="240.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> HIGH RISK  12/12 tested </text>
+<text x="534.4" y="69" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> feature · 35 lines   </text>
+<text x="745.6" y="69" textLength="163.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">The new audit log</text>
+<text x="1168.0" y="69" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  example · current/ vs base/</text>
+<text x="16.0" y="90" textLength="652.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff"> orient ─ ② Walk ─ decide   stop 3 of 5 · step 5 of 5 · your verdict</text>
+<text x="947.2" y="90" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="111" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> ━━━━━</text>
+<text x="947.2" y="111" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="132" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="153" textLength="297.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> End of stop: The new audit log</text>
+<text x="947.2" y="153" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="174" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="195" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> You should be able to answer</text>
+<text x="947.2" y="195" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="216" textLength="720.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   · Does it do what was asked, also for empty, zero and very large inputs?</text>
+<text x="947.2" y="216" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="237" textLength="528.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   · Would you know how to use it from the names alone?</text>
+<text x="947.2" y="237" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="258" textLength="748.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">   · What is the worst that happens if this is wrong, and would anyone notice?</text>
+<text x="947.2" y="258" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="279" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="300" textLength="700.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Still open · enter ticks a call, ? agrees with a problem, x dismisses it</text>
+<text x="947.2" y="300" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="321" textLength="931.2" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff">  ☐ ◆ The log keeps every entry in memory for the life of the process. Is that acceptable, or doe</text>
+<text x="947.2" y="321" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="342" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="363" textLength="307.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> How does this stop look to you?</text>
+<text x="947.2" y="363" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="384" textLength="163.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950">  ○ 1  looks good</text>
+<text x="947.2" y="384" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="16.0" y="390" width="931.2" height="21" fill="#1f2a3a"/>
+<text x="16.0" y="405" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#ff7b71" font-weight="bold">▸ ● 2  needs changes</text>
+<text x="947.2" y="405" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="426" textLength="182.4" lengthAdjust="spacingAndGlyphs" fill="#d29922">  ○ 3  not sure yet</text>
+<text x="947.2" y="426" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="447" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="468" textLength="912.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> Say what needs to change: b goes back to the code, c comments on a line. S sends your comments</text>
+<text x="947.2" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="16.0" y="489" textLength="336.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> to the agent. Then space moves on.</text>
+<text x="947.2" y="489" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="510" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="531" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="552" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="573" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="594" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="615" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="636" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="657" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="678" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="947.2" y="699" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="16.0" y="705" width="96.0" height="21" fill="#161b22"/>
+<rect x="112.0" y="705" width="48.0" height="21" fill="#ff7b71"/>
+<rect x="160.0" y="705" width="9.6" height="21" fill="#161b22"/>
+<rect x="169.6" y="705" width="48.0" height="21" fill="#d29922"/>
+<rect x="217.6" y="705" width="9.6" height="21" fill="#161b22"/>
+<rect x="227.2" y="705" width="67.2" height="21" fill="#d2a8ff"/>
+<rect x="294.4" y="705" width="1152.0" height="21" fill="#161b22"/>
+<text x="25.6" y="720" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 2/14 </text>
+<text x="112.0" y="720" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ! 1 </text>
+<text x="169.6" y="720" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ? 1 </text>
+<text x="227.2" y="720" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ◆ 0/2 </text>
+<text x="304.0" y="720" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 0m · 53 lines read </text>
+<text x="505.6" y="720" textLength="403.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590">needs changes: say what with c on the line</text>
+<text x="937.6" y="720" textLength="508.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> space next · b back · e more · w whole stop · H help</text>
+</svg>

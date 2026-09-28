@@ -12,6 +12,7 @@ import (
 	"github.com/redrick/margin/internal/review"
 	"github.com/redrick/margin/internal/source"
 	"github.com/redrick/margin/internal/state"
+	"github.com/redrick/margin/internal/verdict"
 )
 
 // remark is one thing the reader wants to say on a line: a comment they wrote, or a note they flagged.
@@ -52,10 +53,11 @@ func cmdExport(args []string) error {
 	files.Close()
 
 	remarks, calls := collect(d, st)
+	o := verdict.Recommend(d, st)
 	if *format == "github" {
-		return exportGitHub(remarks, calls)
+		return exportGitHub(o, remarks, calls)
 	}
-	fmt.Print(exportMarkdown(d, remarks, calls))
+	fmt.Print(exportMarkdown(d, o, remarks, calls))
 	return nil
 }
 
@@ -107,10 +109,17 @@ func collect(d *doc.Doc, st *state.State) (remarks []remark, calls []string) {
 	return remarks, calls
 }
 
-func exportMarkdown(d *doc.Doc, remarks []remark, calls []string) string {
+func exportMarkdown(d *doc.Doc, o verdict.Outcome, remarks []remark, calls []string) string {
 	r := d.Review
 	var b strings.Builder
 	fmt.Fprintf(&b, "# Review: %s\n\n", r.Title)
+	fmt.Fprintf(&b, "**%s**\n\n", outcomeLine(o))
+	for _, s := range append(append(o.Blockers, o.Left...), o.Notes...) {
+		fmt.Fprintf(&b, "- %s\n", s)
+	}
+	if len(o.Blockers)+len(o.Left)+len(o.Notes) > 0 {
+		b.WriteString("\n")
+	}
 	section := func(title, body string) {
 		if body = strings.TrimSpace(body); body != "" {
 			fmt.Fprintf(&b, "## %s\n\n%s\n\n", title, body)
@@ -154,7 +163,7 @@ func sideLabel(side string) string {
 
 // exportGitHub prints the body of a pull request review for the GitHub API. The reader posts it,
 // for example with gh api repos/OWNER/REPO/pulls/N/reviews --input FILE.
-func exportGitHub(remarks []remark, calls []string) error {
+func exportGitHub(o verdict.Outcome, remarks []remark, calls []string) error {
 	type comment struct {
 		Path string `json:"path"`
 		Line int    `json:"line"`
@@ -166,8 +175,20 @@ func exportGitHub(remarks []remark, calls []string) error {
 		Body     string    `json:"body"`
 		Comments []comment `json:"comments"`
 	}{Event: "COMMENT", Comments: []comment{}}
+	switch o.Decision {
+	case verdict.Approve:
+		out.Event = "APPROVE"
+	case verdict.RequestChanges:
+		out.Event = "REQUEST_CHANGES"
+	}
+	if len(o.Blockers) > 0 {
+		out.Body = "Needs changes:\n\n- " + strings.Join(o.Blockers, "\n- ")
+	}
 	if len(calls) > 0 {
-		out.Body = "Decisions:\n\n" + strings.Join(calls, "\n")
+		if out.Body != "" {
+			out.Body += "\n\n"
+		}
+		out.Body += "Decisions:\n\n" + strings.Join(calls, "\n")
 	}
 	for _, rm := range remarks {
 		side := "RIGHT"
@@ -183,6 +204,16 @@ func exportGitHub(remarks []remark, calls []string) error {
 	fmt.Println(string(data))
 	fmt.Fprintln(os.Stderr, "margin does not post this. To post it yourself: gh api repos/OWNER/REPO/pulls/N/reviews --input FILE")
 	return nil
+}
+
+func outcomeLine(o verdict.Outcome) string {
+	switch o.Decision {
+	case verdict.Approve:
+		return "Recommendation: approve"
+	case verdict.RequestChanges:
+		return "Recommendation: request changes"
+	}
+	return "Review not finished"
 }
 
 func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }

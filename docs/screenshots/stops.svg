@@ -12,8 +12,8 @@
 <rect x="496.0" y="54" width="950.4" height="21" fill="#161b22"/>
 <text x="16.0" y="69" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › store 1/7  </text>
 <text x="217.6" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc">●</text>
-<text x="227.2" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#3fb950">●●</text>
-<text x="246.4" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○</text>
+<text x="227.2" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐</text>
+<text x="236.8" y="69" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○○</text>
 <text x="284.8" y="69" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> LOW RISK  2/2 tested </text>
 <text x="505.6" y="69" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> feature · 18 lines   </text>
 <text x="716.8" y="69" textLength="288.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">The store carries an audit log</text>
