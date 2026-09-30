@@ -183,28 +183,33 @@ func (m *Model) openPeek(r row) {
 		m.peekStyled = false
 		return
 	}
+	m.peekFile(r.file, r.line)
+}
+
+// peekFile shows the code around a 0-based line of a file on the reviewed side in an overlay.
+func (m *Model) peekFile(file string, line int) {
 	files, err := source.Open(m.doc.Review)
 	if err != nil {
 		m.setStatus(true, "%v", err)
 		return
 	}
 	defer files.Close()
-	f, err := files.Current(r.file)
+	f, err := files.Current(file)
 	if err != nil {
-		m.setStatus(true, "reading %s: %v", r.file, err)
+		m.setStatus(true, "reading %s: %v", file, err)
 		return
 	}
 	lines := text.Lines(text.Sanitize(f.Content))
-	if r.line >= len(lines) {
-		m.setStatus(true, "%s has no line %d", r.file, r.line+1)
+	if line >= len(lines) {
+		m.setStatus(true, "%s has no line %d", file, line+1)
 		return
 	}
 	span := max((m.bodyHeight()-3)/2, 3)
-	from, to := max(r.line-span, 0), min(r.line+span, len(lines)-1)
-	out := []string{fmt.Sprintf(" %s:%d · any key closes", r.file, r.line+1)}
+	from, to := max(line-span, 0), min(line+span, len(lines)-1)
+	out := []string{fmt.Sprintf(" %s:%d · any key closes", file, line+1)}
 	numW := len(fmt.Sprint(to + 1))
 	for i := from; i <= to; i++ {
-		if i == r.line {
+		if i == line {
 			m.peekAt = len(out)
 		}
 		out = append(out, fmt.Sprintf(" %*d  %s", numW, i+1, strings.ReplaceAll(lines[i], "\t", "    ")))

@@ -226,6 +226,6 @@
 <text x="83.2" y="594" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#f85149" font-weight="bold">▎- </text>
 <text x="112.0" y="594" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#b08286">    n := s.items[sku]</text>
 <text x="947.2" y="594" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="956.8" y="594" textLength="249.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> ┃ line 39 runs in 2 tests</text>
+<text x="956.8" y="594" textLength="393.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> ┃ line 39 runs in 2 tests · t lists them</text>
 <text x="16.0" y="615" textLength="585.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ask › What happens if Record panics while the lock is held? </text>
 </svg>

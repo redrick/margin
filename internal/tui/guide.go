@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/mattn/go-runewidth"
 
 	"github.com/redrick/margin/internal/anchor"
 	"github.com/redrick/margin/internal/around"
@@ -640,22 +641,27 @@ func (m *Model) settleRows(st *doc.Station, notes []int) {
 	heading := false
 	for _, ni := range notes {
 		n := st.Notes[ni]
-		if m.state.Dismissed[n.Key] || (n.Level() != doc.KindDecide && n.Level() != doc.KindIssue) {
+		lvl := n.Level()
+		if m.state.Dismissed[n.Key] || (lvl != doc.KindDecide && lvl != doc.KindIssue && lvl != doc.KindQuestion) {
 			continue
 		}
 		if !heading {
 			m.add(rowText, toneHeading, "Settle here · j moves down to it")
 			heading = true
 		}
-		if n.Level() == doc.KindDecide {
-			m.toggleRow(colDecide, n.Key, "◆ your call: "+oneLine(plain(n.Text))+" · enter when decided", ni)
+		if lvl == doc.KindDecide {
+			m.toggleRow(colDecide, n.Key, m.fitHint("☐ ◆ your call: ", oneLine(plain(n.Text)), " · enter when decided")[len("☐ "):], ni)
+			continue
+		}
+		if lvl == doc.KindQuestion {
+			m.questionRow(st, ni, "")
 			continue
 		}
 		mark := "! "
 		if m.state.Flagged[n.Key] {
 			mark = "⚑ "
 		}
-		m.rows = append(m.rows, row{kind: rowLink, fg: colProblem, text: mark + oneLine(plain(n.Text)) + " · ? agree · x dismiss",
+		m.rows = append(m.rows, row{kind: rowLink, fg: colProblem, text: m.fitHint(mark, oneLine(plain(n.Text)), " · ? agree · x dismiss"),
 			target: m.station, noteAt: ni, comment: -1, notes: []int{ni}})
 	}
 }
@@ -675,7 +681,7 @@ func (m *Model) stepQuestion(st *doc.Station, s step, notes []int) string {
 	case kinds[doc.KindDecide]:
 		return "There is a call to make here. Decide, then enter ticks it."
 	case kinds[doc.KindQuestion]:
-		return "The agent is unsure about something here. Can you answer it? a asks, c comments."
+		return "The agent asks you something here. Answer it from the list below, or x dismisses it."
 	case len(notes) > 0:
 		return "Does the code do what the notes say, and is that the right thing to do?"
 	}
@@ -795,7 +801,7 @@ func (m *Model) wrapRows(st *doc.Station) {
 	heading := false
 	open := func() {
 		if !heading {
-			m.add(rowText, toneHeading, "Still open · enter ticks a call, ? agrees with a problem, x dismisses it")
+			m.add(rowText, toneHeading, "Still open · enter ticks a call or answers a question, ? agrees with a problem, x dismisses it")
 			heading = true
 		}
 	}
@@ -804,15 +810,22 @@ func (m *Model) wrapRows(st *doc.Station) {
 			continue
 		}
 		open()
-		m.toggleRow(colDecide, n.Key, "◆ "+oneLine(plain(n.Text))+noteAt(st, n), ni)
+		m.toggleRow(colDecide, n.Key, m.fitHint("☐ ◆ ", oneLine(plain(n.Text)), noteAt(st, n))[len("☐ "):], ni)
 	}
 	for ni, n := range st.Notes {
 		if n.Level() != doc.KindIssue || m.state.Dismissed[n.Key] || m.state.Flagged[n.Key] || !m.noteVisible(st, n) {
 			continue
 		}
 		open()
-		m.rows = append(m.rows, row{kind: rowLink, fg: colProblem, text: "! " + oneLine(plain(n.Text)) + noteAt(st, n),
+		m.rows = append(m.rows, row{kind: rowLink, fg: colProblem, text: m.fitHint("! ", oneLine(plain(n.Text)), noteAt(st, n)),
 			target: m.station, noteAt: ni, comment: -1, notes: []int{ni}})
+	}
+	for ni, n := range st.Notes {
+		if n.Level() != doc.KindQuestion || n.Q != "" || m.state.Dismissed[n.Key] || m.answered(n.Key) || !m.noteVisible(st, n) {
+			continue
+		}
+		open()
+		m.questionRow(st, ni, noteAt(st, n))
 	}
 	if heading {
 		m.add(rowText, tonePlain, "")
@@ -876,6 +889,31 @@ func noteAt(st *doc.Station, n *doc.Note) string {
 		return ""
 	}
 	return fmt.Sprintf(" (%s:%d)", path.Base(st.Parts[n.Part].Spec.File), n.Line+1)
+}
+
+// fitHint joins prefix, text and hint on one row, shortening text so the hint with its keys stays on
+// screen.
+func (m *Model) fitHint(prefix, text, hint string) string {
+	room := m.codeWidth() - 3 - runewidth.StringWidth(prefix) - runewidth.StringWidth(hint)
+	if room < 20 {
+		return prefix + text + hint
+	}
+	return prefix + doc.Short(text, room) + hint
+}
+
+// questionRow lists a question the agent asks the reader. enter answers it as a draft comment on the
+// question's line; a question with no line jumps to the note instead.
+func (m *Model) questionRow(st *doc.Station, ni int, where string) {
+	n := st.Notes[ni]
+	mark, hint := "? ", " · enter answers · x dismiss"
+	if m.answered(n.Key) {
+		mark, hint = "✓ ", " · answered in your comments"
+	}
+	if n.Part < 0 {
+		hint = " · enter goes to it · x dismiss"
+	}
+	m.rows = append(m.rows, row{kind: rowLink, fg: m.noteStyle(n).color, text: m.fitHint(mark, oneLine(plain(n.Text)), where+hint),
+		target: m.station, noteAt: ni, comment: -1, notes: []int{ni}, answer: n.Part >= 0})
 }
 
 func (m *Model) toggleRow(fg, key, s string, note int) {

@@ -27,6 +27,9 @@ type CovTest struct {
 	// Synthetic marks a parent the agent reported no coverage for, shown only to group its subtests.
 	Synthetic bool
 	New       bool
+	// File and Line say where the test is defined, when the coverage says so; Line is 1-based.
+	File string
+	Line int
 }
 
 type Coverage struct {
@@ -92,7 +95,7 @@ func (d *Doc) AttachCoverage(set *coverage.Set) {
 			display = strings.ReplaceAll(display, "_", " ")
 		}
 		c.Tests = append(c.Tests, CovTest{Name: t.Name, Package: t.Package, Group: group(t), Display: display, Depth: len(parts) - 1,
-			Synthetic: t.Source == "synthetic", New: fresh[parts[len(parts)-1]] || fresh[display]})
+			Synthetic: t.Source == "synthetic", New: fresh[parts[len(parts)-1]] || fresh[display], File: t.File, Line: t.Line})
 		for file, lines := range t.Lines {
 			c.measured[file] = true
 			if c.run[file] == nil {

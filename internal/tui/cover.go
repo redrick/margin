@@ -336,7 +336,7 @@ func (m *Model) coverInfo(w int) []string {
 		if len(ts) == 1 {
 			word = "test"
 		}
-		out := []string{m.paint.Text(fmt.Sprintf(" ┃ line %d runs in %d %s", r.line+1, len(ts), word), w, colTested, "", true, false)}
+		out := []string{m.paint.Text(fmt.Sprintf(" ┃ line %d runs in %d %s · t lists them", r.line+1, len(ts), word), w, colTested, "", true, false)}
 		for i, t := range ts {
 			if i == 3 {
 				out = append(out, m.paint.Text(fmt.Sprintf("   and %d more", len(ts)-3), w, colDim, "", false, false))
@@ -360,7 +360,7 @@ func (m *Model) coverSummary() string {
 	p := m.doc.Stations[m.station].Parts[r.part]
 	switch m.doc.Coverage.Line(p, r.line) {
 	case doc.CovRun:
-		return fmt.Sprintf("┃ line %d runs in %d tests", r.line+1, len(m.doc.Coverage.TestsAt(p, r.line)))
+		return fmt.Sprintf("┃ line %d runs in %d tests · t lists them", r.line+1, len(m.doc.Coverage.TestsAt(p, r.line)))
 	case doc.CovMissed:
 		return fmt.Sprintf("✗ line %d: no test runs it", r.line+1)
 	}

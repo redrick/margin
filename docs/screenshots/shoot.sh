@@ -139,6 +139,26 @@ keys F F F
 go_to store:2
 shot filter
 
+open_viewer 34
+go_to reserve:2
+keys Enter
+shot note-full
+
+open_viewer 30
+go_to reserve:2
+keys t
+shot tests-picker
+
+open_viewer 30
+go_to reserve:2
+keys t j j p
+shot tests-source
+
+open_viewer 42
+go_to store
+keys H
+shot help
+
 # The comment written for the comment shot above is sent, and the agent resolves it.
 T kill-server 2>/dev/null || true
 while m where >/dev/null 2>&1; do sleep 0.1; done
@@ -286,10 +306,30 @@ go_to reserve
 keys Space Space
 shot guide-change
 
+open_viewer 46
+go_to reserve
+keys Space
+shot guide-background
+
 open_viewer 30
 go_to reserve:1
 keys c
 shot comment-kind
+
+open_viewer 40
+go_to store
+keys Space Space Space Space
+shot guide-housekeeping
+
+open_viewer 40
+go_to report:1
+shot guide-settle
+
+open_viewer 40
+go_to report:1
+keys G Enter
+text "Yes, list them under cancelled at the bottom of the report."
+shot guide-answer
 
 open_viewer 32
 go_to audit

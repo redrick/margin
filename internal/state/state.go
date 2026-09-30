@@ -49,6 +49,8 @@ type Question struct {
 	Needle  string    `yaml:"needle" json:"needle"`
 	Text    string    `yaml:"text" json:"text"`
 	Asked   time.Time `yaml:"asked" json:"asked"`
+	// Answers is the key of the agent's question note this comment answers.
+	Answers string `yaml:"answers,omitempty" json:"answers,omitempty"`
 }
 
 func Load(path string) (*State, error) {

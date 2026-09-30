@@ -65,6 +65,8 @@ type row struct {
 	// toggle ticks a mark in the reader's state; verdict gives the stop that verdict.
 	toggle  string
 	verdict string
+	// answer opens a comment that answers the agent's question in notes[0].
+	answer bool
 }
 
 func (r row) selectable() bool {

@@ -233,6 +233,11 @@ func coverageAddGo(args []string) error {
 			return fmt.Errorf("%s: %w", name, err)
 		}
 		t, ex := coverage.FromBlocks(name, pkg, blocks, mods, keep)
+		if rel, ok := coverage.Rel(mods, pkg+"/x"); ok {
+			if file, line, ok := coverage.FindGo(repo, path.Dir(rel), name); ok {
+				t.File, t.Line = file, line
+			}
+		}
 		in.Tests = append(in.Tests, t)
 		for file, lines := range ex {
 			if exec[file] == nil {

@@ -301,3 +301,59 @@ stations:
 		}
 	}
 }
+
+func TestAnswerAgentQuestion(t *testing.T) {
+	m := newGuided(t)
+	press(m, "y")
+	at := -1
+	for range 60 {
+		for i, r := range m.rows {
+			if r.answer {
+				at = i
+			}
+		}
+		if at >= 0 {
+			break
+		}
+		press(m, " ")
+	}
+	if at < 0 {
+		t.Fatal("a step with the agent's question should list it with enter answers")
+	}
+	st := m.doc.Stations[m.station]
+	ni := m.rows[at].notes[0]
+	n := st.Notes[ni]
+	if !strings.Contains(m.rows[at].text, "enter answers") || !strings.Contains(rowsText(m), "The agent asks you something here") {
+		t.Errorf("the question row says how to answer it: %q", m.rows[at].text)
+	}
+	m.setCursor(at)
+	press(m, "enter")
+	if !m.asking || !m.commenting || !strings.Contains(m.input.Prompt, fmt.Sprintf("answer to note %d", ni+1)) {
+		t.Fatalf("enter on a question opens an answer prompt, got %q", m.input.Prompt)
+	}
+	for _, r := range "keep them in the log" {
+		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	press(m, "enter")
+	d := m.drafts()
+	if len(d) != 1 {
+		t.Fatalf("the answer is kept as one draft comment, got %d", len(d))
+	}
+	q := d[0]
+	p := st.Parts[n.Part]
+	if q.Answers != n.Key || q.File != p.Spec.File || q.Line != n.Line+1 || !strings.Contains(q.Text, "answer to your question") || !strings.HasSuffix(q.Text, "keep them in the log") {
+		t.Errorf("the answer anchors on the question's line and says what it answers: %+v", q)
+	}
+	if m.answerOn {
+		t.Error("the answer prompt closes once saved")
+	}
+	found := false
+	for _, r := range m.rows {
+		if r.answer && r.notes[0] == ni && strings.HasPrefix(r.text, "✓ ") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("an answered question shows as answered")
+	}
+}

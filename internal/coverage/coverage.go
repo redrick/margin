@@ -25,11 +25,13 @@ import (
 const SourceGo = "go"
 
 type Test struct {
-	Name    string           `json:"name"`
-	Package string           `json:"package,omitempty"`
-	File    string           `json:"file,omitempty"`
-	Source  string           `json:"source,omitempty"`
-	Lines   map[string][]int `json:"lines"`
+	Name    string `json:"name"`
+	Package string `json:"package,omitempty"`
+	File    string `json:"file,omitempty"`
+	// Line is where the test is defined in File, 1-based; 0 when unknown.
+	Line   int              `json:"line,omitempty"`
+	Source string           `json:"source,omitempty"`
+	Lines  map[string][]int `json:"lines"`
 }
 
 // Set is the coverage file. Lines are 1-based. Executable lists, per file, the lines that can run at

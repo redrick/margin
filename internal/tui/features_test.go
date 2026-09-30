@@ -332,3 +332,60 @@ func TestReadNotesKeepsCardStyle(t *testing.T) {
 		t.Error("any key closes the notes")
 	}
 }
+
+func TestTestsPicker(t *testing.T) {
+	m := newModel(t)
+	at := -1
+	for s := range m.doc.Stations {
+		m.setStation(s)
+		for i, r := range m.rows {
+			if r.kind != rowCode {
+				continue
+			}
+			p := m.doc.Stations[m.station].Parts[r.part]
+			if len(m.doc.Coverage.TestsAt(p, r.line)) >= 3 {
+				at = i
+				break
+			}
+		}
+		if at >= 0 {
+			break
+		}
+	}
+	if at < 0 {
+		t.Fatal("the example has a line run by several tests")
+	}
+	m.setCursor(at)
+	press(m, "t")
+	if !m.testsOpen || len(m.tests.list) < 3 {
+		t.Fatalf("t lists every test that runs the line: %+v", m.tests)
+	}
+	view := ansi.Strip(m.View())
+	if !strings.Contains(view, "enter spotlight · p source") || !strings.Contains(view, "TestReserve/insufficient stock leaves store unchanged") {
+		t.Fatalf("the picker names the tests and its keys:\n%s", view)
+	}
+	for i, ti := range m.tests.list {
+		if m.doc.Coverage.Tests[ti].Name == "TestReserve/insufficient_stock_leaves_store_unchanged" {
+			m.tests.cur = i
+		}
+	}
+	press(m, "p")
+	if m.peek == nil || !strings.Contains(m.peek[0], "stock_test.go:23") || !strings.Contains(m.peek[m.peekAt], `"insufficient stock leaves store unchanged"`) {
+		t.Fatalf("p peeks at the subtest's source: %q", m.peek)
+	}
+	press(m, "q")
+	if m.peek != nil || !m.testsOpen {
+		t.Fatal("closing the source goes back to the picker")
+	}
+	press(m, " ", "r")
+	if !strings.Contains(m.status, "no agent pane") {
+		t.Errorf("without an agent the tests cannot be run: %q", m.status)
+	}
+	press(m, "enter")
+	if m.testsOpen || m.spot < 0 {
+		t.Error("enter spotlights the selected test")
+	}
+	if msg := RunTestsMessage([]string{"./inventory TestReserve"}, "inventory/stock.go", 31, "if qty <= 0 {"); !strings.Contains(msg, "[margin run]") || !strings.Contains(msg, "change nothing") {
+		t.Errorf("run message: %s", msg)
+	}
+}

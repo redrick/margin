@@ -3,6 +3,8 @@
     {
       "name": "TestAuditLogRecords",
       "package": "./inventory",
+      "file": "inventory/stock_test.go",
+      "line": 35,
       "source": "go",
       "lines": {
         "inventory/audit.go": [20, 21, 22, 24, 25, 28, 29, 30, 33, 34, 35, 36, 37],
@@ -12,6 +14,8 @@
     {
       "name": "TestReserve",
       "package": "./inventory",
+      "file": "inventory/stock_test.go",
+      "line": 9,
       "source": "go",
       "lines": {
         "inventory/audit.go": [24, 25, 26, 27],
@@ -21,6 +25,8 @@
     {
       "name": "TestReserve/insufficient_stock_leaves_store_unchanged",
       "package": "./inventory",
+      "file": "inventory/stock_test.go",
+      "line": 23,
       "source": "go",
       "lines": {
         "inventory/audit.go": [24, 25, 26, 27],
@@ -30,6 +36,8 @@
     {
       "name": "TestReserve/rejects_non-positive_quantity",
       "package": "./inventory",
+      "file": "inventory/stock_test.go",
+      "line": 17,
       "source": "go",
       "lines": {
         "inventory/audit.go": [],
@@ -39,6 +47,8 @@
     {
       "name": "TestReserve/takes_stock",
       "package": "./inventory",
+      "file": "inventory/stock_test.go",
+      "line": 10,
       "source": "go",
       "lines": {
         "inventory/audit.go": [24, 25, 26, 27],

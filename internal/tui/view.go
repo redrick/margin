@@ -205,6 +205,9 @@ func (m *Model) bodyView() string {
 	case m.peek != nil:
 		entries, at := m.peekLines()
 		m.overlay(lines, entries, at, peekWidth)
+	case m.testsOpen:
+		entries, at := m.testsLines()
+		m.overlay(lines, entries, at, 110)
 	case m.helpOpen:
 		m.overlay(lines, helpLines, -1, 84)
 	case m.listOpen:
@@ -498,24 +501,38 @@ func (m *Model) spansFor(part *doc.Part) [][]render.Span {
 var helpLines = []string{
 	" keys · any key closes",
 	"",
+	" guided walk",
 	" space      next step            b      previous step",
-	" y n ?      first screen: does the change make sense? e  more text: overview, stop card",
-	" 1 2 3      verdict: good, needs changes, not sure    w  guided walk / whole stop",
+	" y n ?      orient: does the change make sense? n asks why",
+	" 1 2 3      verdict: looks good, needs changes, not sure yet",
+	" e          more text on the orient screen and on a stop's card",
+	" w          guided walk / whole stop, remembered",
 	"",
-	" j k  ↑ ↓   move                 enter  open a link, unfold, peek at a caller",
+	" moving",
+	" j k  ↑ ↓   move                 g G    top / bottom",
 	" ] [        next / previous note N      next new note",
-	" } {        next / previous stop tab    station list",
-	" space      whole stop: mark note x      dismiss note; in the recap, delete a draft",
-	" ?          flag note            v      show notes (blind mode, margin open --blind)",
-	" a          ask the agent        F      filter: all, findings, problems, focus areas",
-	" c          comment: pick a kind (issue, suggestion, …), then write it; S sends the drafts",
-	" y          copy the note        Y      copy the stop: rationale and every note",
-	" z          fold unchanged lines f      whole file",
-	" d          removed lines        n      notes column",
-	" s          side by side         r      reload",
+	" } {        next / previous stop tab    list of stops",
 	" /          search the code      n N    next / previous match, esc ends",
-	" u U        next untested line   tests  enter on a test spotlights it, esc ends",
-	" h l        scroll sideways      q      quit",
+	"",
+	" notes and comments",
+	" enter      open a link, unfold, peek, read a whole note, answer a ? note",
+	" space      whole stop: mark read ?     flag the note",
+	" x          dismiss the note; in the recap, delete a draft comment",
+	" a          ask the agent now    c      comment: pick a kind, kept as a draft",
+	" S          send the drafts      v      show notes hidden by blind mode",
+	" y Y        copy the note / the whole stop",
+	" F          filter: all, findings, problems, each focus area",
+	"",
+	" tests",
+	" u U        next / previous changed line no test runs",
+	" t          tests that run the line: enter spotlight, p source, r agent runs",
+	" enter      on a test in the Tests stop: spotlight it · esc ends a spotlight",
+	"",
+	" view",
+	" z d f      fold unchanged / hide removed lines / whole file",
+	" n s        notes column / side by side",
+	" h l 0      scroll sideways / back to the start",
+	" r q        reload / quit",
 }
 
 // peekWidth is the widest the peek overlay gets.

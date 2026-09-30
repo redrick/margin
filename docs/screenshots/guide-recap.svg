@@ -34,7 +34,7 @@
 <text x="16.0" y="489" textLength="1142.4" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff">  ☐ store · stock.go:21 — Should a store without an audit log still be allowed, or should support always get a history?</text>
 <text x="16.0" y="510" textLength="1276.8" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff">  ☐ audit · audit.go:30 — The log keeps every entry in memory for the life of the process. Is that acceptable, or does it need a cap?</text>
 <text x="16.0" y="552" textLength="86.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Problems</text>
-<text x="16.0" y="573" textLength="768.0" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">  store · stock.go:20 — Breaking signature. Every call site passes a log or nil.</text>
+<text x="16.0" y="573" textLength="787.2" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">  ✓ store · stock.go:20 — Breaking signature. Every call site passes a log or nil.</text>
 <text x="16.0" y="615" textLength="96.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> Questions</text>
 <text x="16.0" y="636" textLength="1046.4" lengthAdjust="spacingAndGlyphs" fill="#d29922">  report · report.py:14 — Zero entries come from cancelled reservations. Should they still show up somewhere?</text>
 <rect x="16.0" y="663" width="96.0" height="21" fill="#161b22"/>
@@ -44,7 +44,7 @@
 <rect x="217.6" y="663" width="9.6" height="21" fill="#161b22"/>
 <rect x="227.2" y="663" width="67.2" height="21" fill="#d2a8ff"/>
 <rect x="294.4" y="663" width="1152.0" height="21" fill="#161b22"/>
-<text x="25.6" y="678" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 2/14 </text>
+<text x="25.6" y="678" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 4/14 </text>
 <text x="112.0" y="678" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ! 1 </text>
 <text x="169.6" y="678" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ? 1 </text>
 <text x="227.2" y="678" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ◆ 0/2 </text>

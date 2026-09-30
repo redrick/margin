@@ -24,6 +24,13 @@ margin --pr 123     # review a GitHub pull request (read-only)
 > [How to use it, really](#how-to-use-it-really): margin walks you through the review one step at
 > a time.
 
+**Contents:** [Install](#install) · [How a review goes](#how-a-review-goes) ·
+[How to use it, really](#how-to-use-it-really) (the guided walk,
+[in pictures](#the-guided-walk-in-pictures)) · [A walk through the viewer](#a-walk-through-the-viewer) ·
+[Answering the agent's questions](#answering-the-agents-questions) · [Test coverage](#test-coverage) ·
+[Keys](#keys) · [Posting your review](#posting-your-review) · [Repository settings](#repository-settings) ·
+[For the agent](#for-the-agent) · [Safety](#safety)
+
 ## Install
 
 Requires Go 1.24 or newer, git and tmux. The agent defaults to
@@ -124,10 +131,15 @@ its risk, why it comes now, and the one thing to **check**. Then:
   to judge in it.
 - **One change per step.** A step is one reading unit: the edits of one function, or close together,
   shown with a little context and the agent's notes beside their lines (`]` `[` step through them).
-  Every step ends with the question to answer before going on, and `space` means "yes, go on". A
-  call to make or a problem the agent found is settled right there: `enter` ticks a call, `?`
-  agrees with a problem, `x` dismisses it. If a function it changes is called from a few places
-  outside the review, the step lists them; `enter` peeks at one.
+  Every step ends with the question to answer before going on, and `space` means "yes, go on".
+- **Settle here.** Whatever a note asks of you is settled on the step it belongs to, in a short list
+  under the code (`j` moves down to it): `enter` ticks a `◆` call once you have made it, `?` agrees
+  with a `!` problem and `x` dismisses it, and `enter` on a `?` question from the agent opens a
+  comment that answers it.
+- **Callers.** If a function the step changes is called from a few places outside the review, the
+  step lists them; `enter` peeks at the code around one.
+- **On any line** of the change: `t` lists the tests that run it, `c` comments, `a` asks the agent,
+  and `enter` on a line with notes opens them all at full length.
 - **Housekeeping.** Import edits need no judgment, so they come together in one step at the end of
   the stop, to glance over.
 - **Your verdict.** The last step lists the checks as a reminder and whatever is still open, then asks
@@ -167,28 +179,58 @@ The footer tracks how long and how much you have read, because review quality dr
 
 ### The guided walk in pictures
 
-Orient: what the change is for, what it does, the route, and the one question before any code.
+Every screen of the walk, in the order you meet it. The second line of the screen always says
+where you are: the phase, the stop, the step, and what kind of step it is.
+
+**① Orient.** What the change is for, what it does, the route, and the one question before any
+code. `y` walks it, `?` walks it while you are unsure, `n` asks why and goes straight to the
+decision.
 
 ![The orient screen: for, does and gap, the route with why each stop comes where it does, and the question whether the change makes sense](docs/screenshots/guide-overview.svg)
 
-The card of a stop: what it is, its risk, why it comes now and the one thing to check. `e` adds
-what and why, the flow and the before/after examples.
+**The card of a stop.** What it is, its risk, why it comes now and the one thing to check. `e` adds
+what and why, the flow and the before/after examples. `space` starts reading.
 
 ![The card of the reserve stop: risk, why now, the check, and what is ahead](docs/screenshots/guide-brief.svg)
 
-One change, with the agent's notes beside the lines they are about and the question to answer.
+**Know this first.** Unchanged code the change leans on, dimmed and marked `┊`. Only there when the
+agent thought you need it; there is nothing to judge in it.
+
+![Know this first: Store.Add, unchanged, shown before the change to Reserve](docs/screenshots/guide-background.svg)
+
+**One change.** The agent's notes sit beside the lines they are about, numbered in the gutter. The
+question under the code is the one to answer before `space`.
 
 ![One change of the reserve stop, the notes numbered in the gutter and shown beside their lines](docs/screenshots/guide-change.svg)
 
-`c` asks what kind of comment you are writing.
+**Settle here.** When a note on the step needs something from you, it is listed under the code.
+Here the agent asks a question only the author can answer:
+
+![A change in report.py with the agent's question listed under Settle here, enter answers](docs/screenshots/guide-settle.svg)
+
+`enter` on it opens a comment tied to the question and anchored on its line. It is kept as a draft
+and goes out with your other comments on `S`:
+
+![The answer prompt: answer to note 1, typed at the bottom of the screen](docs/screenshots/guide-answer.svg)
+
+**Commenting.** `c` on any line first asks what kind of comment you are writing, then shows what a
+good comment of that kind says while you type.
 
 ![The comment kinds in the footer: issue, suggestion, question, nitpick, praise, thought](docs/screenshots/comment-kind.svg)
 
-The end of a stop: questions, calls, and your verdict.
+**Housekeeping.** Import edits that follow from the changes, together in one step at the end of the
+stop. Glance over them.
 
-![The wrap-up of the audit stop with its questions, the call to make, and the verdict set to needs changes](docs/screenshots/guide-wrap.svg)
+![Housekeeping: the added fmt import, with nothing to judge](docs/screenshots/guide-housekeeping.svg)
 
-The recap turns your verdicts into a recommendation and says what is left.
+**End of the stop.** The checks as a reminder, whatever is still open (calls not made, problems not
+settled, questions not answered), your comments on the stop, and the verdict: `1` looks good, `2`
+needs changes, `3` not sure yet. `space` then moves on to the next stop.
+
+![The wrap-up of the audit stop: the checks, the call still open, and the verdict set to needs changes](docs/screenshots/guide-wrap.svg)
+
+**③ Decide.** The recap turns your verdicts into a recommendation and says what is left; `enter`
+on any entry jumps back to it.
 
 ![The recap recommending request changes, listing why, and each stop with its verdict](docs/screenshots/guide-recap.svg)
 
@@ -307,8 +349,12 @@ one filter per focus area the notes use. The footer names the filter that is on.
 
 ![The store stop filtered to breaking changes: only the problem note is left, the filter named in the footer](docs/screenshots/filter.svg)
 
-A card too tall for the column ends in `… enter reads it all`: `enter` on its line opens every note
-on that line in an overlay, which scrolls with `j` `k` when it is long.
+A card too tall for the column ends in `… select it to read the rest` or `… enter reads it all`:
+`enter` on its line opens every note on that line at full length, drawn the same as in the column
+(kind, colour, question, evidence), in an overlay that scrolls with `j` `k` when it is long. Any
+other key closes it.
+
+![Every note on line 39 opened at full length in an overlay above the code](docs/screenshots/note-full.svg)
 
 A part without notes says so, which tells you the agent never looked at it, as opposed to having
 looked and found it fine. The viewer uses the mouse for scrolling, so text cannot be selected with
@@ -398,6 +444,15 @@ above it in italics, and the comment leaves the list of open ones:
 
 ![The agent's answer to a comment, shown as note 5 under the comment it resolves](docs/screenshots/resolved.svg)
 
+### Answering the agent's questions
+
+A `?` note is the agent asking you, usually something only the author knows. In the guided walk the
+step lists it under **Settle here**, and the end of the stop under **Still open**, as
+`? <question> · enter answers · x dismiss`. `enter` opens a comment already tied to the question and
+anchored on its line; it is kept as a draft and goes out with the others on `S`. The row then shows
+`✓ answered`, and the question leaves the stop's open list. `x` dismisses a question that does not
+matter.
+
 ### Jumping between stops
 
 `}` and `{` move one stop forward or back; `tab` opens the list of stops.
@@ -465,6 +520,34 @@ does. Here line 15 is the new `continue` for zero deltas, and no test sends a ze
 
 ![The report stop: line 15 marked with a red cross, the notes column saying no test runs it](docs/screenshots/coverage.svg)
 
+### Which tests, and what do they check?
+
+Press `t` on a line to list every test that runs it, with where each one is defined. The notes
+column says how many there are (`line 39 runs in 2 tests · t lists them`).
+
+![The tests that run stock.go:39, listed over the code with their file and line](docs/screenshots/tests-picker.svg)
+
+| Key in the list | What it does |
+| --- | --- |
+| `j` `k` | move |
+| `enter` | spotlight the test (see below): the review jumps to the first line it runs and dims the rest |
+| `p` | open the test's source in an overlay, on the line where it is defined; for a subtest, on its `t.Run` |
+| `space`, `a` | pick a test, pick all |
+| `r` | have the agent run the picked tests, or the selected one |
+| `esc` `q` `t` | close the list |
+
+`p` shows the test itself, so you can see what it asserts, and closing the source brings the list
+back:
+
+![The source of TestReserve/insufficient stock leaves store unchanged, its t.Run line highlighted](docs/screenshots/tests-source.svg)
+
+`r` sends the agent the test names and the line, and the agent runs them in its own pane and
+reports whether they pass and what each one checks about the line. margin itself still runs
+nothing.
+
+For Go, `margin coverage add-go` records where each test is defined. For other languages the
+agent can pass `line` with each test; without it margin looks for the definition by name.
+
 ### How well is each stop tested?
 
 The overview gives each stop a bar of its changed lines that a test runs, such as
@@ -526,14 +609,15 @@ margin never runs your tests; the agent does, in its own pane and under its own 
   ```json
   {
     "tests": [
-      {"name": "test_summarize_totals", "file": "tests/test_report.py",
+      {"name": "test_summarize_totals", "file": "tests/test_report.py", "line": 8,
        "lines": {"scripts/report.py": [11, 12, 13, 14, 16, 17]}}
     ],
     "executable": {"scripts/report.py": [11, 12, 13, 14, 15, 16, 17]}
   }
   ```
 
-  Line numbers start at 1. `executable` is optional; it separates lines no test ran from lines
+  Line numbers start at 1. `line` is where the test is defined; without it margin searches the
+  test file, then the repository, for a definition of the name. `executable` is optional; it separates lines no test ran from lines
   that cannot run at all.
 
 Both commands record a fingerprint of each file, print the changed lines no test runs, and reload
@@ -556,9 +640,12 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 | `]` `[` | next / previous note |
 | `N` | next note the agent added while you were reading |
 | `u` `U` | next / previous changed line that no test runs |
-| `enter` on a test in the Tests stop | spotlight it: dim every line it does not run, `esc` ends |
+| `enter` on a test in the Tests stop | spotlight it: dim every line it does not run |
+| `esc` | end a spotlight (after ending a search, if one is on) |
+| `t` | list the tests that run the current line: `enter` spotlights one, `p` shows its source, `space` picks, `r` has the agent run them |
 | `/` | search the code in every stop; `n` `N` then jump to the next / previous match, `esc` ends the search |
-| `enter` | open the selected link, tick a question or call in a wrap-up, or unfold |
+| `enter` | open the selected link, tick a call, answer a `?` question from the agent, or unfold |
+| `enter` on a line with notes | read every note on that line at full length in an overlay |
 | `enter` on a caller or commit under *Around this stop* | peek at it in an overlay; any key closes |
 | `a` | ask about the current line |
 | `c` | comment on the current line: pick its kind (`i` `s` `q` `n` `p` `t`, `!` flips blocking), then write it; kept as a draft |
@@ -576,6 +663,11 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 | `r` | reload |
 | `H` | help |
 | `q` | quit |
+
+In an overlay (a peek, a full note, a test's source), `j` `k` and `ctrl+d` `ctrl+u` scroll when it
+is long and any other key closes it. `H` shows the keys grouped by what you are doing:
+
+![The help overlay: keys for the guided walk, moving, notes and comments, tests and the view](docs/screenshots/help.svg)
 
 ## Posting your review
 

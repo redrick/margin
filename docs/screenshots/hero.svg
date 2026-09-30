@@ -236,7 +236,7 @@
 <text x="83.2" y="783" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#f85149" font-weight="bold">▎- </text>
 <text x="112.0" y="783" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#b08286">    n := s.items[sku]</text>
 <text x="947.2" y="783" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="956.8" y="783" textLength="249.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> ┃ line 39 runs in 2 tests</text>
+<text x="956.8" y="783" textLength="393.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> ┃ line 39 runs in 2 tests · t lists them</text>
 <rect x="16.0" y="789" width="96.0" height="21" fill="#161b22"/>
 <rect x="112.0" y="789" width="48.0" height="21" fill="#ff7b71"/>
 <rect x="160.0" y="789" width="9.6" height="21" fill="#161b22"/>

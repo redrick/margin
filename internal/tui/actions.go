@@ -53,6 +53,9 @@ func (m *Model) activate() {
 		case r.verdict != "":
 			m.setVerdict(r.verdict)
 			return
+		case r.answer:
+			m.openAnswer(r.notes[0])
+			return
 		}
 		if r.peek {
 			m.openPeek(r)

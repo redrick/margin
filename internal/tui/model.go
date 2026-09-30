@@ -110,11 +110,17 @@ type Model struct {
 	labeling bool
 	label    string
 	blocking bool
+	// answering is the note whose question the open comment answers; answerOn says one is open.
+	answerOn  bool
+	answering int
 
 	around  map[string]*aroundEntry
 	peek    []string
 	peekAt  int
 	peekTop int
+	// tests is the picker of the tests that run the cursor line, open while testsOpen.
+	testsOpen bool
+	tests     testPicker
 	// peekStyled means the peek lines are already painted to the overlay's width.
 	peekStyled bool
 
@@ -286,6 +292,8 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.peek != nil:
 			m.peekKey(msg)
 			return m, nil
+		case m.testsOpen:
+			return m, m.updateTests(msg)
 		}
 		return m, m.key(msg)
 	}
@@ -307,7 +315,7 @@ func (m *Model) applyLoad(msg loadedMsg) tea.Cmd {
 			m.state = msg.state
 		}
 		m.spans = map[string][][]render.Span{}
-		m.around, m.peek = map[string]*aroundEntry{}, nil
+		m.around, m.peek, m.testsOpen = map[string]*aroundEntry{}, nil, false
 		if m.watcher != nil {
 			m.watcher.Set(m.doc.WatchPaths())
 		}
@@ -506,6 +514,8 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 			m.spot = -1
 			m.setStatus(false, "")
 		}
+	case "t":
+		m.openTests()
 	case "u":
 		m.nextUntested(1)
 	case "U":
@@ -558,6 +568,7 @@ func (m *Model) updateAsk(msg tea.KeyMsg) tea.Cmd {
 	switch msg.Type {
 	case tea.KeyEsc:
 		m.asking, m.commenting, m.designing, m.label, m.blocking = false, false, false, "", false
+		m.answerOn = false
 		m.input.Blur()
 		return nil
 	case tea.KeyEnter:

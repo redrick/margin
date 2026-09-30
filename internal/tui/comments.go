@@ -52,6 +52,36 @@ func (m *Model) updateLabel(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
+// anchorRow is the line a comment attaches to: the cursor line, or the line of the question being
+// answered.
+func (m *Model) anchorRow() (row, bool) {
+	if m.answerOn && m.doc != nil {
+		notes := m.doc.Stations[m.station].Notes
+		if m.answering >= 0 && m.answering < len(notes) && notes[m.answering].Part >= 0 {
+			n := notes[m.answering]
+			return row{kind: rowCode, part: n.Part, line: n.Line}, true
+		}
+	}
+	return m.cursorRow()
+}
+
+// openAnswer opens a comment answering the agent's question in note ni, anchored on the note's line.
+// It is sent with the other drafts, and the question counts as settled.
+func (m *Model) openAnswer(ni int) tea.Cmd {
+	st := m.doc.Stations[m.station]
+	if ni < 0 || ni >= len(st.Notes) || st.Notes[ni].Part < 0 {
+		return nil
+	}
+	n := st.Notes[ni]
+	m.answerOn, m.answering = true, ni
+	m.asking, m.commenting = true, true
+	m.label, m.blocking = "", false
+	m.input.SetValue("")
+	m.input.Prompt = fmt.Sprintf(" answer to note %d › ", ni+1)
+	m.input.Placeholder = fmt.Sprintf("%s · kept as a draft until S sends them, esc cancels", doc.Short(oneLine(plain(n.Text)), 70))
+	return m.input.Focus()
+}
+
 func (m *Model) openComment(label string, blocking bool) tea.Cmd {
 	r, ok := m.cursorRow()
 	if !ok {
@@ -93,7 +123,7 @@ func (m *Model) labelBar() string {
 // lineQuestion describes the cursor line the way questions and comments anchor to it.
 func (m *Model) lineQuestion(id, text string) (state.Question, bool) {
 	st := m.doc.Stations[m.station]
-	r, ok := m.cursorRow()
+	r, ok := m.anchorRow()
 	if !ok {
 		return state.Question{}, false
 	}
@@ -120,12 +150,22 @@ func (m *Model) comment(text string) {
 	if m.label != "" {
 		text = state.Prefix(m.label, m.blocking) + text
 	}
+	answered := ""
+	if m.answerOn {
+		st := m.doc.Stations[m.station]
+		if m.answering >= 0 && m.answering < len(st.Notes) {
+			n := st.Notes[m.answering]
+			text = fmt.Sprintf("answer to your question (note %d: %s): %s", m.answering+1, doc.Short(oneLine(plain(n.Text)), 80), text)
+			answered = n.Key
+		}
+	}
 	m.label, m.blocking = "", false
 	q, ok := m.lineQuestion(m.state.NextCommentID(), text)
+	m.answerOn = false
 	if !ok {
 		return
 	}
-	q.Kind, q.Draft = state.KindComment, true
+	q.Kind, q.Draft, q.Answers = state.KindComment, true, answered
 	m.state.Questions = append(m.state.Questions, q)
 	if err := m.state.Save(); err != nil {
 		m.setStatus(true, "saving comment: %v", err)
@@ -229,6 +269,16 @@ func (m *Model) deleteComment() bool {
 	m.rebuildKeep()
 	m.setStatus(false, "%s deleted", q.ID)
 	return true
+}
+
+// answered says whether the reader has answered the agent's question note with key.
+func (m *Model) answered(key string) bool {
+	for _, q := range m.state.Questions {
+		if q.IsComment() && q.Answers == key {
+			return true
+		}
+	}
+	return false
 }
 
 // commentsAt lists the reader's open comments anchored on a line of the current stop.

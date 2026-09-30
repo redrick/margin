@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1462" height="952" viewBox="0 0 1462 952">
+<style>text{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:16px;white-space:pre}</style>
+<rect width="1462" height="952" rx="10" fill="#0d1117" stroke="#30363d"/>
+<rect width="1462" height="38" rx="10" fill="#161b22"/><rect y="28" width="1462" height="10" fill="#161b22"/>
+<line x1="0" y1="38" x2="1462" y2="38" stroke="#30363d"/>
+<circle cx="22" cy="19.0" r="6.5" fill="#ff5f57"/>
+<circle cx="44" cy="19.0" r="6.5" fill="#febc2e"/>
+<circle cx="66" cy="19.0" r="6.5" fill="#28c840"/>
+<text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
+<rect x="16.0" y="54" width="268.8" height="21" fill="#161b22"/>
+<rect x="284.8" y="54" width="211.2" height="21" fill="#3fb950"/>
+<rect x="496.0" y="54" width="950.4" height="21" fill="#161b22"/>
+<text x="16.0" y="69" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › store 1/7  </text>
+<text x="217.6" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc">●</text>
+<text x="227.2" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐</text>
+<text x="236.8" y="69" textLength="19.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590">○○</text>
+<text x="256.0" y="69" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">◐</text>
+<text x="284.8" y="69" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> LOW RISK  2/2 tested </text>
+<text x="505.6" y="69" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> feature · 18 lines   </text>
+<text x="716.8" y="69" textLength="288.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">The store carries an audit log</text>
+<text x="1168.0" y="69" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  example · current/ vs base/</text>
+<text x="16.0" y="90" textLength="768.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9" font-style="italic"> NewStore now takes the log, so every caller has to decide whether it wants one.</text>
+<text x="947.2" y="90" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="332.8" y="96" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="111" textLength="211.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> keys · any key closes</text>
+<rect x="332.8" y="117" width="806.4" height="21" fill="#161b22"/>
+<rect x="332.8" y="138" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="153" textLength="115.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> guided walk</text>
+<rect x="332.8" y="159" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="174" textLength="508.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> space      next step            b      previous step</text>
+<rect x="332.8" y="180" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="195" textLength="556.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> y n ?      orient: does the change make sense? n asks why</text>
+<rect x="332.8" y="201" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="216" textLength="576.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> 1 2 3      verdict: looks good, needs changes, not sure yet</text>
+<rect x="332.8" y="222" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="237" textLength="604.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> e          more text on the orient screen and on a stop's card</text>
+<rect x="332.8" y="243" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="258" textLength="460.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> w          guided walk / whole stop, remembered</text>
+<rect x="332.8" y="264" width="806.4" height="21" fill="#161b22"/>
+<rect x="332.8" y="285" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="300" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> moving</text>
+<rect x="332.8" y="306" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="321" textLength="499.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> j k  ↑ ↓   move                 g G    top / bottom</text>
+<rect x="332.8" y="327" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="342" textLength="508.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ] [        next / previous note N      next new note</text>
+<rect x="332.8" y="348" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="363" textLength="508.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> } {        next / previous stop tab    list of stops</text>
+<rect x="332.8" y="369" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="384" textLength="681.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> /          search the code      n N    next / previous match, esc ends</text>
+<rect x="332.8" y="390" width="806.4" height="21" fill="#161b22"/>
+<rect x="332.8" y="411" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="426" textLength="182.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> notes and comments</text>
+<rect x="332.8" y="432" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="447" textLength="700.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> enter      open a link, unfold, peek, read a whole note, answer a ? note</text>
+<rect x="332.8" y="453" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="468" textLength="508.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> space      whole stop: mark read ?     flag the note</text>
+<rect x="332.8" y="474" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="489" textLength="633.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> x          dismiss the note; in the recap, delete a draft comment</text>
+<rect x="332.8" y="495" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="510" textLength="739.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> a          ask the agent now    c      comment: pick a kind, kept as a draft</text>
+<rect x="332.8" y="516" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="531" textLength="681.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> S          send the drafts      v      show notes hidden by blind mode</text>
+<rect x="332.8" y="537" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="552" textLength="403.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> y Y        copy the note / the whole stop</text>
+<rect x="332.8" y="558" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="573" textLength="576.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> F          filter: all, findings, problems, each focus area</text>
+<rect x="332.8" y="579" width="806.4" height="21" fill="#161b22"/>
+<rect x="332.8" y="600" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="615" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> tests</text>
+<rect x="332.8" y="621" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="636" textLength="508.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> u U        next / previous changed line no test runs</text>
+<rect x="332.8" y="642" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="657" textLength="729.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> t          tests that run the line: enter spotlight, p source, r agent runs</text>
+<rect x="332.8" y="663" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="678" textLength="729.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> enter      on a test in the Tests stop: spotlight it · esc ends a spotlight</text>
+<rect x="332.8" y="684" width="806.4" height="21" fill="#161b22"/>
+<rect x="332.8" y="705" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="720" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> view</text>
+<rect x="332.8" y="726" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="741" textLength="576.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> z d f      fold unchanged / hide removed lines / whole file</text>
+<rect x="332.8" y="747" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="762" textLength="374.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> n s        notes column / side by side</text>
+<rect x="332.8" y="768" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="783" textLength="451.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> h l 0      scroll sideways / back to the start</text>
+<rect x="332.8" y="789" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="804" textLength="240.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> r q        reload / quit</text>
+<rect x="83.2" y="810" width="67.2" height="21" fill="#2c1517"/>
+<rect x="150.4" y="810" width="480.0" height="21" fill="#6e2b30"/>
+<rect x="630.4" y="810" width="316.8" height="21" fill="#2c1517"/>
+<text x="83.2" y="825" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#f85149" font-weight="bold">▎- </text>
+<text x="112.0" y="825" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#b08286">var </text>
+<text x="150.4" y="825" textLength="480.0" lengthAdjust="spacingAndGlyphs" fill="#b08286" text-decoration="line-through">ErrInsufficient = errors.New("insufficient stock")</text>
+<text x="947.2" y="825" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="831" width="67.2" height="21" fill="#12261e"/>
+<rect x="150.4" y="831" width="9.6" height="21" fill="#245c3a"/>
+<rect x="160.0" y="831" width="787.2" height="21" fill="#12261e"/>
+<text x="44.8" y="846" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  9</text>
+<text x="83.2" y="846" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="112.0" y="846" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">var</text>
+<text x="150.4" y="846" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(</text>
+<text x="947.2" y="846" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="852" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="867" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 10</text>
+<text x="83.2" y="867" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="150.4" y="867" textLength="144.0" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">ErrInsufficient</text>
+<text x="332.8" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">=</text>
+<text x="352.0" y="867" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">errors.</text>
+<text x="419.2" y="867" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">New</text>
+<text x="448.0" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(</text>
+<text x="457.6" y="867" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"insufficient stock"</text>
+<text x="649.6" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">)</text>
+<text x="947.2" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="873" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="888" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 11</text>
+<text x="83.2" y="888" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="150.4" y="888" textLength="172.8" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">ErrInvalidQuantity</text>
+<text x="332.8" y="888" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">=</text>
+<text x="352.0" y="888" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">errors.</text>
+<text x="419.2" y="888" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">New</text>
+<text x="448.0" y="888" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(</text>
+<text x="457.6" y="888" textLength="259.2" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"quantity must be positive"</text>
+<text x="716.8" y="888" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">)</text>
+<text x="947.2" y="888" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="83.2" y="894" width="864.0" height="21" fill="#12261e"/>
+<text x="44.8" y="909" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 12</text>
+<text x="83.2" y="909" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
+<text x="112.0" y="909" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">)</text>
+<text x="947.2" y="909" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="956.8" y="909" textLength="144.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> ↓ 3 more below</text>
+<rect x="16.0" y="915" width="96.0" height="21" fill="#161b22"/>
+<rect x="112.0" y="915" width="48.0" height="21" fill="#ff7b71"/>
+<rect x="160.0" y="915" width="9.6" height="21" fill="#161b22"/>
+<rect x="169.6" y="915" width="48.0" height="21" fill="#d29922"/>
+<rect x="217.6" y="915" width="9.6" height="21" fill="#161b22"/>
+<rect x="227.2" y="915" width="67.2" height="21" fill="#d2a8ff"/>
+<rect x="294.4" y="915" width="9.6" height="21" fill="#161b22"/>
+<rect x="304.0" y="915" width="201.6" height="21" fill="#e3b341"/>
+<rect x="505.6" y="915" width="940.8" height="21" fill="#161b22"/>
+<text x="25.6" y="930" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> ✓ 0/13 </text>
+<text x="112.0" y="930" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ! 1 </text>
+<text x="169.6" y="930" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ? 1 </text>
+<text x="227.2" y="930" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ◆ 0/2 </text>
+<text x="304.0" y="930" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ✎ 1 draft · S sends </text>
+<text x="515.2" y="930" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 0m · 18 lines read </text>
+<text x="1052.8" y="930" textLength="393.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> d hide removed · s side by side · H help</text>
+</svg>

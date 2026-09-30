@@ -142,10 +142,11 @@ little context, opened the viewer beside you and started you with the review fil
      other  measure per-test line coverage with the project's own tool (for example pytest
             --cov-context=test with coverage json --show-contexts, or one run per test file),
             convert it and pass it to margin coverage add <file.json>, or - for stdin:
-              {"tests": [{"name": "test_total", "file": "tests/test_a.py",
+              {"tests": [{"name": "test_total", "file": "tests/test_a.py", "line": 14,
                           "lines": {"src/a.py": [12, 13, 20]}}],
                "executable": {"src/a.py": [10, 12, 13, 15, 20]}}
-            Lines are 1-based. executable is optional; it separates lines no test ran from lines
+            Lines are 1-based. line is where the test is defined, so the reader can open it; margin
+            searches for the name when it is missing. executable is optional; it separates lines no test ran from lines
             that cannot run at all. --replace drops the tests you added before.
    Both print the changed lines no test runs. Add a note to the ones that matter: a --kind question
    when a test is probably missing, or an issue with evidence when the untested line is risky.

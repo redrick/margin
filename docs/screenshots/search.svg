@@ -173,7 +173,7 @@
 <text x="390.4" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#ff7b71" font-weight="bold">-</text>
 <text x="409.6" y="468" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">qty</text>
 <text x="947.2" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="956.8" y="468" textLength="249.6" lengthAdjust="spacingAndGlyphs" fill="#38c5cf" font-weight="bold"> ┃ line 42 runs in 4 tests</text>
+<text x="956.8" y="468" textLength="393.6" lengthAdjust="spacingAndGlyphs" fill="#38c5cf" font-weight="bold"> ┃ line 42 runs in 4 tests · t lists them</text>
 <rect x="16.0" y="474" width="28.8" height="21" fill="#f0f6fc"/>
 <rect x="44.8" y="474" width="28.8" height="21" fill="#58a6ff"/>
 <rect x="83.2" y="474" width="124.8" height="21" fill="#1d4030"/>
