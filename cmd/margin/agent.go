@@ -123,8 +123,11 @@ little context, opened the viewer beside you and started you with the review fil
 3. Questions arrive in your pane as "[margin qN] file:line in station ...: question".
    Answer in chat, then record it so it stays in the review: margin answer qN "answer".
    Review comments arrive as a batch, "[margin comments] ...", one line per comment cN. They are
-   the reader's own remarks: handle each one, by changing the code or by explaining why not,
-   then close it with margin resolve cN "Fixed: ..." or "Not changed, because ...".
+   the reader's own remarks. Change code only for a comment that explicitly tells you to; every
+   other comment gets the reaction it asks for (an answer, an explanation, an opinion) and nothing
+   more. Answer every comment in the comments note the batch names, beside the review file: a
+   heading with cN and file:line, the comment quoted, then your answer. Then close it with
+   margin resolve cN "Fixed: ..." or a one-line version of the answer.
    Most start with a Conventional Comments label. Handle "(blocking)" ones first and never close
    one without a change or a reason the reader can check. A question gets an answer (and a code
    comment if the answer was not obvious from the code); a suggestion or nitpick is yours to take

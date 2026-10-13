@@ -35,16 +35,19 @@ func TestFoldPlan(t *testing.T) {
 	none := func(int) bool { return false }
 	all := anchor.Range{Start: 0, End: 29}
 
-	if got, want := foldPlan(part(15), all, none), []segment{{0, 11, true}, {12, 18, false}, {19, 29, true}}; !reflect.DeepEqual(got, want) {
+	if got, want := foldPlan(part(15), all, foldContext, none), []segment{{0, 11, true}, {12, 18, false}, {19, 29, true}}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("one change: %v, want %v", got, want)
 	}
-	if got, want := foldPlan(part(15, 22), all, none), []segment{{0, 11, true}, {12, 25, false}, {26, 29, true}}; !reflect.DeepEqual(got, want) {
+	if got, want := foldPlan(part(15, 22), all, foldContext, none), []segment{{0, 11, true}, {12, 25, false}, {26, 29, true}}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("nearby changes share one shown block: %v, want %v", got, want)
 	}
-	if got, want := foldPlan(part(), all, func(i int) bool { return i == 3 }), []segment{{0, 6, false}, {7, 29, true}}; !reflect.DeepEqual(got, want) {
+	if got, want := foldPlan(part(), all, foldContext, func(i int) bool { return i == 3 }), []segment{{0, 6, false}, {7, 29, true}}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("a note keeps its surroundings: %v, want %v", got, want)
 	}
-	if got := foldPlan(&doc.Part{Lines: make([]string, 30)}, all, none); len(got) != 1 || got[0].fold {
+	if got := foldPlan(&doc.Part{Lines: make([]string, 30)}, all, foldContext, none); len(got) != 1 || got[0].fold {
 		t.Fatalf("code without a base is never folded: %v", got)
+	}
+	if got, want := foldPlan(part(15), all, 5, none), []segment{{0, 9, true}, {10, 20, false}, {21, 29, true}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("a wider context keeps more lines around the change: %v, want %v", got, want)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/redrick/margin/internal/doc"
+	"github.com/redrick/margin/internal/review"
 	"github.com/redrick/margin/internal/state"
 	"github.com/redrick/margin/internal/tmuxx"
 )
@@ -209,7 +210,7 @@ func (m *Model) sendComments() tea.Cmd {
 		return nil
 	}
 	m.rebuildKeep()
-	pane, submit, msg := m.opts.AgentPane, m.opts.Submit, CommentsMessage(drafts)
+	pane, submit, msg := m.opts.AgentPane, m.opts.Submit, CommentsMessage(drafts, review.CommentsPath(m.opts.ReviewPath))
 	id := fmt.Sprintf("%d comments", len(drafts))
 	if len(drafts) == 1 {
 		id = drafts[0].ID
@@ -237,14 +238,17 @@ func (m *Model) redraft(ids []string) {
 	m.rebuildKeep()
 }
 
-// CommentsMessage is the one line the agent receives for a batch of review comments.
-func CommentsMessage(qs []state.Question) string {
+// CommentsMessage is the one line the agent receives for a batch of review comments; the agent
+// answers each in the note at answers and changes code only where a comment asks for it.
+func CommentsMessage(qs []state.Question, answers string) string {
 	parts := make([]string, len(qs))
 	for i, q := range qs {
 		parts[i] = fmt.Sprintf("%s %s:%d (station %s, line `%s`): %s", q.ID, q.File, q.Line, q.Station, doc.Short(q.Needle, 60), q.Text)
 	}
-	return fmt.Sprintf("[margin comments] %d review comments from the reader. Handle each: change the code or explain why not, then close it with margin resolve <id> \"what you did\". %s",
-		len(qs), strings.Join(parts, " | "))
+	return fmt.Sprintf("[margin comments] %d review comments from the reader. Do not change any code unless a comment explicitly tells you to. "+
+		"Answer each one in %s (create it if missing, append otherwise): a heading with the comment id and file:line, the comment quoted, then the reaction it asks for. "+
+		"Then close it with margin resolve <id> \"short answer\". %s",
+		len(qs), answers, strings.Join(parts, " | "))
 }
 
 // deleteComment removes a draft picked in the recap; sent comments stay, since the agent has them.

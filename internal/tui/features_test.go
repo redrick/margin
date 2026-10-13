@@ -79,8 +79,8 @@ func TestComments(t *testing.T) {
 	if !m.state.Questions[0].Draft || !strings.Contains(m.status, "no agent pane") {
 		t.Fatalf("without an agent pane the draft stays a draft: %+v %q", m.state.Questions[0], m.status)
 	}
-	msg := CommentsMessage(m.drafts())
-	for _, want := range []string{"[margin comments] 1 review comments", "c1 inventory/stock.go:32", "margin resolve"} {
+	msg := CommentsMessage(m.drafts(), "/vault/x.comments.md")
+	for _, want := range []string{"[margin comments] 1 review comments", "c1 inventory/stock.go:32", "margin resolve", "/vault/x.comments.md", "Do not change any code unless"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("agent message misses %q: %s", want, msg)
 		}

@@ -530,6 +530,7 @@ var helpLines = []string{
 	"",
 	" view",
 	" z d f      fold unchanged / hide removed lines / whole file",
+	" + -        10 more / fewer lines around the changes of this part",
 	" n s        notes column / side by side",
 	" h l 0      scroll sideways / back to the start",
 	" r q        reload / quit",

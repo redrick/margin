@@ -10,6 +10,9 @@ import (
 
 const foldContext = 3
 
+// expandStep is how many more lines around each change + shows, and - takes back.
+const expandStep = 10
+
 type segment struct {
 	start, end int
 	fold       bool
@@ -39,9 +42,9 @@ func foldLabel(p *doc.Part, sg segment) string {
 }
 
 // foldPlan splits rng into shown and folded segments. Unchanged stretches, and code moved here
-// unchanged, further than foldContext lines from any change, removed line or note are folded;
-// parts with nothing changed stay whole.
-func foldPlan(p *doc.Part, rng anchor.Range, noted func(line int) bool) []segment {
+// unchanged, further than ctx lines from any change, removed line or note are folded; parts with
+// nothing changed stay whole.
+func foldPlan(p *doc.Part, rng anchor.Range, ctx int, noted func(line int) bool) []segment {
 	n := rng.End - rng.Start + 1
 	if n <= 0 {
 		return nil
@@ -57,7 +60,7 @@ func foldPlan(p *doc.Part, rng anchor.Range, noted func(line int) bool) []segmen
 			continue
 		}
 		found = true
-		for j := max(0, i-rng.Start-foldContext); j <= min(n-1, i-rng.Start+foldContext); j++ {
+		for j := max(0, i-rng.Start-ctx); j <= min(n-1, i-rng.Start+ctx); j++ {
 			keep[j] = true
 		}
 	}

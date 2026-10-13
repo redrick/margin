@@ -672,7 +672,7 @@ func (m *Model) codeRows(st *doc.Station) {
 		}
 		rng := m.partRange(m.station, pi)
 		noted := func(i int) bool { return len(all[doc.LineKey(p, i)]) > 0 }
-		for _, sg := range foldPlan(p, rng, noted) {
+		for _, sg := range foldPlan(p, rng, foldContext+m.expand[[2]int{m.station, pi}], noted) {
 			if sg.fold && !m.unfold {
 				m.rows = append(m.rows, row{kind: rowFold, part: pi, line: sg.start, fold: sg.end - sg.start + 1, text: foldLabel(p, sg)})
 				continue
@@ -727,7 +727,22 @@ func (m *Model) partRange(si, pi int) anchor.Range {
 	if m.whole[[2]int{si, pi}] {
 		return anchor.Range{Start: 0, End: len(p.Lines) - 1}
 	}
-	return p.Range
+	x := m.expand[[2]int{si, pi}]
+	return anchor.Range{Start: max(0, p.Range.Start-x), End: min(len(p.Lines)-1, p.Range.End+x)}
+}
+
+// widen shows n more lines (fewer when negative) around the changes of the part under the cursor.
+func (m *Model) widen(n int) {
+	r, ok := m.cursorRow()
+	if !ok {
+		return
+	}
+	k := [2]int{m.station, r.part}
+	m.expand[k] = min(max(0, m.expand[k]+n), len(m.doc.Stations[m.station].Parts[r.part].Lines))
+	if m.expand[k] == 0 {
+		delete(m.expand, k)
+	}
+	m.rebuildKeep()
 }
 
 // rationale draws the stop's opening: why its code is a stop of its own, what it does and how, and
@@ -857,6 +872,8 @@ func (m *Model) partHeader(st *doc.Station, pi int, p *doc.Part) string {
 	}
 	if m.whole[[2]int{m.station, pi}] {
 		s += " · whole file"
+	} else if x := m.expand[[2]int{m.station, pi}]; x > 0 {
+		s += fmt.Sprintf(" · %d more lines around changes", x)
 	}
 	if p.Spec.Background {
 		s += " · background, read first"

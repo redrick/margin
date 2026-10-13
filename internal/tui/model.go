@@ -73,6 +73,8 @@ type Model struct {
 	split         bool
 	notes         bool
 	whole         map[[2]int]bool
+	// expand is how many extra lines a part shows around its changes, from + and -.
+	expand map[[2]int]int
 
 	listOpen   bool
 	listCur    int
@@ -145,6 +147,7 @@ func New(opts Options) *Model {
 		spot:   -1,
 		clip:   clip.Copy,
 		whole:  map[[2]int]bool{},
+		expand: map[[2]int]int{},
 		fresh:  map[string]bool{},
 		around: map[string]*aroundEntry{},
 		paint:  render.NewPainter(),
@@ -520,6 +523,10 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 		m.nextUntested(1)
 	case "U":
 		m.nextUntested(-1)
+	case "+", "=":
+		m.widen(expandStep)
+	case "-":
+		m.widen(-expandStep)
 	case "f":
 		if r, ok := m.cursorRow(); ok {
 			k := [2]int{m.station, r.part}

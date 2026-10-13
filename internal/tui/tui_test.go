@@ -546,3 +546,31 @@ func TestRecapWraps(t *testing.T) {
 		t.Fatalf("j should skip the wrapped lines to the next entry, enter opened %s %+v", w.Station.ID, w.Note)
 	}
 }
+
+func TestWidenAroundChanges(t *testing.T) {
+	m := newModel(t)
+	mustGoto(t, m, "inventory/stock.go:21")
+	shown := func() int {
+		r, _ := m.cursorRow()
+		n := 0
+		for _, row := range m.rows {
+			if row.part == r.part && (row.kind == rowCode || row.kind == rowFold) {
+				n++
+			}
+		}
+		return n
+	}
+	before := shown()
+	press(m, "+")
+	if shown() <= before || !strings.Contains(rowsText(m), "10 more lines around changes") {
+		t.Fatalf("+ should show more lines around the changes: %d rows before, %d after", before, shown())
+	}
+	press(m, "-")
+	if shown() != before || strings.Contains(rowsText(m), "more lines around changes") {
+		t.Fatalf("- should take the extra lines back: %d rows, want %d", shown(), before)
+	}
+	press(m, "-")
+	if len(m.expand) != 0 {
+		t.Fatalf("- never goes below the plain view: %v", m.expand)
+	}
+}

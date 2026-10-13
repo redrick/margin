@@ -433,8 +433,10 @@ remarks in one go, press `c` on a line instead. margin first asks what kind of c
 (issue, suggestion, question, nitpick, praise or thought; `!` flips whether it blocks), then shows
 what a good comment of that kind says while you type. The comment is kept as a draft, marked `✎` in
 the gutter and shown in the notes column. Press `S` to send every draft to the agent in one message.
-The agent handles each comment, by changing the code or by explaining why not, and closes it with
-`margin resolve`; the answer lands on that line as a note under your comment. The recap lists your
+The agent changes code only for a comment that explicitly asks it to. It answers every comment, with
+its file:line, in a `.comments.md` note beside the review file (in your Obsidian vault when the review
+lives there), and closes it with `margin resolve`; the short answer lands on that line as a note under
+your comment. The recap lists your
 comments with where each stands, and `x` on a draft there deletes it.
 
 ![A draft comment in the notes column and the drafts counter in the footer](docs/screenshots/comment.svg)
@@ -658,6 +660,7 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 | `v` | blind mode: show the notes on a high-risk stop you read first |
 | `F` | filter: all notes, problems with questions and calls, problems only, then each focus area |
 | `z` `d` `n` `f` | fold unchanged lines, removed lines, notes column, whole file |
+| `+` `-` | show 10 more / fewer lines around the changes of the part under the cursor |
 | `s` | side by side: old code left, new code right |
 | `h` `l`, `0` | scroll sideways, back to the start |
 | `r` | reload |

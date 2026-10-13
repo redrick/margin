@@ -333,6 +333,14 @@ func StatePath(reviewPath string) string {
 	return strings.TrimSuffix(reviewPath, filepath.Ext(reviewPath)) + ".state.yaml"
 }
 
+// CommentsPath is the note, beside the review file, where the agent answers the reader's comments.
+func CommentsPath(reviewPath string) string {
+	if base, ok := strings.CutSuffix(reviewPath, ".review.yaml"); ok {
+		return base + ".comments.md"
+	}
+	return strings.TrimSuffix(reviewPath, filepath.Ext(reviewPath)) + ".comments.md"
+}
+
 // CoveragePath is where the review's per-test coverage lives, beside the review file.
 func CoveragePath(reviewPath string) string {
 	if base, ok := strings.CutSuffix(reviewPath, ".review.yaml"); ok {
