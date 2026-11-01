@@ -209,3 +209,7 @@ The window is plain HTML, CSS and JavaScript in [`cmd/margin-gui/assets`](../cmd
 embedded in the binary, with [xterm.js](https://xtermjs.org) for the agent's terminal; there is no
 npm build step. The Go side is a few [Wails v3](https://v3.wails.io) services over margin's own
 packages, so the review logic is the same code margin-tui runs.
+
+`docs/screenshots/shoot-gui.sh` regenerates the window's screenshots on the project page. It runs
+the page headless in Chrome or Chromium against the real services, through a test-only server in
+`cmd/margin-gui/shoot_test.go`, so no window opens.

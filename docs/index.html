@@ -261,12 +261,12 @@ section.block { padding: 8rem 0 0; }
 .step .shot { display: none; }
 .viewer { position: sticky; top: 14vh; height: 72vh; display: flex; align-items: center; }
 .viewer-inner { position: relative; width: 100%; aspect-ratio: 1462 / 1036; }
-.viewer img {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center top;
-  opacity: 0; transform: translateY(18px) scale(.985); transition: opacity .6s, transform .7s cubic-bezier(.2,.8,.2,1);
+.viewer .slide {
+  position: absolute; inset: 0; opacity: 0; transform: translateY(18px) scale(.985); transition: opacity .6s, transform .7s cubic-bezier(.2,.8,.2,1);
 }
-.viewer img.on { opacity: 1; transform: none; }
-.viewer img { filter: drop-shadow(0 30px 40px rgba(45, 28, 10, .35)); }
+.viewer .slide.on { opacity: 1; transform: none; }
+.viewer .slide img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center top; }
+.viewer .slide img:not(.g) { filter: drop-shadow(0 30px 40px rgba(45, 28, 10, .35)); }
 .progress { position: absolute; left: -2rem; top: 50%; transform: translateY(-50%); display: grid; gap: 10px; }
 .progress i { width: 6px; height: 6px; border-radius: 50%; background: var(--rule); transition: background .3s, transform .3s; }
 .progress i.on { background: var(--red); transform: scale(1.5); }
@@ -275,7 +275,8 @@ section.block { padding: 8rem 0 0; }
   .viewer { display: none; }
   .steps { padding: 0; }
   .step { min-height: 0; opacity: 1; padding: 0 0 4rem; }
-  .step .shot { display: block; margin-top: 1.4rem; width: 100%; height: auto; border-radius: 10px; box-shadow: var(--shadow); }
+  .step .shot { display: block; margin-top: 1.4rem; }
+  .step .shot > img:not(.g) { display: block; width: 100%; height: auto; border-radius: 10px; box-shadow: var(--shadow); }
 }
 
 /* ---------- bento ---------- */
@@ -351,6 +352,34 @@ footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; g
   .rise, .reveal, .viewer img, .note, .mk .badge { opacity: 1; transform: none; animation: none; transition: none; }
   .hero h1 em path { animation: none; stroke-dashoffset: 0; }
 }
+
+/* ---------- terminal / desktop compare ---------- */
+.cmp { position: relative; --p: 50%; }
+.cmp .g {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: left top;
+  clip-path: inset(0 0 0 var(--p)); border-radius: 8px; z-index: 2; pointer-events: none;
+}
+.cmp-range { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: ew-resize; z-index: 4; touch-action: pan-y; }
+.cmp-bar { position: absolute; top: 0; bottom: 0; left: var(--p); width: 2px; margin-left: -1px; background: var(--paper); z-index: 3; pointer-events: none; box-shadow: 0 0 0 1px rgba(0, 0, 0, .25); }
+.cmp-bar::after {
+  content: "‹ ›"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%;
+  display: grid; place-items: center; font: 700 13px/1 var(--mono); letter-spacing: -1px; color: var(--ink); background: var(--paper);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .35);
+}
+.cmp-range:focus-visible ~ .cmp-bar::after { outline: 2px solid var(--red); outline-offset: 2px; }
+.cmp-tag {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 3; pointer-events: none; font: 600 .62rem var(--mono); letter-spacing: .1em; text-transform: uppercase;
+  color: var(--paper); background: rgba(28, 25, 21, .78); padding: .3rem .5rem; border-radius: 4px; transition: opacity .2s;
+}
+.cmp-tag.l { right: calc(100% - var(--p) + 26px); } .cmp-tag.r { left: calc(var(--p) + 26px); }
+.cmp[data-side="gui"] .cmp-tag.l, .cmp[data-side="tui"] .cmp-tag.r { opacity: 0; }
+.cmp.hero-cmp .g { top: 36px; height: calc(100% - 36px); border-radius: 0; }
+.cmp.hero-cmp .cmp-range, .cmp.hero-cmp .cmp-bar { top: 36px; height: auto; }
+.cmp.hero-cmp .cmp-tag { top: calc(50% + 18px); }
+.tile .cmp { margin-top: 1.3rem; }
+.tile .cmp img { margin-top: 0; }
+.cmp.hero-cmp .replay { z-index: 5; }
+.viewer .cmp .g { object-fit: contain; object-position: center top; border-radius: 0; filter: none; }
 </style>
 </head>
 <body>
@@ -390,9 +419,13 @@ footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; g
         <div>one change at a time<svg viewBox="0 0 40 36"><path d="M34 4 C 36 16, 30 26, 22 32 M22 32 l7 -1 M22 32 l1 -7"/></svg></div>
         <div>the agent, writing in the margin<svg viewBox="0 0 40 36"><path d="M34 4 C 36 16, 30 26, 22 32 M22 32 l7 -1 M22 32 l1 -7"/></svg></div>
       </div>
-      <div class="term" id="demo" role="img" aria-label="Animated demo: margin shows a change to Store.Reserve while the agent writes notes beside the changed lines, then answers a question asked about one line.">
+      <div class="term cmp hero-cmp" id="demo" role="figure" aria-label="Animated demo: margin shows a change to Store.Reserve while the agent writes notes beside the changed lines, then answers a question asked about one line.">
         <div class="term-bar"><i></i><i></i><i></i><span>margin — inventory</span></div>
         <button class="replay" type="button" id="replay" hidden>↻ replay</button>
+        <img class="g" src="screenshots/gui/hero.webp" alt="">
+        <span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span>
+        <input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui">
+        <span class="cmp-bar"></span>
         <div class="t-head">
           <span class="pill phase">② WALK</span>
           <b>stop 2/3 · Reserve validates before locking</b>
@@ -473,48 +506,49 @@ diff --git a/inventory/report.py b/inventory/report.py
             <h3>One screen, one question.</h3>
             <p>What the change is <em>for</em>, what it actually <em>does</em>, and the <em>gap</em> between the two. Then the route. Then, before a single line of code: does this make sense, done this way?</p>
             <div class="keys"><span><kbd>y</kbd> walk it</span><span><kbd>?</kbd> not sure yet</span><span><kbd>n</kbd> say why, skip to decide</span></div>
-            <img class="shot" loading="lazy" src="screenshots/guide-overview.svg" width="1462" height="910" alt="">
+            <div class="cmp shot"><img loading="lazy" src="screenshots/guide-overview.svg" width="1462" height="910" alt=""><img class="g" loading="lazy" src="screenshots/gui/guide-overview.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
           </article>
           <article class="step" data-shot="1">
             <div class="ph">②<small>Walk</small></div>
             <h3>Every stop opens with a card.</h3>
             <p>What it is, how risky, why it comes now, and the one thing to check. You know what you are looking for before you look.</p>
-            <img class="shot" loading="lazy" src="screenshots/guide-brief.svg" width="1462" height="1036" alt="">
+            <div class="cmp shot"><img loading="lazy" src="screenshots/guide-brief.svg" width="1462" height="1036" alt=""><img class="g" loading="lazy" src="screenshots/gui/guide-brief.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
           </article>
           <article class="step" data-shot="2">
             <div class="ph">②<small>Walk</small></div>
             <h3>One change per step.</h3>
             <p>A whole reading unit, with the agent's notes numbered beside their lines and a question to answer before <kbd>space</kbd>. Import churn is batched at the end so it never interrupts.</p>
-            <img class="shot" loading="lazy" src="screenshots/guide-change.svg" width="1462" height="1120" alt="">
+            <div class="cmp shot"><img loading="lazy" src="screenshots/guide-change.svg" width="1462" height="1120" alt=""><img class="g" loading="lazy" src="screenshots/gui/guide-change.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
           </article>
           <article class="step" data-shot="3">
             <div class="ph">②<small>Walk</small></div>
             <h3>Settle it where it belongs.</h3>
             <p>Problems to agree with, calls to make, questions only the author can answer — listed right under the code they are about. Nothing piles up for the end.</p>
-            <img class="shot" loading="lazy" src="screenshots/guide-settle.svg" width="1462" height="910" alt="">
+            <div class="cmp shot"><img loading="lazy" src="screenshots/guide-settle.svg" width="1462" height="910" alt=""><img class="g" loading="lazy" src="screenshots/gui/guide-settle.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
           </article>
           <article class="step" data-shot="4">
             <div class="ph">②<small>Walk</small></div>
             <h3>Comments the author can act on.</h3>
             <p><kbd>c</kbd> asks the kind first — issue, suggestion, question, nitpick, praise, thought — and coaches you while you type. <kbd>S</kbd> sends them; the agent fixes the code or explains why not.</p>
-            <img class="shot" loading="lazy" src="screenshots/comment-kind.svg" width="1472" height="700" alt="">
+            <div class="cmp shot"><img loading="lazy" src="screenshots/comment-kind.svg" width="1472" height="700" alt=""><img class="g" loading="lazy" src="screenshots/gui/comment-kind.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
           </article>
           <article class="step" data-shot="5">
             <div class="ph">③<small>Decide</small></div>
             <h3>The recap tells you what to do.</h3>
             <p>Approve, request changes, or not finished — with the reasons and every open item one <kbd>enter</kbd> away. <code>margin-tui export</code> makes it a PR review you post yourself.</p>
-            <img class="shot" loading="lazy" src="screenshots/guide-recap.svg" width="1462" height="700" alt="">
+            <div class="cmp shot"><img loading="lazy" src="screenshots/guide-recap.svg" width="1462" height="700" alt=""><img class="g" loading="lazy" src="screenshots/gui/guide-recap.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
           </article>
         </div>
-        <div class="viewer" aria-hidden="true">
-          <div class="viewer-inner" id="viewer">
+        <div class="viewer">
+          <div class="viewer-inner cmp" id="viewer">
             <div class="progress" id="progress"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-            <img src="screenshots/guide-overview.svg" alt="" class="on">
-            <img loading="lazy" src="screenshots/guide-brief.svg" alt="">
-            <img loading="lazy" src="screenshots/guide-change.svg" alt="">
-            <img loading="lazy" src="screenshots/guide-settle.svg" alt="">
-            <img loading="lazy" src="screenshots/comment-kind.svg" alt="">
-            <img loading="lazy" src="screenshots/guide-recap.svg" alt="">
+            <div class="slide on"><img src="screenshots/guide-overview.svg" alt=""><img class="g" src="screenshots/gui/guide-overview.webp" alt=""></div>
+            <div class="slide"><img loading="lazy" src="screenshots/guide-brief.svg" alt=""><img class="g" loading="lazy" src="screenshots/gui/guide-brief.webp" alt=""></div>
+            <div class="slide"><img loading="lazy" src="screenshots/guide-change.svg" alt=""><img class="g" loading="lazy" src="screenshots/gui/guide-change.webp" alt=""></div>
+            <div class="slide"><img loading="lazy" src="screenshots/guide-settle.svg" alt=""><img class="g" loading="lazy" src="screenshots/gui/guide-settle.webp" alt=""></div>
+            <div class="slide"><img loading="lazy" src="screenshots/comment-kind.svg" alt=""><img class="g" loading="lazy" src="screenshots/gui/comment-kind.webp" alt=""></div>
+            <div class="slide"><img loading="lazy" src="screenshots/guide-recap.svg" alt=""><img class="g" loading="lazy" src="screenshots/gui/guide-recap.webp" alt=""></div>
+            <span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span>
           </div>
         </div>
       </div>
@@ -533,7 +567,7 @@ diff --git a/inventory/report.py b/inventory/report.py
           <span class="tag">Test coverage</span>
           <h3>See which changed lines no test runs.</h3>
           <p>The agent measures coverage per test. Untested lines glow in the gutter, <kbd>u</kbd> jumps between them, <kbd>t</kbd> lists the tests that run a line and spotlights one.</p>
-          <img loading="lazy" src="screenshots/coverage.svg" width="1462" height="532" alt="Changed lines that no test runs, marked in the gutter">
+          <div class="cmp tile-cmp"><img loading="lazy" src="screenshots/coverage.svg" width="1462" height="532" alt="Changed lines that no test runs, marked in the gutter"><img class="g" loading="lazy" src="screenshots/gui/coverage.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
         </article>
         <article class="tile s2 dark reveal">
           <span class="tag">Start anywhere</span>
@@ -549,13 +583,13 @@ diff --git a/inventory/report.py b/inventory/report.py
           <span class="tag">Around this stop</span>
           <h3>Callers, examples and history.</h3>
           <p>Who calls the function you are reading, what it did before and does now, and the commits that shaped it. <kbd>enter</kbd> peeks.</p>
-          <img loading="lazy" src="screenshots/around.svg" width="1472" height="700" alt="Callers, before and after examples, and blame history around a stop">
+          <div class="cmp tile-cmp"><img loading="lazy" src="screenshots/around.svg" width="1472" height="700" alt="Callers, before and after examples, and blame history around a stop"><img class="g" loading="lazy" src="screenshots/gui/around.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
         </article>
         <article class="tile s3 reveal">
           <span class="tag">Spotlight</span>
           <h3>Follow one test through the change.</h3>
           <p>Pick a test and every line it does not run dims. See exactly which path it takes.</p>
-          <img loading="lazy" src="screenshots/spotlight.svg" width="1472" height="700" alt="One test spotlighted, every line it does not run dimmed">
+          <div class="cmp tile-cmp"><img loading="lazy" src="screenshots/spotlight.svg" width="1472" height="700" alt="One test spotlighted, every line it does not run dimmed"><img class="g" loading="lazy" src="screenshots/gui/spotlight.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
         </article>
         <article class="tile s2 reveal">
           <span class="tag">Moved code</span>
@@ -733,9 +767,20 @@ dist/</pre>
     document.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("in"); });
   }
 
+  // terminal / desktop sliders
+  document.querySelectorAll(".cmp").forEach(function (c) {
+    var r = c.querySelector(".cmp-range");
+    function set() {
+      c.style.setProperty("--p", r.value + "%");
+      c.dataset.side = r.value < 8 ? "gui" : r.value > 92 ? "tui" : "";
+    }
+    r.addEventListener("input", set);
+    set();
+  });
+
   // scroll-driven walk
   var steps = document.querySelectorAll(".step");
-  var shots = document.querySelectorAll("#viewer img");
+  var shots = document.querySelectorAll("#viewer .slide");
   var dots = document.querySelectorAll("#progress i");
   function activate(i) {
     steps.forEach(function (s, j) { s.classList.toggle("active", j === i); });
