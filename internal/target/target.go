@@ -350,11 +350,14 @@ func (t *Target) ignore() *ignore.Matcher {
 // Ensure creates the review file, or brings an existing one up to date with new changed files.
 func Ensure(loc Location, t *Target, fresh bool) (created bool, added int, err error) {
 	dirPerm, filePerm := os.FileMode(0o700), os.FileMode(0o600)
-	if loc.Vault != "" {
+	if loc.Notes {
 		dirPerm, filePerm = 0o755, 0o644
 	}
 	path := loc.Path
 	if err := os.MkdirAll(filepath.Dir(path), dirPerm); err != nil {
+		return false, 0, err
+	}
+	if err := ignoreReviews(filepath.Dir(path)); err != nil {
 		return false, 0, err
 	}
 	if _, statErr := os.Stat(path); fresh || errors.Is(statErr, fs.ErrNotExist) {
@@ -406,9 +409,21 @@ func Ensure(loc Location, t *Target, fresh bool) (created bool, added int, err e
 	return false, added, nil
 }
 
+// ignoreReviews keeps reviews kept in the repository's .margin/reviews out of git.
+func ignoreReviews(dir string) error {
+	if filepath.Base(dir) != "reviews" || filepath.Base(filepath.Dir(dir)) != ".margin" {
+		return nil
+	}
+	gi := filepath.Join(dir, ".gitignore")
+	if _, err := os.Stat(gi); err == nil {
+		return nil
+	}
+	return os.WriteFile(gi, []byte("# margin reviews are personal; keep them out of git.\n*\n"), 0o644)
+}
+
 func marshal(r *review.Review, loc Location) ([]byte, error) {
 	var buf bytes.Buffer
-	if loc.Vault != "" {
+	if loc.Notes {
 		fmt.Fprintf(&buf, "# ---\n# title: %s\n# project: %s\n# topic: %s\n# type: review\n# status: open\n# date: %s\n# ---\n",
 			r.Title, loc.Project, loc.Topic, time.Now().Format("2006-01-02"))
 	}

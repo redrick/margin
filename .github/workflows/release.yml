@@ -1,0 +1,71 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  tui:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        goos: [linux, darwin]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          go build -trimpath -ldflags "-s -w" -o margin-tui ./cmd/margin-tui
+          tar czf margin-tui_${GITHUB_REF_NAME}_${GOOS}_${GOARCH}.tar.gz margin-tui LICENSE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tui-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: "*.tar.gz"
+
+  gui:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            name: linux_amd64
+          - os: macos-14
+            name: darwin_arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install WebKitGTK
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+      - name: Build
+        run: |
+          go build -trimpath -ldflags "-s -w" -o margin-gui ./cmd/margin-gui
+          tar czf margin-gui_${GITHUB_REF_NAME}_${{ matrix.name }}.tar.gz margin-gui LICENSE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gui-${{ matrix.name }}
+          path: "*.tar.gz"
+
+  release:
+    needs: [tui, gui]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes *.tar.gz

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>margin — code review, annotated</title>
-<meta name="description" content="margin opens a git change in your terminal with a coding agent beside you. It plans the route, writes a note beside every change, answers questions on the line, and tells you when the review is done.">
+<meta name="description" content="margin opens a git change in your terminal or a desktop window with a coding agent beside you. It plans the route, writes a note beside every change, answers questions on the line, and tells you when the review is done.">
 <meta property="og:title" content="margin — code review, annotated">
-<meta property="og:description" content="Open a change in the terminal with a coding agent writing in the margin. A guided route, a note on every hunk, answers on the line, a clear verdict.">
+<meta property="og:description" content="Open a change in the terminal or a desktop window with a coding agent writing in the margin. A guided route, a note on every hunk, answers on the line, a clear verdict.">
 <meta property="og:image" content="https://antas.cz/margin/screenshots/hero.svg">
 <meta name="theme-color" content="#f3eee3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -130,6 +130,8 @@ kbd {
   border-radius: 5px; padding: .42rem .6rem; transition: background .2s, color .2s;
 }
 .install button:hover { background: var(--paper); color: var(--ink); }
+.install + .install { margin-top: .5rem; }
+.install .which { flex: none; width: 4.6rem; font: 600 .66rem var(--mono); text-transform: uppercase; letter-spacing: .08em; color: #ff8a73; }
 .hero .meta { font: 400 .74rem/1.6 var(--mono); color: var(--ink-faint); margin: .8rem 0 0; }
 @media (max-width: 900px) { .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 1.8rem; } .hero { padding-top: 2.5rem; } }
 
@@ -288,12 +290,14 @@ section.block { padding: 8rem 0 0; }
 .tile.dark { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .tile.dark p { color: color-mix(in srgb, var(--paper) 70%, transparent); }
 .tile.dark .tag { color: #ff8a73; }
+.tile.dark a { color: var(--paper); }
+.tile pre + p { margin-top: 1rem; }
 .tile pre { font: 400 .8rem/1.7 var(--mono); margin: 1.2rem 0 0; white-space: pre-wrap; color: color-mix(in srgb, var(--paper) 85%, transparent); }
 .tile pre .c { color: color-mix(in srgb, var(--paper) 45%, transparent); }
 .tile pre .k { color: #ff8a73; }
-.s2 { grid-column: span 2; } .s3 { grid-column: span 3; } .s4 { grid-column: span 4; }
+.s2 { grid-column: span 2; } .s3 { grid-column: span 3; } .s4 { grid-column: span 4; } .s6 { grid-column: span 6; }
 @media (max-width: 960px) { .s2 { grid-column: span 3; } .s4 { grid-column: span 6; } }
-@media (max-width: 640px) { .bento { grid-template-columns: minmax(0, 1fr); } .s2, .s3, .s4 { grid-column: auto; } }
+@media (max-width: 640px) { .bento { grid-template-columns: minmax(0, 1fr); } .s2, .s3, .s4, .s6 { grid-column: auto; } }
 
 /* ---------- numbers ---------- */
 .numbers { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); margin-top: 8rem; }
@@ -358,6 +362,7 @@ footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; g
       <li><a href="#why">Why</a></li>
       <li><a href="#walk">How it works</a></li>
       <li><a href="#features">Features</a></li>
+      <li><a href="#apps">Terminal or desktop</a></li>
       <li><a href="#research">Research</a></li>
     </ul>
     <a class="btn ghost" href="https://github.com/redrick/margin"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a>
@@ -368,13 +373,14 @@ footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; g
   <div class="wrap">
     <div class="hero-grid">
       <div>
-        <span class="eyebrow rise">Terminal code review · open source</span>
+        <span class="eyebrow rise">Terminal or desktop · open source</span>
         <h1 class="rise d1">Code review,<br><em>annotated.<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 60 4, 120 18, 180 9 S 270 6, 297 11"/></svg></em></h1>
       </div>
       <div>
-        <p class="lede rise d2">margin opens any git change in your terminal with a coding agent beside you. <strong>It plans the route, writes a note beside every change, answers questions on the line, and tells you when you are done.</strong></p>
-        <div class="install rise d3"><span id="cmd1">go install github.com/redrick/margin/cmd/margin@latest</span><button type="button" data-copy="cmd1">copy</button></div>
-        <p class="meta rise d3">Go 1.24+ · git · tmux · Claude Code or any CLI agent · MIT</p>
+        <p class="lede rise d2">margin opens any git change in your terminal or a desktop window with a coding agent beside you. <strong>It plans the route, writes a note beside every change, answers questions on the line, and tells you when you are done.</strong></p>
+        <div class="install rise d3"><b class="which">terminal</b><span id="cmd1">go install github.com/redrick/margin/cmd/margin-tui@latest</span><button type="button" data-copy="cmd1">copy</button></div>
+        <div class="install rise d3"><b class="which">desktop</b><span id="cmd1g">go install github.com/redrick/margin/cmd/margin-gui@latest</span><button type="button" data-copy="cmd1g">copy</button></div>
+        <p class="meta rise d3">Go 1.21+ · git · Claude Code, Codex, Gemini CLI, OpenCode or any CLI agent · tmux for the terminal, WebKit for the desktop · MIT</p>
       </div>
     </div>
 
@@ -405,7 +411,7 @@ footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; g
     </div>
 
     <div class="works reveal">
-      <span>works with</span><b>Claude Code</b><b>any CLI agent</b><b>tmux</b><b>gw</b><b>GitHub PRs</b><b>Go · Python · anything git</b>
+      <span>works with</span><b>Claude Code</b><b>Codex</b><b>Gemini CLI</b><b>OpenCode</b><b>tmux</b><b>gw</b><b>GitHub PRs</b><b>Go · Python · anything git</b>
     </div>
   </div>
 </header>
@@ -496,7 +502,7 @@ diff --git a/inventory/report.py b/inventory/report.py
           <article class="step" data-shot="5">
             <div class="ph">③<small>Decide</small></div>
             <h3>The recap tells you what to do.</h3>
-            <p>Approve, request changes, or not finished — with the reasons and every open item one <kbd>enter</kbd> away. <code>margin export</code> makes it a PR review you post yourself.</p>
+            <p>Approve, request changes, or not finished — with the reasons and every open item one <kbd>enter</kbd> away. <code>margin-tui export</code> makes it a PR review you post yourself.</p>
             <img class="shot" loading="lazy" src="screenshots/guide-recap.svg" width="1462" height="700" alt="">
           </article>
         </div>
@@ -532,11 +538,12 @@ diff --git a/inventory/report.py b/inventory/report.py
         <article class="tile s2 dark reveal">
           <span class="tag">Start anywhere</span>
           <h3>One command.</h3>
-          <pre><span class="k">margin</span>            <span class="c"># uncommitted</span>
-<span class="k">margin</span> --staged   <span class="c"># the index</span>
-<span class="k">margin</span> feature-x  <span class="c"># a branch</span>
-<span class="k">margin</span> a1b2c3d    <span class="c"># a commit</span>
-<span class="k">margin</span> --pr 123   <span class="c"># a pull request</span></pre>
+          <pre><span class="k">margin-tui</span>            <span class="c"># uncommitted</span>
+<span class="k">margin-tui</span> --staged   <span class="c"># the index</span>
+<span class="k">margin-tui</span> feature-x  <span class="c"># a branch</span>
+<span class="k">margin-tui</span> a1b2c3d    <span class="c"># a commit</span>
+<span class="k">margin-tui</span> --pr 123   <span class="c"># a pull request</span></pre>
+          <p>Or pick any of them in margin-gui's sidebar, or <kbd>ctrl</kbd><kbd>k</kbd>.</p>
         </article>
         <article class="tile s3 reveal">
           <span class="tag">Around this stop</span>
@@ -563,7 +570,7 @@ diff --git a/inventory/report.py b/inventory/report.py
         <article class="tile s2 reveal">
           <span class="tag">Resume</span>
           <h3>Stop any time.</h3>
-          <p>Run the same command tomorrow. Verdicts, marks, comments and notes are exactly where you left them.</p>
+          <p>Come back tomorrow, in either app. Verdicts, marks, comments and notes are exactly where you left them.</p>
         </article>
         <article class="tile s3 reveal">
           <span class="tag">Export</span>
@@ -587,8 +594,56 @@ dist/</pre>
       <div class="numbers reveal">
         <div><b>4</b><span>keys to learn: space, b, c, a</span></div>
         <div><b>3</b><span>phases, always in the same order</span></div>
-        <div><b>0</b><span>writes to your repository, ever</span></div>
+        <div><b>0</b><span>changes to your code, ever</span></div>
         <div><b>400<sup>lines</sup></b><span>where the footer suggests a break, before quality drops</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="apps">
+    <div class="wrap">
+      <div class="head reveal">
+        <span class="eyebrow">Two front ends, one review</span>
+        <h2>In the terminal, or in a <em>window</em>.</h2>
+        <p>Both read and write the same review files. Start in one, go on in the other.</p>
+      </div>
+      <div class="bento">
+        <article class="tile s3 dark reveal">
+          <span class="tag">margin-tui</span>
+          <h3>The terminal viewer.</h3>
+          <p>The review in your terminal, the agent in a tmux pane beside it. Everything is a key.</p>
+          <pre><span class="k">go install</span> github.com/redrick/margin/cmd/margin-tui@latest
+<span class="k">margin-tui</span> feature-x</pre>
+          <p><a href="https://github.com/redrick/margin/blob/main/docs/tui.md">Read the manual →</a></p>
+        </article>
+        <article class="tile s3 dark reveal">
+          <span class="tag">margin-gui</span>
+          <h3>The desktop app.</h3>
+          <p>Your repositories, worktrees, branches and pull requests in a sidebar, the agent in a terminal inside the window. No tmux.</p>
+          <pre><span class="k">go install</span> github.com/redrick/margin/cmd/margin-gui@latest
+<span class="k">margin-gui</span> --install   <span class="c"># into your launcher</span></pre>
+          <p><a href="https://github.com/redrick/margin/blob/main/docs/gui.md">Read the manual →</a></p>
+        </article>
+        <article class="tile s2 reveal">
+          <span class="tag">Any agent</span>
+          <h3>Bring your own.</h3>
+          <p>Claude Code by default; Codex, Gemini CLI, OpenCode or any agent CLI that takes a prompt and runs shell commands. <code>margin-tui config set agent codex</code>.</p>
+        </article>
+        <article class="tile s2 reveal">
+          <span class="tag">Your files</span>
+          <h3>Reviews where you want them.</h3>
+          <p>In <code>.margin/reviews/</code> of the repository, ignored by git, by default. Or a private folder, or your notes vault: <code>~/notes/{project}/topics/{topic}</code>.</p>
+        </article>
+        <article class="tile s2 reveal">
+          <span class="tag">Answers</span>
+          <h3>Talk back.</h3>
+          <p>The agent answers each comment in a markdown note. margin-gui shows it with <kbd>A</kbd>; reply under an answer or edit the note in place.</p>
+        </article>
+        <article class="tile s6 reveal">
+          <span class="tag">The skill</span>
+          <h3>Ask your agent for a margin review.</h3>
+          <p><code>margin-tui skill install claude</code> (or <code>codex</code>) teaches an agent you started yourself how margin works, so it can prepare a review for you to open. Claude Code can also add it as a plugin: <code>/plugin marketplace add redrick/margin</code>.</p>
+        </article>
       </div>
     </div>
   </section>
@@ -620,7 +675,7 @@ dist/</pre>
         <p>margin treats the repository under review as untrusted. You can point it at a stranger's pull request.</p>
       </div>
       <ul>
-        <li class="reveal"><b>Never writes, never runs</b>No writes to the repository, nothing executed from it. git only through read-only plumbing, refs after <code>--end-of-options</code>.</li>
+        <li class="reveal"><b>Never changes, never runs</b>Nothing executed from the repository, no change to its code or history. git only through read-only plumbing, refs after <code>--end-of-options</code>. margin writes only its own review files, which keep themselves out of git. The one fetch is a pull request you click <i>Fetch and review</i> on in margin-gui.</li>
         <li class="reveal"><b>Rules from the base</b><code>.margin/</code> settings come from the commit compared against, so a change cannot loosen its own review.</li>
         <li class="reveal"><b>Clean terminal</b>Escape sequences and bidi controls are stripped before rendering. Questions never go to a plain shell.</li>
         <li class="reveal"><b>Untrusted text, labelled</b>Commit messages, PR descriptions and repo instructions reach the agent marked as written by someone else.</li>
@@ -632,11 +687,13 @@ dist/</pre>
     <div class="wrap">
       <span class="eyebrow reveal">Try it on your next change</span>
       <h2 class="reveal">Stop skimming.<br><em>Start reading.</em></h2>
-      <p class="reveal">Install it, run <code>margin</code> in a repository with uncommitted changes, and press <kbd>space</kbd>.</p>
-      <div class="install reveal"><span id="cmd2">go install github.com/redrick/margin/cmd/margin@latest</span><button type="button" data-copy="cmd2">copy</button></div>
+      <p class="reveal">Install one, run <code>margin-tui</code> in a repository with uncommitted changes or open it in <code>margin-gui</code>, and press <kbd>space</kbd>.</p>
+      <div class="install reveal"><b class="which">terminal</b><span id="cmd2">go install github.com/redrick/margin/cmd/margin-tui@latest</span><button type="button" data-copy="cmd2">copy</button></div>
+      <div class="install reveal"><b class="which">desktop</b><span id="cmd2g">go install github.com/redrick/margin/cmd/margin-gui@latest &amp;&amp; margin-gui --install</span><button type="button" data-copy="cmd2g">copy</button></div>
       <div class="row reveal">
         <a class="btn" href="https://github.com/redrick/margin">Star on GitHub</a>
-        <a class="btn ghost" href="https://github.com/redrick/margin#how-to-use-it-really">Read the guide</a>
+        <a class="btn ghost" href="https://github.com/redrick/margin/blob/main/docs/tui.md">margin-tui manual</a>
+        <a class="btn ghost" href="https://github.com/redrick/margin/blob/main/docs/gui.md">margin-gui manual</a>
       </div>
     </div>
   </section>

@@ -60,6 +60,10 @@ func (m *Model) guideOn() bool {
 // guideSteps lays a stop out as the walk reads it: the brief, the code to know first, each change
 // as one reading unit, the mechanical edits together, and the wrap-up.
 func (m *Model) guideSteps(st *doc.Station) []step {
+	return stepsFor(st, func(pi int) anchor.Range { return m.partRange(m.station, pi) })
+}
+
+func stepsFor(st *doc.Station, rangeOf func(pi int) anchor.Range) []step {
 	steps := []step{{kind: stepBrief}}
 	for pi, p := range st.Parts {
 		if p.Spec.Background {
@@ -78,7 +82,7 @@ func (m *Model) guideSteps(st *doc.Station) []step {
 		case p.Err != nil:
 			steps = append(steps, step{kind: stepChange, part: pi, from: -1, to: -1})
 		default:
-			for _, b := range blocks(st, pi, m.partRange(m.station, pi)) {
+			for _, b := range blocks(st, pi, rangeOf(pi)) {
 				s := step{kind: stepChange, part: pi, from: b.from, to: b.to}
 				if b.mech {
 					mech = append(mech, s)
@@ -571,26 +575,7 @@ func (m *Model) blockRows(st *doc.Station, s step) {
 // codeBlock draws one step's code under a header naming the file and what the code is.
 func (m *Model) codeBlock(st *doc.Station, s step, mech bool) bool {
 	p := st.Parts[s.part]
-	title := "── " + p.Spec.File
-	switch defs := around.Defines(p.Spec.File, p.Lines, s.from, s.to); {
-	case (p.Base || p.NewFile) && len(defs) > 0:
-		verb := "adds "
-		if p.Base {
-			verb = "removes "
-		}
-		title += " · " + verb + shortList(defs)
-	case p.Base:
-		title += " · removed code"
-	case p.NewFile:
-		title += " · new file"
-	default:
-		if name := enclosingName(p, s); name != "" {
-			title += " · in " + name
-		}
-	}
-	if s.from >= 0 {
-		title += fmt.Sprintf(" · lines %d–%d", s.from+1, s.to+1)
-	}
+	title := "── " + p.Spec.File + stepTitle(p, s)
 	m.rows = append(m.rows, row{kind: rowHeader, part: s.part, text: title})
 	if about := strings.TrimSpace(p.Spec.About); about != "" && !mech && (s.kind == stepBackground || s.from <= p.Range.Start) {
 		m.marked(2, about, colDim, true)
@@ -615,6 +600,32 @@ func (m *Model) codeBlock(st *doc.Station, s step, mech bool) bool {
 		m.ghostRows(p, s.part, len(p.Lines), 0)
 	}
 	return true
+}
+
+// stepTitle says what a step's code is, after its file name: what it adds or removes, or the
+// function it changes, and its lines.
+func stepTitle(p *doc.Part, s step) string {
+	var title string
+	switch defs := around.Defines(p.Spec.File, p.Lines, s.from, s.to); {
+	case (p.Base || p.NewFile) && len(defs) > 0:
+		verb := "adds "
+		if p.Base {
+			verb = "removes "
+		}
+		title += " · " + verb + shortList(defs)
+	case p.Base:
+		title += " · removed code"
+	case p.NewFile:
+		title += " · new file"
+	default:
+		if name := enclosingName(p, s); name != "" {
+			title += " · in " + name
+		}
+	}
+	if s.from >= 0 {
+		title += fmt.Sprintf(" · lines %d–%d", s.from+1, s.to+1)
+	}
+	return title
 }
 
 // stepCards puts the notes and comments under the code when the pane is too narrow for the notes

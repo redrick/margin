@@ -1,4 +1,4 @@
-package main
+package cli
 
 const agentHelp = `margin — instructions for the agent working next to the viewer
 
@@ -187,5 +187,7 @@ Review file format
           changed: ...                q:, qid: are written by margin answer and margin resolve
   skip: [{what, why}]    renames: [{before, after}]    tests: [{file, why}]
 
-margin never writes to the reviewed repo and never runs anything from it: you run the tests.
+margin never runs anything from the reviewed repo: you run the tests. It writes only its own files: the
+review beside its state, comments note and coverage (in .margin/reviews/, which git ignores, unless
+the reader keeps reviews elsewhere).
 `

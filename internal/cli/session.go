@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"crypto/sha256"
@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redrick/margin/internal/config"
 	"github.com/redrick/margin/internal/control"
 	"github.com/redrick/margin/internal/review"
 	"github.com/redrick/margin/internal/target"
@@ -51,7 +52,7 @@ func cmdSession(args []string) error {
 	return tmuxx.RunSession(tmuxx.Session{
 		Socket:   "margin-" + hex.EncodeToString(sum[:4]),
 		Dir:      r.RepoDir(),
-		AgentCmd: agent + " " + tmuxx.Quote(agentPrompt(r, target.LocationOf(path), *isNew)),
+		AgentCmd: agentShell(agentPrompt(r, target.LocationOf(path), *isNew)),
 		Viewer: func(pane string) []string {
 			return []string{exe, "open", "--agent-pane", pane, path}
 		},
@@ -79,16 +80,32 @@ func openInGW(exe string, sessionArgs []string, path string) error {
 	return errors.New("gw did not start the review; this gw build cannot run a command in a sub-window yet")
 }
 
-func agentCommand() string {
-	if agent := strings.TrimSpace(os.Getenv("MARGIN_AGENT")); agent != "" {
-		return agent
+func agentCommand() string { return config.Load().Agent }
+
+// agentShell is the shell command that starts the agent with prompt, finding this margin first on PATH.
+func agentShell(prompt string) string {
+	cmd := config.Load().AgentShell(prompt)
+	if dir, err := ShimDir(); err == nil {
+		cmd = "PATH=" + tmuxx.Quote(dir) + ":\"$PATH\" " + cmd
 	}
-	return "claude"
+	return cmd
+}
+
+// shimHint tells an agent that was not started by margin where the margin command is.
+func shimHint() string {
+	if _, err := exec.LookPath("margin"); err == nil {
+		return ""
+	}
+	dir, err := ShimDir()
+	if err != nil {
+		return ""
+	}
+	return " If `margin` is not found, it is " + filepath.Join(dir, "margin") + "."
 }
 
 func requireAgent(agent string) error {
 	if _, err := exec.LookPath(strings.Fields(agent)[0]); err != nil {
-		return fmt.Errorf("agent %q not found; set MARGIN_AGENT or use --no-agent", agent)
+		return fmt.Errorf("agent %q not found; set it with `margin-tui config agent <command>` or use --no-agent", agent)
 	}
 	return nil
 }

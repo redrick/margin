@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -19,7 +20,15 @@ import (
 	"github.com/redrick/margin/internal/tmuxx"
 )
 
-func cmdReview(args []string) error {
+// prepared is a review file made ready for a target, with what the command line asked.
+type prepared struct {
+	t       *target.Target
+	loc     target.Location
+	created bool
+	noAgent bool
+}
+
+func prepareReview(args []string, usage string) (*prepared, error) {
 	fs := flag.NewFlagSet("margin", flag.ContinueOnError)
 	baseFlag := fs.String("base", "", "")
 	fresh := fs.Bool("fresh", false, "")
@@ -30,10 +39,10 @@ func cmdReview(args []string) error {
 	instructions := fs.String("instructions", "", "")
 	pos, err := parseArgs(fs, args)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(pos) > 1 {
-		return errors.New("usage: margin [branch | commit] [--base REF] [--staged] [--pr N] [--intent TEXT] [--instructions TEXT] [--fresh] [--no-agent]")
+		return nil, errors.New(usage)
 	}
 	arg := ""
 	if len(pos) == 1 {
@@ -41,17 +50,16 @@ func cmdReview(args []string) error {
 	}
 	wd, err := os.Getwd()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	t, err := target.Resolve(wd, arg, target.Options{Base: *baseFlag, Staged: *staged, PR: *pr, Intent: *intent})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	loc := target.Locate(t)
-	path := loc.Path
 	created, added, err := target.Ensure(loc, t, *fresh)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	switch {
 	case created:
@@ -61,12 +69,42 @@ func cmdReview(args []string) error {
 	default:
 		fmt.Printf("%s · resuming the existing review\n", t.Title)
 	}
-	fmt.Println("review file:", path)
+	fmt.Println("review file:", loc.Path)
 	if *instructions != "" {
-		if err := review.SetScalar(path, "instructions", text.Sanitize(strings.TrimSpace(*instructions))); err != nil {
-			return err
+		if err := review.SetScalar(loc.Path, "instructions", text.Sanitize(strings.TrimSpace(*instructions))); err != nil {
+			return nil, err
 		}
 	}
+	return &prepared{t: t, loc: loc, created: created, noAgent: *noAgent}, nil
+}
+
+// cmdPrepare writes the review file and prints its path, without a viewer or an agent: for an
+// agent already running that was asked for a margin review.
+func cmdPrepare(args []string) error {
+	p, err := prepareReview(args, "usage: margin prepare [branch | commit] [--base REF] [--staged] [--pr N] [--intent TEXT] [--instructions TEXT] [--fresh]")
+	if err != nil {
+		return err
+	}
+	// An agent margin did not start may have no margin command; it ran this binary by its own name.
+	self := "margin"
+	if _, err := exec.LookPath("margin"); err != nil {
+		self = filepath.Base(os.Args[0])
+	}
+	brief := self + " brief --review " + tmuxx.Quote(p.loc.Path)
+	if p.created {
+		brief += " --new"
+		fmt.Println("new review")
+	}
+	fmt.Printf("open it with: margin-gui %s  (or margin-tui open %s)\nthen run: %s\n", tmuxx.Quote(p.loc.Path), tmuxx.Quote(p.loc.Path), brief)
+	return nil
+}
+
+func cmdReview(args []string) error {
+	p, err := prepareReview(args, "usage: margin [branch | commit] [--base REF] [--staged] [--pr N] [--intent TEXT] [--instructions TEXT] [--fresh] [--no-agent]")
+	if err != nil {
+		return err
+	}
+	t, loc, path, created := p.t, p.loc, p.loc.Path, p.created
 	r, err := review.Load(path)
 	if err != nil {
 		return err
@@ -76,7 +114,7 @@ func cmdReview(args []string) error {
 		fmt.Println("this review is already open in another pane")
 		return nil
 	}
-	if *noAgent {
+	if p.noAgent {
 		return cmdOpen([]string{path})
 	}
 
@@ -113,9 +151,9 @@ func cmdReview(args []string) error {
 	return tmuxx.Launch(tmuxx.Layout{
 		Dir:      t.Repo,
 		Name:     "margin " + t.Label(),
-		AgentCmd: agent + " " + tmuxx.Quote(agentPrompt(r, loc, created)),
+		AgentCmd: agentShell(agentPrompt(r, loc, created)),
 		InAgent:  inAgent,
-		Kickoff:  "Start the margin code review: run `" + brief + "` and follow its instructions.",
+		Kickoff:  "Start the margin code review: run `" + brief + "` and follow its instructions." + shimHint(),
 		Viewer: func(pane string) []string {
 			return []string{exe, "open", "--agent-pane", pane, path}
 		},
@@ -149,8 +187,8 @@ func agentPrompt(r *review.Review, loc target.Location, created bool) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Code review with margin. The viewer in the pane beside you shows: %s (%s).\n", r.Title, r.Kicker)
 	fmt.Fprintf(&b, "Review file: %s\n", loc.Path)
-	if loc.Vault != "" {
-		fmt.Fprintf(&b, "It lives in your Obsidian memory vault under %s/topics/%s; list it in that project's index as your memory rules say.\n", loc.Project, loc.Topic)
+	if loc.AgentNote != "" {
+		b.WriteString(loc.AgentNote + "\n")
 	}
 	b.WriteString("\nRun `margin agent-help` first and follow it.\n")
 	b.WriteString("Every note is read by a person who did not write this code and is reading it for the first time. Write for that person: " +

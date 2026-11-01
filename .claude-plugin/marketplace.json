@@ -1,0 +1,11 @@
+{
+  "name": "margin",
+  "owner": { "name": "Andrej Antas" },
+  "plugins": [
+    {
+      "name": "margin",
+      "source": "./",
+      "description": "Review git changes with margin: the agent shapes a guided tour and writes notes beside the diff while you read."
+    }
+  ]
+}

@@ -4,3 +4,5 @@
 .env*
 *.review.state.yaml
 /local/
+/margin-tui
+/margin-gui

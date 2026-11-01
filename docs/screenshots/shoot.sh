@@ -7,7 +7,7 @@ out=docs/screenshots
 work=$(mktemp -d)
 trap 'tmux -L margin-shots kill-server 2>/dev/null || true; rm -rf "$work"' EXIT
 
-go build -o "$work/margin" ./cmd/margin
+go build -o "$work/margin" ./cmd/margin-tui
 cp -r testdata/example "$work/ex"
 rm -f "$work/ex/example.review.state.yaml"
 review="$work/ex/example.review.yaml"

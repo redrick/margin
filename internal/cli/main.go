@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"encoding/json"
@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -23,35 +24,41 @@ import (
 	"github.com/redrick/margin/internal/watch"
 )
 
-const version = "0.1.0-dev"
+// Version is the module version go install recorded, or 0.1.0-dev for a local build.
+func Version() string {
+	if info, ok := debug.ReadBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return info.Main.Version
+	}
+	return "0.1.0-dev"
+}
 
-const usageText = `margin — review git changes with an agent beside you
+const usageText = `margin-tui — review git changes in the terminal, with an agent beside you
 
-  margin              review uncommitted changes
-  margin <branch>     review a branch against the main branch
-  margin <commit>     review one commit
+  margin-tui              review uncommitted changes
+  margin-tui <branch>     review a branch against the main branch
+  margin-tui <commit>     review one commit
 
-  The review (code and comments) opens on top, a new claude (or $MARGIN_AGENT) reviewer below.
-  Inside gw it gets its own sub-window; in plain tmux it splits the current pane; outside tmux
-  it takes over the terminal.
+  The review opens on top, a new agent (claude unless set otherwise) below. Inside gw it gets its
+  own sub-window; in plain tmux it splits the current pane; outside tmux it takes over the terminal.
   --base REF        compare against REF          --fresh      start the review over
   --staged          review the staged changes    --no-agent   only open the viewer
   --pr N|URL        review a GitHub pull request (read-only through gh; its head must be fetched)
   --intent TEXT     what the change was meant to do, when commit messages do not say
   --instructions T  what the agent should pay attention to in this review
 
-  Reviews are kept in $MARGIN_DIR, else in the vault of Claude Code's obsidian-memory skill,
-  else in ~/.local/state/margin.
+  margin-tui config     where reviews are kept and which agent runs (margin config help)
+  margin-tui skill      the agent skill; skill install [claude|codex] puts it where the agent finds it
 
 keys: space next · b back · y n ? first question · 1 2 3 verdict · c comment · a ask · S send comments · e more · w whole stop · H all keys · q quit
 
-commands for the agent:
+commands for the agent (margin-tui, margin-gui and the margin link the agent gets all take them):
   margin note <file>:<line> "text"     add a note
   margin answer <qid> "text"           answer a question asked in the viewer
   margin resolve <cid> "text"          close a review comment: what you changed, or why not
   margin goto <station>[:<note>] | <file>:<line>
   margin where | reload | questions | lint <review.yaml>
   margin open | split <review.yaml>    open a review file directly
+  margin prepare [branch | commit]     write the review file only, for an agent already running
   margin coverage go | add-go | add    per-test coverage (the agent runs the tests)
   margin brief [--review FILE]         the review task for the agent
   margin export [--format md|github]   your comments, flagged notes and calls, to post yourself
@@ -61,9 +68,11 @@ commands for the agent:
 var commands = map[string]bool{
 	"review": true, "open": true, "split": true, "lint": true, "goto": true, "where": true, "reload": true,
 	"questions": true, "answer": true, "resolve": true, "export": true, "note": true, "brief": true, "session": true, "coverage": true, "agent-help": true, "version": true, "help": true,
+	"prepare": true, "config": true, "skill": true,
 }
 
-func main() { os.Exit(run(os.Args[1:])) }
+// Run runs the margin command line with args (without the program name) and returns the exit code.
+func Run(args []string) int { return run(args) }
 
 func run(args []string) int {
 	cmd, rest := "review", args
@@ -103,10 +112,16 @@ func run(args []string) int {
 		err = cmdSession(rest)
 	case "coverage":
 		err = cmdCoverage(rest)
+	case "prepare":
+		err = cmdPrepare(rest)
+	case "config":
+		err = cmdConfig(rest)
+	case "skill":
+		err = cmdSkill(rest)
 	case "agent-help":
 		fmt.Print(agentHelp)
 	case "version":
-		fmt.Println("margin", version)
+		fmt.Println("margin", Version())
 	case "help":
 		fmt.Print(usageText)
 	}

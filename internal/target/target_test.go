@@ -2,12 +2,12 @@ package target
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/redrick/margin/internal/config"
 	"github.com/redrick/margin/internal/review"
 )
 
@@ -58,7 +58,7 @@ func TestNewReviewIsValid(t *testing.T) {
 		t.Errorf("rename should keep the old path")
 	}
 
-	data, err := marshal(New(tg), Location{Vault: "/v", Project: "app", Topic: "feature-login"})
+	data, err := marshal(New(tg), Location{Notes: true, Project: "app", Topic: "feature-login"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,35 +72,44 @@ func TestNewReviewIsValid(t *testing.T) {
 
 func TestLocate(t *testing.T) {
 	home := t.TempDir()
-	for k, v := range map[string]string{"HOME": home, "CLAUDE_CONFIG_DIR": "", "MARGIN_DIR": "", "XDG_STATE_HOME": ""} {
+	for k, v := range map[string]string{"HOME": home, "MARGIN_DIR": "", "MARGIN_CONFIG": filepath.Join(home, "config.yaml"), "XDG_STATE_HOME": ""} {
 		t.Setenv(k, v)
 	}
-	tg := &Target{Mode: Branch, Repo: filepath.Join(t.TempDir(), "my app"), Name: "feature/login"}
+	repo := filepath.Join(t.TempDir(), "my app")
+	tg := &Target{Mode: Branch, Repo: repo, Name: "feature/login"}
 
 	loc := Locate(tg)
-	if loc.Vault != "" || !strings.HasPrefix(loc.Path, filepath.Join(home, ".local", "state", "margin", "my-app-")) ||
-		!strings.HasSuffix(loc.Path, "branch-feature-login.review.yaml") {
-		t.Fatalf("default location = %+v", loc)
+	if want := filepath.Join(repo, ".margin", "reviews", "branch-feature-login.review.yaml"); loc.Path != want || loc.Notes {
+		t.Fatalf("default location = %+v, want %s", loc, want)
 	}
 
-	vault := filepath.Join(home, "notes", "ai-memory")
-	skill := filepath.Join(home, ".claude", "skills", "obsidian-memory")
-	for _, d := range []string{vault, skill} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
+	set := func(c config.Config) {
+		t.Helper()
+		if err := c.Save(); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(skill, "SKILL.md"), []byte("# Obsidian Memory\n\n**Vault root:** `~/notes/ai-memory/`\n"), 0o644); err != nil {
-		t.Fatal(err)
+	set(config.Config{Reviews: config.InState})
+	if loc = Locate(tg); !strings.HasPrefix(loc.Path, filepath.Join(home, ".local", "state", "margin", "my-app-")) ||
+		!strings.HasSuffix(loc.Path, "branch-feature-login.review.yaml") {
+		t.Fatalf("state location = %+v", loc)
 	}
+
+	set(config.Config{Reviews: "~/notes/{project}/topics/{topic}", AgentNote: "File it under {project}/{topic}."})
 	loc = Locate(tg)
-	want := filepath.Join(vault, "my app", "topics", "feature-login", "margin-branch-feature-login.review.yaml")
-	if loc.Path != want || loc.Project != "my app" || loc.Topic != "feature-login" {
-		t.Fatalf("vault location = %+v, want path %s", loc, want)
+	want := filepath.Join(home, "notes", "my app", "topics", "feature-login", "margin-branch-feature-login.review.yaml")
+	if loc.Path != want || !loc.Notes || loc.Project != "my app" || loc.Topic != "feature-login" || loc.AgentNote != "File it under my app/feature-login." {
+		t.Fatalf("notes location = %+v, want path %s", loc, want)
+	}
+	if back := LocationOf(want); !back.Notes || back.Project != "my app" || back.Topic != "feature-login" {
+		t.Fatalf("LocationOf(%s) = %+v", want, back)
+	}
+	if got := FileName("feature/login", "", false); got != "margin-branch-feature-login.review.yaml" {
+		t.Fatalf("FileName = %s", got)
 	}
 
 	t.Setenv("MARGIN_DIR", "/reviews")
-	if loc = Locate(tg); !strings.HasPrefix(loc.Path, "/reviews/my-app-") || loc.Vault != "" {
+	if loc = Locate(tg); !strings.HasPrefix(loc.Path, "/reviews/my-app-") || loc.Notes {
 		t.Fatalf("MARGIN_DIR should win, got %+v", loc)
 	}
 }

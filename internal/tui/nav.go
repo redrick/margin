@@ -1218,42 +1218,45 @@ type Counts struct {
 	CallsMade int `json:"calls_made"`
 }
 
-func (m *Model) counts() Counts {
+func (m *Model) counts() Counts { return CountsOf(m.doc, m.state) }
+
+// CountsOf tallies the review's notes, calls, questions and drafts, as `margin where` reports them.
+func CountsOf(d *doc.Doc, st *state.State) Counts {
 	var c Counts
-	if m.doc == nil || m.state == nil {
+	if d == nil || st == nil {
 		return c
 	}
-	for _, n := range m.doc.CodeNotes() {
+	for _, n := range d.CodeNotes() {
 		c.Notes++
-		if m.state.Reviewed[n.Key] {
+		if st.Reviewed[n.Key] {
 			c.Reviewed++
 		}
-		if m.state.Flagged[n.Key] {
+		if st.Flagged[n.Key] {
 			c.Flagged++
 		}
 		switch {
-		case m.state.Dismissed[n.Key]:
+		case st.Dismissed[n.Key]:
 			c.Dismissed++
 		case n.Unbacked() || n.Level() == doc.KindQuestion:
 			c.Questions++
 		case n.Level() == doc.KindIssue:
 			c.Issues++
 		}
-		if n.Changed != "" && m.state.Seen[n.Key] != n.Changed {
+		if n.Changed != "" && st.Seen[n.Key] != n.Changed {
 			c.Changed++
 		}
 		if n.Problem != "" {
 			c.Lost++
 		}
-		if n.Level() == doc.KindDecide && !m.state.Dismissed[n.Key] {
+		if n.Level() == doc.KindDecide && !st.Dismissed[n.Key] {
 			c.Calls++
-			if m.state.Reviewed[n.Key] {
+			if st.Reviewed[n.Key] {
 				c.CallsMade++
 			}
 		}
 	}
-	answered := m.doc.AnsweredQuestions()
-	for _, q := range m.state.Questions {
+	answered := d.AnsweredQuestions()
+	for _, q := range st.Questions {
 		switch {
 		case q.Draft:
 			c.Drafts++

@@ -1,0 +1,10 @@
+{
+  "name": "margin",
+  "description": "Review git changes with margin: the agent shapes a guided tour and writes notes beside the diff while you read.",
+  "author": {
+    "name": "Andrej Antas"
+  },
+  "homepage": "https://github.com/redrick/margin",
+  "repository": "https://github.com/redrick/margin",
+  "license": "MIT"
+}

@@ -129,8 +129,10 @@ func (m *Model) testsLines() ([]string, int) {
 
 // testSource finds where test ti is defined: from the coverage when it says, otherwise by looking
 // in its file, or by searching the reviewed side for a definition of its name.
-func (m *Model) testSource(ti int) (string, int, error) {
-	t := m.doc.Coverage.Tests[ti]
+func (m *Model) testSource(ti int) (string, int, error) { return testSourceIn(m.doc, ti) }
+
+func testSourceIn(d *doc.Doc, ti int) (string, int, error) {
+	t := d.Coverage.Tests[ti]
 	if t.File != "" && t.Line > 0 {
 		return t.File, t.Line, nil
 	}
@@ -138,7 +140,7 @@ func (m *Model) testSource(ti int) (string, int, error) {
 	if top == "" {
 		return "", 0, fmt.Errorf("%s: no name to look for", t.Label())
 	}
-	files, err := source.Open(m.doc.Review)
+	files, err := source.Open(d.Review)
 	if err != nil {
 		return "", 0, err
 	}

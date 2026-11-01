@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>margin</title>
+<link rel="stylesheet" href="vendor/xterm.css">
+<link rel="stylesheet" href="style.css">
+<script src="vendor/xterm.js"></script>
+<script src="vendor/addon-fit.js"></script>
+</head>
+<body>
+
+<section id="workspace" class="screen">
+  <aside id="side">
+    <header class="side-head">
+      <span class="brand">margin</span>
+      <span class="spacer"></span>
+      <button id="settings-btn" class="icon" title="Settings (ctrl+,)">⚙</button>
+      <button id="hide-side" class="icon" title="Hide the sidebar ( \ )">⇤</button>
+    </header>
+    <button id="jump" class="jump" title="Go to a repository, worktree, branch or review">
+      <span>Go to…</span><kbd>ctrl k</kbd>
+    </button>
+    <div id="side-scroll">
+      <div class="side-sec" id="recent-sec">
+        <div class="side-title">Reviews in progress</div>
+        <div id="recent-reviews"></div>
+      </div>
+      <div class="side-sec">
+        <div class="side-title">Repositories <span class="spacer"></span><button id="add-folder" class="icon small" title="Add a repository or a folder of repositories">＋</button></div>
+        <input id="repo-filter" class="filter" placeholder="Filter repositories and worktrees">
+        <nav id="repos"></nav>
+      </div>
+    </div>
+    <footer class="side-foot"><button id="open-file" class="link-btn">Open a review file…</button></footer>
+  </aside>
+
+  <main id="main">
+    <div id="welcome" class="welcome hidden">
+      <div class="home-card">
+        <h1>margin</h1>
+        <p class="muted">Review git changes with an agent beside you.</p>
+        <div id="welcome-body"></div>
+        <div id="welcome-checks" class="start-checks"></div>
+      </div>
+    </div>
+
+    <div id="home-pane" class="hidden">
+      <header class="wt-head">
+        <button id="show-side" class="icon hidden" title="Show the sidebar ( \ )">☰</button>
+        <div class="titles">
+          <div id="wt-crumbs" class="kicker"></div>
+          <div id="wt-title" class="r-title"></div>
+        </div>
+        <button id="back-review" class="small hidden" title="Back to the open review">Back to the review ⏎</button>
+        <button id="wt-refresh" class="icon" title="Read git again (r)">↻</button>
+      </header>
+      <div id="wt-body"></div>
+    </div>
+
+    <div id="reviewer" class="hidden">
+      <header id="review-head">
+        <button id="toggle-picker" class="icon" title="Show or hide the sidebar ( \ )">☰</button>
+        <button id="crumb" class="crumb" title="What else to review here (ctrl+k for anything)"></button>
+        <div class="titles">
+          <div id="r-kicker" class="kicker"></div>
+          <div id="r-title" class="r-title"></div>
+        </div>
+        <div id="r-stats" class="muted small"></div>
+        <button id="send-btn" class="small hidden" title="Send every draft comment to the agent (S)"></button>
+        <button id="refresh" class="icon" title="Start the review over">↺</button>
+        <button id="agent-btn" class="primary small">Start agent</button>
+      </header>
+      <div id="toolbar"></div>
+      <div id="review-body">
+        <nav id="stations"></nav>
+        <article id="station"></article>
+      </div>
+      <div id="statusbar"></div>
+      <div id="splitter" title="Drag to resize"></div>
+      <section id="agent-pane">
+        <header class="agent-head">
+          <span class="dot" id="agent-dot"></span>
+          <span id="agent-label">Agent not running</span>
+          <span class="spacer"></span>
+          <label class="submit-toggle" title="Off: messages for the agent are only typed, you press Enter yourself (margin open --no-submit)"><input id="agent-submit" type="checkbox" checked> send messages with Enter</label>
+          <button id="agent-collapse" class="icon" title="Hide the agent">▾</button>
+        </header>
+        <div id="terminal"></div>
+      </section>
+    </div>
+  </main>
+</section>
+
+<div id="switcher" class="switcher-back hidden">
+  <div class="switcher">
+    <input id="switch-q" placeholder="Repository, worktree, branch, review or command" autocomplete="off" spellcheck="false">
+    <div id="switch-list"></div>
+    <div class="switch-foot muted small">↑↓ move · enter open · esc close</div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

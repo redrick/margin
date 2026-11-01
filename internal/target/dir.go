@@ -8,51 +8,156 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/redrick/margin/internal/config"
 	"github.com/redrick/margin/internal/gitx"
 )
 
-// Location says where a review file lives. Reviews never go inside the reviewed repo.
+// Location says where a review file lives and, for a notes folder, which project and topic it
+// is filed under.
 type Location struct {
 	Path    string
-	Vault   string
+	Notes   bool
 	Project string
 	Topic   string
+	// AgentNote is the configured note for the agent, filled in for this review.
+	AgentNote string
 }
 
-// Locate picks the review directory: $MARGIN_DIR, else the vault of the Claude Code
-// obsidian-memory skill when it is installed, else ~/.local/state/margin.
+// Locate picks the review file for t from the settings: .margin/reviews in the repository, the
+// state directory, or a configured directory.
 func Locate(t *Target) Location {
-	if d := os.Getenv("MARGIN_DIR"); d != "" {
-		return Location{Path: filepath.Join(d, repoDir(t.Repo), fileName(t, false))}
+	c := config.Load()
+	var loc Location
+	switch c.Reviews {
+	case config.InRepo, config.InState:
+		loc.Path = filepath.Join(reviewsDir(c, t.Repo), fileName(t, false))
+	default:
+		loc.Notes = config.NotesFolder(c.Reviews)
+		if loc.Notes {
+			loc.Project, loc.Topic = memoryProject(t.Repo), topicFor(t)
+		}
+		dir := strings.NewReplacer("{project}", loc.Project, "{topic}", loc.Topic, "{repo}", repoDir(t.Repo)).Replace(config.Expand(c.Reviews))
+		loc.Path = filepath.Join(dir, fileName(t, loc.Notes))
 	}
-	if vault := memoryVault(); vault != "" {
-		project, topic := memoryProject(t.Repo), topicFor(t)
-		return Location{
-			Path:    filepath.Join(vault, project, "topics", topic, fileName(t, true)),
-			Vault:   vault,
-			Project: project,
-			Topic:   topic,
+	loc.AgentNote = agentNote(c, loc)
+	return loc
+}
+
+func reviewsDir(c config.Config, repo string) string {
+	if c.Reviews == config.InRepo {
+		return filepath.Join(mainWorktree(repo), ".margin", "reviews")
+	}
+	return filepath.Join(stateDir(), repoDir(repo))
+}
+
+// Existing lists the review files kept for the repository at repo, wherever the settings keep
+// them. In a notes folder that is not split by project it may list other repositories' reviews.
+func Existing(repo string) []string {
+	c := config.Load()
+	var pattern string
+	switch c.Reviews {
+	case config.InRepo, config.InState:
+		pattern = filepath.Join(reviewsDir(c, repo), "*.review.yaml")
+	default:
+		notes := config.NotesFolder(c.Reviews)
+		project := ""
+		if strings.Contains(c.Reviews, "{project}") {
+			project = memoryProject(repo)
+		}
+		dir := strings.NewReplacer("{project}", globEscape(project), "{topic}", "*", "{repo}", globEscape(repoDir(repo))).Replace(globEscape(config.Expand(c.Reviews)))
+		name := "*.review.yaml"
+		if notes {
+			name = "margin-" + name
+		}
+		pattern = filepath.Join(dir, name)
+	}
+	paths, _ := filepath.Glob(pattern)
+	return paths
+}
+
+var globMeta = strings.NewReplacer(`*`, `\*`, `?`, `\?`, `[`, `\[`, `\`, `\\`)
+
+func globEscape(s string) string { return globMeta.Replace(s) }
+
+// FileName is the name of the review file of a branch, or of the uncommitted (or staged) changes
+// on top of head, as the settings name it; Existing lists the paths to look it up in.
+func FileName(branch, head string, staged bool) string {
+	t := &Target{Mode: Worktree, Base: head, Staged: staged}
+	if branch != "" {
+		t.Mode, t.Name = Branch, branch
+	}
+	c := config.Load()
+	return fileName(t, c.Reviews != config.InRepo && c.Reviews != config.InState && config.NotesFolder(c.Reviews))
+}
+
+// DefaultBranch is the branch a branch review compares against when no base is given.
+func DefaultBranch(repo string) (string, error) { return defaultBranch(repo) }
+
+// LocationOf describes an existing review path, recognising project and topic when it lies in
+// the configured notes folder.
+func LocationOf(path string) Location {
+	c := config.Load()
+	loc := Location{Path: path}
+	if config.NotesFolder(c.Reviews) {
+		re := templateRegexp(config.Expand(c.Reviews))
+		if m := re.FindStringSubmatch(filepath.Dir(path)); m != nil {
+			loc.Notes = true
+			for i, name := range re.SubexpNames() {
+				switch name {
+				case "project":
+					loc.Project = m[i]
+				case "topic":
+					loc.Topic = m[i]
+				}
+			}
 		}
 	}
-	return Location{Path: filepath.Join(stateDir(), repoDir(t.Repo), fileName(t, false))}
+	loc.AgentNote = agentNote(c, loc)
+	return loc
 }
 
-// LocationOf describes an existing review path, recognising reviews kept in the memory vault.
-func LocationOf(path string) Location {
-	loc := Location{Path: path}
-	vault := memoryVault()
-	if vault == "" {
-		return loc
+func agentNote(c config.Config, loc Location) string {
+	return strings.TrimSpace(strings.NewReplacer("{project}", loc.Project, "{topic}", loc.Topic, "{dir}", filepath.Dir(loc.Path)).Replace(c.AgentNote))
+}
+
+// templateRegexp matches directories made from a reviews template; each placeholder is one path
+// element, captured by name the first time it appears.
+func templateRegexp(tmpl string) *regexp.Regexp {
+	var b strings.Builder
+	b.WriteString("^")
+	seen := map[string]bool{}
+	for rest := filepath.Clean(tmpl); rest != ""; {
+		i := strings.IndexByte(rest, '{')
+		j := strings.IndexByte(rest, '}')
+		if i < 0 || j < i {
+			b.WriteString(regexp.QuoteMeta(rest))
+			break
+		}
+		b.WriteString(regexp.QuoteMeta(rest[:i]))
+		name := rest[i+1 : j]
+		if !seen[name] && (name == "project" || name == "topic") {
+			seen[name] = true
+			b.WriteString("(?P<" + name + ">[^/]+)")
+		} else {
+			b.WriteString("[^/]+")
+		}
+		rest = rest[j+1:]
 	}
-	rel, err := filepath.Rel(vault, path)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		return loc
+	b.WriteString("$")
+	return regexp.MustCompile(b.String())
+}
+
+// mainWorktree is the main working tree of repo, so all its worktrees share one .margin/reviews.
+func mainWorktree(repo string) string {
+	out, err := gitx.Run(repo, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil {
+		return repo
 	}
-	parts := strings.Split(filepath.ToSlash(rel), "/")
-	if len(parts) >= 4 && parts[1] == "topics" {
-		loc.Vault, loc.Project, loc.Topic = vault, parts[0], parts[2]
+	common := strings.TrimSpace(string(out))
+	if filepath.Base(common) != ".git" {
+		return repo
 	}
-	return loc
+	return filepath.Dir(common)
 }
 
 func stateDir() string {
@@ -71,7 +176,7 @@ func repoDir(repo string) string {
 	return slug(filepath.Base(repo)) + "-" + hex.EncodeToString(sum[:3])
 }
 
-func fileName(t *Target, vault bool) string {
+func fileName(t *Target, notes bool) string {
 	name := "commit-" + t.Name
 	switch t.Mode {
 	case Worktree:
@@ -82,47 +187,14 @@ func fileName(t *Target, vault bool) string {
 	case Branch:
 		name = "branch-" + slug(t.Name)
 	}
-	if vault {
+	if notes {
 		name = "margin-" + name
 	}
 	return name + ".review.yaml"
 }
 
-var vaultRoot = regexp.MustCompile("\\*\\*Vault root:\\*\\*\\s*`([^`]+)`")
-
-// memoryVault returns the vault root declared by the obsidian-memory skill, or "".
-func memoryVault() string {
-	home, _ := os.UserHomeDir()
-	dir := os.Getenv("CLAUDE_CONFIG_DIR")
-	if dir == "" {
-		if home == "" {
-			return ""
-		}
-		dir = filepath.Join(home, ".claude")
-	}
-	data, err := os.ReadFile(filepath.Join(dir, "skills", "obsidian-memory", "SKILL.md"))
-	if err != nil {
-		return ""
-	}
-	m := vaultRoot.FindSubmatch(data)
-	if m == nil {
-		return ""
-	}
-	root := strings.TrimSpace(string(m[1]))
-	if strings.HasPrefix(root, "~/") && home != "" {
-		root = filepath.Join(home, root[2:])
-	}
-	if !filepath.IsAbs(root) {
-		return ""
-	}
-	if info, err := os.Stat(root); err != nil || !info.IsDir() {
-		return ""
-	}
-	return filepath.Clean(root)
-}
-
-// memoryProject names the vault folder the way the skill does: the ai.memoryProject git setting,
-// else the main repository's directory, so every worktree of a repo shares one folder.
+// memoryProject names the project for a notes folder: the ai.memoryProject git setting, else the
+// main repository's directory, so every worktree of a repo shares one folder.
 func memoryProject(repo string) string {
 	if out, err := gitx.Run(repo, "config", "--get", "ai.memoryProject"); err == nil {
 		if p := safeName(string(out)); p != "" {
