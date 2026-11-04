@@ -560,7 +560,9 @@ column says how many there are (`line 39 runs in 2 tests · t lists them`).
 | `enter` | spotlight the test (see below): the review jumps to the first line it runs and dims the rest |
 | `p` | open the test's source in an overlay, on the line where it is defined; for a subtest, on its `t.Run` |
 | `space`, `a` | pick a test, pick all |
-| `r` | have the agent run the picked tests, or the selected one |
+| `r` | run the picked tests, or all of them, with your test command (see below) |
+| `i` | try a change to the line against them (see below) |
+| `A` | have the agent run the picked tests, or the selected one, and say what each checks |
 | `esc` `q` `t` | close the list |
 
 `p` shows the test itself, so you can see what it asserts, and closing the source brings the list
@@ -568,9 +570,49 @@ back:
 
 ![The source of TestReserve/insufficient stock leaves store unchanged, its t.Run line highlighted](screenshots/tests-source.svg)
 
-`r` sends the agent the test names and the line, and the agent runs them in its own pane and
-reports whether they pass and what each one checks about the line. margin itself still runs
-nothing.
+`A` sends the agent the test names and the line, and the agent runs them in its own pane and
+reports whether they pass and what each one checks about the line.
+
+### Running them yourself
+
+`T` runs the tests of the cursor line (the stop's tests when no test runs the line), `r` in the list
+runs the picked ones. margin runs them with a command you set up once per repository: the first time,
+it asks for one, offering `go test -count=1 -v {dir} -run {run}` for Go, and saves it in your
+settings under `tests` (`{dir} {run} {pkg} {tests} {file}` are filled in and shell-quoted; docker
+works too, see [Running tests](gui.md#running-tests) in the margin-gui manual). The output opens in
+an overlay, `o` shows or hides it, and the footer keeps the result. With Go's `-v`, the list marks
+each test `✓` or `✗`.
+
+### Does a test notice when the line is wrong?
+
+A note says a check matters; does anything test it? Press `i` on the line: it turns into a small
+vim right where it stands, with its colours and line numbers, in normal mode. Edit it the way you
+would in vim (`cw`, `ciw`, `dd`, `o`, `x`, `.`, `u`, visual `v` and `V`, counts) and `:w` (or
+`ctrl+s`). margin runs the line's tests as the code is, then again with your edit written into the
+file, and puts the line back when they end. `:q` drops the edit. The overlay shows both runs and the
+verdict:
+
+```
+ try inventory/stock.go:32 `if qty <= 0 {` → `if qty < 0 {` · 2 caught it, 3 still pass
+ ✓ unchanged · ./inventory · TestAuditLogRecords, TestReserve
+ ✗ with change · ./inventory · TestAuditLogRecords, TestReserve
+ ✗ caught it: TestReserve, TestReserve/rejects_non-positive_quantity
+ ✓ still pass: TestAuditLogRecords, TestReserve/takes_stock, …
+```
+
+To change more than one line, or delete a block, press `V` on its first line and move to its last:
+the block's line numbers light up, and `i` opens all of it in place. `dG` empties it, which deletes
+the lines for the run; the tests of every line in the block run against it. `V` or `esc` drops the
+block. `E` opens the line or block in `$VISUAL` or `$EDITOR` (`vi` when neither is set) instead.
+
+A change that does not build is reported as that, not as caught. In the overlay `a` tells the agent
+what happened, `w` keeps the change in the file, `i` edits the line again and `R` runs it again.
+
+While the tests run the file really holds your edit, so an agent in the same worktree sees it until
+the line is back. margin saves the file before writing it and restores it on its next start if it
+died mid-run; a file that changed during the run gets only the edited line put back. When the line
+on disk is not what the review shows, as in a review of a commit that is not checked out, margin
+refuses to try.
 
 For Go, `margin coverage add-go` records where each test is defined. For other languages the
 agent can pass `line` with each test; without it margin looks for the definition by name.
@@ -621,7 +663,8 @@ measures again.
 
 ### How coverage is measured
 
-margin never runs your tests; the agent does, in its own pane and under its own permissions.
+margin does not measure coverage itself; the agent runs the tests for it, in its own pane and under
+its own permissions.
 
 - **Go.** `margin coverage go` writes a short shell script next to the review file. For each
   package with changed files, the script builds the test binary once, lists every test and
@@ -669,7 +712,12 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 | `u` `U` | next / previous changed line that no test runs |
 | `enter` on a test in the Tests stop | spotlight it: dim every line it does not run |
 | `esc` | end a spotlight (after ending a search, if one is on) |
-| `t` | list the tests that run the current line: `enter` spotlights one, `p` shows its source, `space` picks, `r` has the agent run them |
+| `t` | list the tests that run the current line: `enter` spotlights one, `p` shows its source, `space` picks, `r` runs them, `A` has the agent run them |
+| `T` | run the tests of the current line (the stop's when none runs it) with your test command |
+| `i` | try a change: the line, or the `V` block, turns into a vim in place; `:w` runs its tests unchanged, then with your edit, and the lines are put back |
+| `V` | start a block of lines at the cursor; move to grow it, then `i` |
+| `E` | the same, in `$VISUAL` or `$EDITOR` |
+| `o` | show or hide the test output |
 | `/` | search the code in every stop; `n` `N` then jump to the next / previous match, `esc` ends the search |
 | `enter` | open the selected link, tick a call, answer a `?` question from the agent, or unfold |
 | `enter` on a line with notes | read every note on that line at full length in an overlay |
@@ -760,8 +808,11 @@ with `margin-tui open testdata/example/example.review.yaml`.
 ## Safety
 
 margin is meant for reading code you did not write, so it treats the repository as untrusted.
-It never executes anything from the repository and writes only its own files there, in
-`.margin/reviews/` (which ignores itself in git), unless the settings keep reviews elsewhere. Git is
+It executes nothing from the repository on its own and writes only its own files there, in
+`.margin/reviews/` (which ignores itself in git), unless the settings keep reviews elsewhere. The
+exceptions are yours to trigger: `T`, `r` and `i` run the test command you set up in your own
+settings (a repository cannot bring one), and `i` writes your edit of one line into the file for the
+length of that run, then puts the line back. Git is
 only used through
 read-only plumbing with refs passed after `--end-of-options`. `--pr` only reads a pull request
 through `gh` and never fetches or posts. Terminal escape sequences and bidi controls are stripped

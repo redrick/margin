@@ -108,6 +108,14 @@ with pictures. In short:
   (`s`), more context (`+` `-`) or the whole file (`f`), blind mode, callers and history around a
   stop, per-test coverage with the tests that run a line (`t`), a spotlight on one test, untested
   changes (`u`), the Tests stop, copying a note or a stop (`y` `Y`), and export for posting.
+- **Clickable, keys optional.** Clicking a line puts a bar under it: *Comment* (`c`), *Ask* (`a`),
+  *Tests* (`t`) and *▶ Run* (`T`) when a test runs it, and *✎ Try a change* (`i`). Every key in
+  `H` has a button somewhere: the toolbar, a note card, a part header or the test panel.
+- **Tests.** Once the agent has measured coverage, a blue stripe at the start of a line says a test
+  runs it, and selecting the line lists those tests right under it (hover the stripe for the same
+  list). Click a test to spotlight it, `t` to pick among them, `T` to run them. *▶ tests* on a part
+  and *▶ Tests* in the toolbar run every test that runs the part's or the stop's changed lines; the
+  Tests stop runs one test or all of them. See [Running tests](#running-tests).
 - **Before you approve** gathers your calls, the problems, open questions and your comments, and
   recommends approve, request changes or that the review is not finished yet.
 
@@ -131,6 +139,66 @@ the agent's prompt, so you can add to them before pressing Enter yourself.
 
 If the same review is also open in margin-tui, the window says so: the agent's `margin goto` and
 `margin where` then reach the terminal viewer, not the window.
+
+## Running tests
+
+margin-gui runs tests with a command you set up once per repository; the first time you run tests in
+one it asks for it. The command runs with `sh` in the review's worktree, once per package of the
+picked tests, and its output shows in a panel under the review (`o` shows or hides it). Go's `-v`
+output also marks each test passed or failed, in the panel, in the line hint and on the Tests stop.
+
+| placeholder | filled in with |
+|---|---|
+| `{dir}` | the package's folder inside the repository, like `./internal/store` |
+| `{pkg}` | the package (Go import path), or the test's group |
+| `{run}` | a `go test -run` pattern matching exactly the picked tests and subtests |
+| `{tests}` | the picked tests' names, separated by spaces |
+| `{file}` | the file the first picked test is defined in |
+
+Every value is shell-quoted. Some commands:
+
+```
+go test -count=1 -v {dir} -run {run}
+docker compose run --rm app go test -count=1 -v {dir} -run {run}
+docker compose exec -T app go test -count=1 -v {dir} -run {run}
+pytest -v {tests}
+```
+
+The commands live in the settings file, under `tests`, one per repository (a folder, a glob or a
+repository name; leave it out for every repository); a setting for a repository covers its other
+worktrees too. Change one with *Command…* in the panel, or edit the file. A repository can never
+bring its own command: margin runs only what you set up there, and only when you click.
+
+The review's worktree is where the tests run. For a review of a branch or commit that is not
+checked out there, they run against whatever is.
+
+## Trying a change
+
+When a note claims a line matters, or a line looks wrong to you, check whether the tests would
+notice. Click the line and then *✎ Try a change* in the bar under it, or press `i`: the line turns
+into an editor right where it stands, with the file's colours and line numbers, and vim keys (`i`
+to insert, `esc` back to normal, `cw`, `dd`, `u`, visual mode and the rest). `:w` or `Ctrl+Enter`
+runs, `:q` cancels; untick *vim* in the editor's bar for plain editing, where `Esc` cancels.
+
+For a block, shift+click its last line (or `J` `K` from the first), or use *✎ try a change* on a
+part's header to take every changed line of it. *+ above* and *+ below* take more lines in, and
+*Delete* (or emptying the editor) deletes them for the run.
+
+margin then runs the tests that run that line, or every test of the stop's changes if you pick
+that, twice: first as the code is, then with your edit written into the file. When they end, it puts
+the line back. The panel compares the two runs per test (`✓→✗` caught it, `✓→✓` did not notice) and
+sums it up: *2 tests caught it, 3 still pass*, or *no test noticed the change*. A change that does
+not build, so no test even ran, is said as such and not counted as caught.
+
+From the panel, *Tell the agent* sends it the change and what the tests did, *Keep the change*
+writes the edit into the file for good, and *Edit…* opens the line again.
+
+While the tests run, the file really is changed: an agent working in the same worktree, or an
+editor with the file open, sees the edit until margin puts the line back. margin saves the file
+first, so if it dies mid-run it restores the file the next time it starts. If the file changed again
+during the run, margin puts back only the line it edited, and says so when it cannot find it.
+Changes are tried on the working tree only: when the line on disk is not what the review shows (a
+review of a commit that is not checked out), margin refuses.
 
 ## Answers to your comments
 
@@ -179,6 +247,7 @@ Changed settings apply to reviews and agents started afterwards.
 | `\` | show or hide the sidebar |
 | `` ` `` | put the keyboard in the agent's terminal; `ctrl+esc` takes it out |
 | `A` | the agent's answers to your comments |
+| `T` `i` `o` | run the selected line's tests, try a change to it, show or hide the test output (margin-tui has them too) |
 | `j` `k` `enter` | on a worktree page: move through what to review and open it |
 | `/` | on a worktree page: filter the branches, commits or pull requests |
 | `1` `2` `3` | on a worktree page: branches, commits, pull requests |
@@ -206,8 +275,10 @@ go build -tags gtk3 -o margin-gui ./cmd/margin-gui   # WebKitGTK 4.1
 ```
 
 The window is plain HTML, CSS and JavaScript in [`cmd/margin-gui/assets`](../cmd/margin-gui/assets),
-embedded in the binary, with [xterm.js](https://xtermjs.org) for the agent's terminal; there is no
-npm build step. The Go side is a few [Wails v3](https://v3.wails.io) services over margin's own
+embedded in the binary, with [xterm.js](https://xtermjs.org) for the agent's terminal and
+[CodeMirror](https://codemirror.net) with its vim mode for trying a change. Both are checked in, so
+building needs no npm. To rebuild the editor bundle, run `npm ci && npm run build` in
+[`cmd/margin-gui/codemirror`](../cmd/margin-gui/codemirror). The Go side is a few [Wails v3](https://v3.wails.io) services over margin's own
 packages, so the review logic is the same code margin-tui runs.
 
 `docs/screenshots/shoot-gui.sh` regenerates the window's screenshots on the project page. It runs

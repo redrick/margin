@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -44,7 +43,7 @@ func cmdSession(args []string) error {
 	if err := requireAgent(agent); err != nil {
 		return err
 	}
-	exe, err := os.Executable()
+	exe, err := Self()
 	if err != nil {
 		return err
 	}

@@ -36,6 +36,16 @@ func ShimDir() (string, error) {
 	return dir, os.Rename(tmp, link)
 }
 
+// Self is the command that runs this binary as the command line: the `margin` link when it can be
+// made, since margin-gui opens a window unless it is called as margin.
+func Self() (string, error) {
+	dir, err := ShimDir()
+	if err != nil {
+		return os.Executable()
+	}
+	return filepath.Join(dir, "margin"), nil
+}
+
 // AgentEnv returns env with the shim directory first on PATH, or env unchanged if the link
 // cannot be made.
 func AgentEnv(env []string) []string {

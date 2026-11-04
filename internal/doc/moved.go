@@ -187,3 +187,8 @@ func (p *Part) MovedCount() int {
 	}
 	return n
 }
+
+// Changed reports whether line i of the part was added or changed.
+func (p *Part) Changed(i int) bool {
+	return i >= 0 && i < len(p.Kinds) && (p.Kinds[i] == diffmap.Added || p.Kinds[i] == diffmap.Changed)
+}

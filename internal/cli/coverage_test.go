@@ -97,7 +97,7 @@ stations:
 		t.Fatal(err)
 	}
 	marginExe = func() (string, error) { return stub, nil }
-	t.Cleanup(func() { marginExe = os.Executable })
+	t.Cleanup(func() { marginExe = Self })
 
 	if err := coverageGo([]string{"--review", path}); err != nil {
 		t.Fatal(err)

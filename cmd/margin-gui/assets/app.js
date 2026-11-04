@@ -163,6 +163,7 @@ async function pickReviewFile() {
 
 document.addEventListener("keydown", (e) => {
   if (switcherOpen()) return;
+  if (document.activeElement?.closest?.(".cm-editor")) return;
   const inTerm = document.activeElement?.closest?.("#terminal");
   const inInput = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName) && !inTerm;
   if (inTerm) {
@@ -236,6 +237,11 @@ function confirmFresh() {
   toast("Click ↺ again to throw away this review's stops and notes and start over.");
   return false;
 }
+
+api("Reviews.Recovered").then(
+  (fixed) => fixed?.length && toast(`Put back ${fixed.length === 1 ? fixed[0] : `${fixed.length} files`}: a tried change was still in ${fixed.length === 1 ? "it" : "them"} from a run margin did not finish.`),
+  (e) => toast(errText(e), true),
+);
 
 (async () => {
   const init = await api("Workspace.Initial");

@@ -23,7 +23,7 @@
 <text x="16.0" y="90" textLength="739.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">      inventory/stock_test.go:40  if err := s.Reserve("fig", 2); err != nil {</text>
 <text x="947.2" y="90" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
 <rect x="208.0" y="96" width="1056.0" height="21" fill="#161b22"/>
-<text x="208.0" y="111" textLength="912.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> 2 tests run stock.go:39 · enter spotlight · p source · space pick · a all · r agent runs · esc</text>
+<text x="208.0" y="111" textLength="1056.0" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> 2 tests run stock.go:39 · enter spotlight · p source · space pick · a all · r run · i try a change · A agent </text>
 <rect x="208.0" y="117" width="1056.0" height="21" fill="#58a6ff"/>
 <text x="208.0" y="132" textLength="470.4" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold"> ☐ TestReserve  (new)   inventory/stock_test.go:9</text>
 <rect x="208.0" y="138" width="1056.0" height="21" fill="#161b22"/>

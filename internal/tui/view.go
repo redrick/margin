@@ -99,6 +99,9 @@ func (m *Model) footerView() string {
 	if m.labeling {
 		return m.labelBar()
 	}
+	if m.edit != nil {
+		return m.editFooter()
+	}
 	if m.asking || m.searching {
 		return ansi.Truncate(m.input.View(), m.width, "")
 	}
@@ -122,6 +125,17 @@ func (m *Model) footerView() string {
 	}
 	if c.Calls > 0 {
 		segs = append(segs, pill(fmt.Sprintf("◆ %d/%d", c.CallsMade, c.Calls), colInk, colDecide)...)
+	}
+	if o := m.run; o != nil {
+		label := "tests "
+		if o.edits != nil {
+			label = "✎ "
+		}
+		bg := colTested
+		if o.done && !o.stopped && (strings.Contains(o.summary(), "failed") || (o.edits != nil && len(o.verdict().Caught) == 0)) {
+			bg = colProblem
+		}
+		segs = append(segs, pill(label+o.summary(), colInk, bg)...)
 	}
 	if c.Drafts > 0 {
 		label := fmt.Sprintf("✎ %d drafts · S sends", c.Drafts)
@@ -186,11 +200,29 @@ func (m *Model) bodyView() string {
 	}
 	numW := m.numWidth()
 	lines := make([]string, h)
+	var edited []string
+	if m.edit != nil {
+		edited = m.editRows(h, cw, numW)
+		if side != nil {
+			side, marks = make([]string, h), nil
+			w := m.width - cw - 1
+			for i := range side {
+				t := ""
+				if i < len(editHelp) {
+					t = editHelp[i]
+				}
+				side[i] = m.paint.Text(t, w, colDim, "", false, false)
+			}
+		}
+	}
 	for i := range lines {
 		idx := m.top + i
-		if idx < len(m.rows) {
+		switch {
+		case edited != nil:
+			lines[i] = edited[i]
+		case idx < len(m.rows):
 			lines[i] = m.renderRow(idx, cw, numW)
-		} else {
+		default:
 			lines[i] = strings.Repeat(" ", cw)
 		}
 		if side != nil {
@@ -208,6 +240,8 @@ func (m *Model) bodyView() string {
 	case m.testsOpen:
 		entries, at := m.testsLines()
 		m.overlay(lines, entries, at, 110)
+	case m.outOpen && m.run != nil:
+		m.overlay(lines, m.outputLines(), -1, peekWidth)
 	case m.helpOpen:
 		m.overlay(lines, helpLines, -1, 84)
 	case m.listOpen:
@@ -481,8 +515,11 @@ func (m *Model) noteLabel(st *doc.Station, r row) string {
 
 func (m *Model) lineNum(part *doc.Part, line, numW int, sel bool) string {
 	numFg, numBg := colDim, ""
-	if sel {
+	switch {
+	case sel:
 		numFg, numBg = colInk, colCursorNum
+	case m.inBlock(part, line):
+		numFg, numBg = colInk, colMatch
 	}
 	mark, markFg, bold := m.covMark(part, line)
 	return m.paint.Text(fmt.Sprintf("%*d", numW, line+1), numW, numFg, numBg, sel, false) + m.paint.Text(mark, 1, markFg, "", bold, false)
@@ -525,7 +562,11 @@ var helpLines = []string{
 	"",
 	" tests",
 	" u U        next / previous changed line no test runs",
-	" t          tests that run the line: enter spotlight, p source, r agent runs",
+	" t          tests that run the line: enter spotlight, p source, r run, A agent runs",
+	" T          run the line's tests (the stop's when it has none) with your test command",
+	" i          try a change: the line (or V block) turns into a vim in place, :w runs its tests",
+	" V          start a block of lines; move to grow it, then i (or E for $EDITOR)",
+	"            (margin puts the line back after) · o shows or hides the test output",
 	" enter      on a test in the Tests stop: spotlight it · esc ends a spotlight",
 	"",
 	" view",

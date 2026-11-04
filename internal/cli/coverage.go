@@ -27,7 +27,7 @@ const coverageUsage = `usage:
   margin coverage add [--review FILE] [--replace] <file.json | ->   record coverage from any tool
   margin coverage clear [--review FILE]`
 
-var marginExe = os.Executable
+var marginExe = Self
 
 func cmdCoverage(args []string) error {
 	if len(args) == 0 {

@@ -377,9 +377,9 @@ func TestTestsPicker(t *testing.T) {
 	if m.peek != nil || !m.testsOpen {
 		t.Fatal("closing the source goes back to the picker")
 	}
-	press(m, " ", "r")
+	press(m, " ", "A")
 	if !strings.Contains(m.status, "no agent pane") {
-		t.Errorf("without an agent the tests cannot be run: %q", m.status)
+		t.Errorf("without an agent the agent cannot run them: %q", m.status)
 	}
 	press(m, "enter")
 	if m.testsOpen || m.spot < 0 {

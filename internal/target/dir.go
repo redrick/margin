@@ -47,7 +47,7 @@ func reviewsDir(c config.Config, repo string) string {
 	if c.Reviews == config.InRepo {
 		return filepath.Join(mainWorktree(repo), ".margin", "reviews")
 	}
-	return filepath.Join(stateDir(), repoDir(repo))
+	return filepath.Join(StateDir(), repoDir(repo))
 }
 
 // Existing lists the review files kept for the repository at repo, wherever the settings keep
@@ -160,7 +160,7 @@ func mainWorktree(repo string) string {
 	return filepath.Dir(common)
 }
 
-func stateDir() string {
+func StateDir() string {
 	if d := os.Getenv("XDG_STATE_HOME"); d != "" {
 		return filepath.Join(d, "margin")
 	}

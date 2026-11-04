@@ -89,7 +89,22 @@ func (m *Model) updateTests(msg tea.KeyMsg) tea.Cmd {
 			}
 		}
 	case "r":
+		var ids []int
+		for _, ti := range tp.list {
+			if tp.picked[ti] {
+				ids = append(ids, ti)
+			}
+		}
+		if len(ids) == 0 {
+			ids = tp.list
+		}
+		m.testsOpen = false
+		return m.runTestIDs(ids, fmt.Sprintf("%s:%d", path.Base(tp.file), tp.line))
+	case "A":
 		return m.runTests()
+	case "i":
+		m.testsOpen = false
+		return m.tryHere()
 	case "esc", "q", "t":
 		m.testsOpen = false
 	}
@@ -100,7 +115,7 @@ func (m *Model) updateTests(msg tea.KeyMsg) tea.Cmd {
 func (m *Model) testsLines() ([]string, int) {
 	tp := m.tests
 	c := m.doc.Coverage
-	title := fmt.Sprintf(" %d tests run %s:%d · enter spotlight · p source · space pick · a all · r agent runs · esc",
+	title := fmt.Sprintf(" %d tests run %s:%d · enter spotlight · p source · space pick · a all · r run · i try a change · A agent runs · esc",
 		len(tp.list), path.Base(tp.file), tp.line)
 	if len(tp.list) == 1 {
 		title = strings.Replace(title, "1 tests run", "1 test runs", 1)
@@ -122,7 +137,7 @@ func (m *Model) testsLines() ([]string, int) {
 		if t.New {
 			label += "  (new)"
 		}
-		out = append(out, fmt.Sprintf(" %s%s   %s", box, label, where))
+		out = append(out, fmt.Sprintf(" %s%s%s   %s", box, m.testMark(t.Name), label, where))
 	}
 	return out, tp.cur - first + 1
 }
@@ -190,8 +205,7 @@ func testSourceIn(d *doc.Doc, ti int) (string, int, error) {
 	return "", 0, errors.New("could not find where " + t.Label() + " is defined")
 }
 
-// runTests asks the agent to run the picked tests, or the selected one when none is picked. margin
-// never runs tests itself.
+// runTests asks the agent to run the picked tests, or the selected one when none is picked.
 func (m *Model) runTests() tea.Cmd {
 	tp := m.tests
 	var ids []int

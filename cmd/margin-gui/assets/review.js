@@ -1,6 +1,7 @@
 import { Events, Clipboard } from "/wails/runtime.js";
 import { api, $, $$, state, hooks, esc, prose, oneLine, el, toast, errText, tail, plural, shortList, base, openModal, closeModal } from "./core.js";
 import { openAnswers } from "./answers.js";
+import { runTests, tryChange, toggleTestPanel, resetTests, statusOf, statusIcon, testHooks, results } from "./tests.js";
 
 export { closeModal };
 
@@ -37,8 +38,10 @@ export async function openReview(dir, arg, fresh = false, file = "") {
   const same = state.opened?.path === opened.path;
   state.opened = { ...opened, arg, file };
   if (!same) {
+    resetTests();
+    endTry();
     state.view = null;
-    Object.assign(state, { station: 0, note: -1, step: 0, sel: null, compose: null, parts: {}, expand: {}, whole: {}, around: {}, known: null,
+    Object.assign(state, { station: 0, note: -1, step: 0, sel: null, compose: null, block: null, parts: {}, expand: {}, whole: {}, around: {}, known: null,
       query: "", spot: -1, spotLines: null, filter: 0 });
     state.fresh = new Set();
   }
@@ -334,6 +337,8 @@ function renderToolbar() {
     }
   };
   tb.append(search);
+  if (s?.kind === "code" && state.view.coverage && s.cov?.measured) btn("▶ Tests", "Run the tests that run this stop's changed lines (T without a selected line)", false, () => runFor(s, -1));
+  if (s?.kind === "code" && state.view.coverage && s.cov?.missed) btn("Next untested", "The next changed line no test runs (u, U goes back)", false, () => nextUntested(1));
   if (state.spot >= 0) btn("Spotlight: " + esc(state.view.coverage?.tests[state.spot]?.label ?? "") + " ✕", "End the spotlight (esc)", true, endSpot, "warn");
   if (reader().comments.some((c) => !c.draft)) btn("Answers", "The agent's answers to your comments, to read, edit or reply to (A)", false, () => openAnswers());
   btn("Export", "Your comments, flagged problems and calls, to post yourself", false, openExport);
@@ -370,6 +375,8 @@ export function goStation(i, noteIdx = -1, step = 0) {
   state.step = step;
   state.nudged = false;
   state.compose = null;
+  endTry();
+  state.block = null;
   const s = cur();
   countRead(s);
   if (s.kind === "code" && !reader().visited.includes(s.id)) {
@@ -466,7 +473,7 @@ function renderSpans(spans, query, hl) {
   return renderText(spans, layers);
 }
 
-const covMarks = { run: ["┃", "cov-run"], missed: ["✗", "cov-missed"], idle: ["·", "cov-idle"] };
+const covMarks = { run: ["", "cov-run"], missed: ["✗", "cov-missed"], idle: ["·", "cov-idle"] };
 
 const kindStyles = {
   issue: ["!", "problem"],
@@ -530,6 +537,9 @@ function codeRows(s, pi, from, to, opts = {}) {
       while (k + 1 < rows.length && rows[k + 1].n - 1 <= fold.end) k++;
       continue;
     }
+    const trb = state.trying;
+    const inTry = trb && trb.station === s.id && trb.part === pi && r.n && line >= trb.line && line <= trb.end;
+    if (inTry && line > trb.line) continue;
     const ghosts = r.g ?? [];
     if (split) {
       const paired = [...pairedLeft.values()].filter((v) => v.from === k).length;
@@ -541,9 +551,14 @@ function codeRows(s, pi, from, to, opts = {}) {
       });
     }
     if (!r.n) continue;
+    if (inTry) {
+      code.append(tryBox(s, p));
+      continue;
+    }
     const notes = state.showNotes ? (r.notes ?? []).filter((i) => !shown.has(i) && noteVisible(s, s.notes[i])) : [];
     const allNotes = state.showNotes ? (r.notes ?? []).filter((i) => noteVisible(s, s.notes[i])) : [];
     const sel = state.sel && state.sel.station === s.id && state.sel.part === pi && state.sel.line === line;
+    const blk = inBlock(s.id, pi, line);
     const [cm, ccls] = covMarks[r.cov] ?? ["", ""];
     const dim = spotSet && !spotSet.has(line);
     const newHl = r.hl ? { ranges: [[r.hl[2], r.hl[3]]], open: '<span class="add-hl">', close: "</span>" } : null;
@@ -555,9 +570,19 @@ function codeRows(s, pi, from, to, opts = {}) {
     }
     const badge = allNotes.length ? `<span class="nb k-${esc(noteStyle(s.notes[allNotes[0]])[2])}${allNotes.includes(state.note) ? " on" : ""}">${allNotes[0] + 1}${allNotes.length > 1 ? "+" : ""}</span>` : "";
     const moved = r.mv ? " moved" : "";
-    const row = el(`<div class="row ${r.k ?? ""}${moved}${notes.length ? " has-note" : ""}${sel ? " sel" : ""}${dim ? " dim" : ""}" data-part="${pi}" data-line="${line}"${r.mv ? ` title="moved here unchanged from ${esc(r.mv)}"` : ""}>
+    const row = el(`<div class="row ${r.k ?? ""}${moved}${notes.length ? " has-note" : ""}${sel ? " sel" : ""}${blk ? " blk" : ""}${dim ? " dim" : ""}" data-part="${pi}" data-line="${line}"${r.mv ? ` title="moved here unchanged from ${esc(r.mv)}"` : ""}>
       <span class="mark">${r.mv ? "→" : ""}</span><span class="cov ${ccls}" title="${r.cov === "run" ? `${r.tn} tests run this line · click lists them (t)` : r.cov === "missed" ? "changed, and no test runs it" : ""}">${cm}</span>
       <span class="ln" title="Comment on this line (c)">${badge}${r.n}</span>${left}<span class="src${split ? " right" : ""}">${src}</span></div>`);
+    if (r.cov === "run") {
+      const cv = row.querySelector(".cov");
+      cv.onmouseenter = async () => {
+        if (cv.dataset.named) return;
+        cv.dataset.named = "1";
+        const ids = await testsAtLine(s.id, pi, line);
+        const tests = state.view.coverage?.tests ?? [];
+        cv.title = `${plural(ids.length, "test runs", "tests run")} line ${r.n}:\n` + ids.slice(0, 12).map((ti) => "  " + tests[ti]?.label).join("\n") + (ids.length > 12 ? `\n  and ${ids.length - 12} more` : "") + "\nclick lists them (t) · T runs them";
+      };
+    }
     row.onclick = (e) => {
       if (window.getSelection()?.toString()) return;
       if (e.target.classList.contains("cov") && r.cov === "run") {
@@ -565,8 +590,9 @@ function codeRows(s, pi, from, to, opts = {}) {
         return openTests();
       }
       if (e.target.classList.contains("nb")) return focusNote(allNotes[0]);
-      selectRow(s.id, pi, line, e.target.classList.contains("ln"));
+      selectRow(s.id, pi, line, e.target.classList.contains("ln") && !e.shiftKey, e.shiftKey);
     };
+    row.onmousedown = (e) => e.shiftKey && e.preventDefault();
     code.append(row);
     for (const i of notes) {
       shown.add(i);
@@ -607,10 +633,14 @@ function partBox(s, pi, from, to, title, opts = {}) {
   const part = el(`<section class="part${p.background ? " bgpart" : ""}">
     <div class="part-head"><span class="file">${esc(title ?? p.file)}</span><span class="label">${title ? (p.baseFile ? "renamed from " + esc(p.baseFile) : "") : partTitle(s, pi, p)}</span>
     <span class="spacer"></span>
+    ${!p.err && state.view.coverage && p.rows?.some((r) => r.cov === "run") ? `<button class="na run-btn" data-run="1" title="Run the tests that run this part's changed lines">▶ tests</button>` : ""}
+    ${!p.err && !p.base && p.rows?.some((r) => r.k === "add" || r.k === "chg") ? `<button class="na" data-try="1" title="Edit or delete this part's changed lines and see whether the tests notice">✎ try a change</button>` : ""}
     ${p.err ? "" : `<button class="na" data-w="-1" title="Less context (-)">−</button><button class="na" data-w="1" title="More context (+)">+</button>
     <button class="na${state.whole[k] ? " on" : ""}" data-f="1" title="Whole file (f)">whole file</button>`}</div></section>`);
   part.querySelectorAll("[data-w]").forEach((b) => (b.onclick = () => widen(s, pi, +b.dataset.w)));
   part.querySelector("[data-f]")?.addEventListener("click", () => wholeFile(s, pi));
+  part.querySelector("[data-run]")?.addEventListener("click", () => runFor(s, pi));
+  part.querySelector("[data-try]")?.addEventListener("click", () => tryPart(s, pi));
   if (p.about && opts.about !== false && (p.hunk ?? 0) <= 1) part.append(el(`<div class="part-about">${prose(p.about)}</div>`));
   if (p.err) {
     part.append(el(`<div class="part-err">${esc(p.err)}</div>`));
@@ -857,12 +887,47 @@ function questionCard(q, opts = {}) {
 
 // Selecting lines, commenting and asking
 
-function selectRow(station, part, line, compose) {
+// extend grows a block of lines from the selected one, to try a change to all of them at once.
+function selectRow(station, part, line, compose, extend) {
+  const from = state.sel;
+  if (extend && from && from.station === station && from.part === part) {
+    const anchor = state.block?.station === station && state.block.part === part ? state.block.anchor : from.line;
+    state.block = anchor === line ? null : { station, part, anchor, from: Math.min(anchor, line), to: Math.max(anchor, line) };
+  } else state.block = null;
   state.sel = { station, part, line };
   $$("#station .row.sel, #station .kcur").forEach((r) => r.classList.remove("sel", "kcur"));
+  markBlock();
   setTimeout(renderStatus);
   if (compose) return openComposer(station, part, line);
   document.querySelector(`#station .row[data-part="${part}"][data-line="${line}"]`)?.classList.add("sel");
+}
+
+function inBlock(station, part, line) {
+  const b = state.trying ? { station: state.trying.station, part: state.trying.part, from: state.trying.line, to: state.trying.end } : state.block;
+  return !!b && b.station === station && b.part === part && line >= b.from && line <= b.to;
+}
+
+function markBlock() {
+  const s = cur();
+  $$("#station .row[data-line]").forEach((r) => r.classList.toggle("blk", inBlock(s?.id, +r.dataset.part, +r.dataset.line)));
+}
+
+// block is the selected lines: the block when one is marked, else the selected line.
+function block() {
+  const s = cur();
+  const b = state.block;
+  if (b && b.station === s?.id) return { station: b.station, part: b.part, line: b.from, end: b.to };
+  if (state.sel && state.sel.station === s?.id) return { ...state.sel, end: state.sel.line };
+  return null;
+}
+
+async function blockTests(s, part, from, to) {
+  const p = partData(s, part);
+  const ids = new Set();
+  for (const r of p?.rows ?? []) {
+    if (r.cov === "run" && r.n - 1 >= from && r.n - 1 <= to) for (const ti of await testsAtLine(s.id, part, r.n - 1)) ids.add(ti);
+  }
+  return [...ids];
 }
 
 
@@ -1767,7 +1832,9 @@ function renderTests(box) {
     return box.append(ov);
   }
   const cols = v.stations.map((x, i) => [x, i]).filter(([x]) => x.kind === "code" && (x.cov?.measured || x.cov?.stale));
-  ov.append(el(`<h3>What each test runs · click a test to spotlight it</h3>`));
+  const head = el(`<h3>What each test runs · click a test to spotlight it, ▶ runs it <button class="small run-btn">▶ Run all ${c.tests.filter((t) => !t.synthetic).length}</button></h3>`);
+  head.querySelector("button").onclick = () => runTests(c.tests.map((t, i) => (t.synthetic ? -1 : i)).filter((i) => i >= 0), "every measured test");
+  ov.append(head);
   ov.append(el(`<p class="muted small">● runs every changed line of the stop, ◐ some, · none. Running a line is not checking it: a test can run a line and assert nothing about the result.</p>`));
   if (!cols.length) {
     ov.append(el(`<p class="muted">None of the stops' files were measured.</p>`));
@@ -1784,8 +1851,14 @@ function renderTests(box) {
       const mark = !total ? "" : run >= total ? "●" : run > 0 ? "◐" : "·";
       return `<td class="${run >= total && total ? "m-add" : run ? "m-chg" : "muted"}">${mark}</td>`;
     });
-    const tr = el(`<tr class="${state.spot === ti ? "on " : ""}${t.synthetic ? "synthetic" : "navable"}"><td class="tname" style="padding-left:${8 + t.depth * 16}px">${esc(t.display || t.label)}${t.new ? ' <span class="badge fresh">new</span>' : ""}</td>${cells.join("")}</tr>`);
-    if (!t.synthetic) tr.onclick = () => spotlight(ti);
+    const tr = el(`<tr class="${state.spot === ti ? "on " : ""}${t.synthetic ? "synthetic" : "navable"}"><td class="tname" style="padding-left:${8 + t.depth * 16}px">${t.synthetic ? "" : `<button class="na run-one" title="Run this test">▶</button>`}${statusIcon(statusOf(ti))}${esc(t.display || t.label)}${t.new ? ' <span class="badge fresh">new</span>' : ""}</td>${cells.join("")}</tr>`);
+    if (!t.synthetic) {
+      tr.onclick = () => spotlight(ti);
+      tr.querySelector(".run-one").onclick = (e) => {
+        e.stopPropagation();
+        runTests([ti], t.label);
+      };
+    }
     table.append(tr);
   });
   table.append(el(`<tr class="foot"><td class="tname">changed lines no test runs</td>${cols.map(([x]) => (x.cov?.stale ? `<td class="m-chg">stale</td>` : `<td class="${x.cov?.missed ? "m-del" : "m-add"}">${x.cov?.missed ?? 0}</td>`)).join("")}</tr>`));
@@ -1824,12 +1897,7 @@ async function openTests() {
   const p = partData(s, state.sel.part);
   const row = p.rows.find((r) => r.n - 1 === state.sel.line);
   if (row?.cov !== "run") return toast(`No test runs line ${state.sel.line + 1}.`);
-  let list;
-  try {
-    list = await api("Reviews.TestsAt", s.id, state.sel.part, state.sel.line);
-  } catch (e) {
-    return toast(errText(e), true);
-  }
+  const list = [...(await testsAtLine(s.id, state.sel.part, state.sel.line))];
   const tests = state.view.coverage.tests;
   list.sort((a, b) => tests[a].label.localeCompare(tests[b].label));
   const line = state.sel.line;
@@ -1838,7 +1906,7 @@ async function openTests() {
   const picked = new Set();
   for (const ti of list) {
     const t = tests[ti];
-    const r = el(`<div class="test-row"><label><input type="checkbox"> ${esc(t.label)}${t.new ? ' <span class="badge fresh">new</span>' : ""}</label>
+    const r = el(`<div class="test-row"><label><input type="checkbox"> ${statusIcon(statusOf(ti))}${esc(t.label)}${t.new ? ' <span class="badge fresh">new</span>' : ""}</label>
       <span class="muted small">${esc(t.file && t.line ? `${t.file}:${t.line}` : t.group)}</span><span class="spacer"></span>
       <button class="na">Spotlight</button><button class="na">Source</button></div>`);
     r.querySelector("input").onchange = (e) => (e.target.checked ? picked.add(ti) : picked.delete(ti));
@@ -1856,8 +1924,13 @@ async function openTests() {
     };
     body.append(r);
   }
-  const run = el(`<div class="cp-foot"><span class="muted small">margin never runs tests itself: the agent runs the picked ones and reports what each checks about this line.</span><span class="spacer"></span><button class="primary small">Agent runs ${list.length === 1 ? "it" : "the picked tests"}</button></div>`);
-  run.querySelector("button").onclick = async () => {
+  const run = el(`<div class="cp-foot"><span class="muted small">Run uses your test command for this repository; the agent can instead run them and say what each checks about this line.</span><span class="spacer"></span>
+    <button class="small" data-agent>Ask the agent</button><button class="primary small" data-run>▶ Run ${list.length === 1 ? "it" : "picked, or all"} (r)</button></div>`);
+  run.querySelector("[data-run]").onclick = () => {
+    closeModal();
+    runTests(picked.size ? [...picked] : list, `${base(p.file)}:${line + 1}`);
+  };
+  run.querySelector("[data-agent]").onclick = async () => {
     const ids = picked.size ? [...picked] : list.slice(0, 1);
     try {
       await api("Reviews.RunTests", ids, p.file, line + 1, needle);
@@ -1870,6 +1943,284 @@ async function openTests() {
   body.append(run);
   openModal(`${plural(list.length, "test runs", "tests run")} ${base(p.file)}:${line + 1}`, body);
 }
+
+// testsAtLine caches which tests run a line, for the hint, the tooltip and the picker.
+const atCache = { view: null, map: new Map() };
+async function testsAtLine(station, part, line) {
+  if (atCache.view !== state.view) {
+    atCache.view = state.view;
+    atCache.map = new Map();
+  }
+  const k = `${station}|${part}|${line}`;
+  if (!atCache.map.has(k)) {
+    try {
+      atCache.map.set(k, await api("Reviews.TestsAt", station, part, line));
+    } catch (e) {
+      toast(errText(e), true);
+      return [];
+    }
+  }
+  return atCache.map.get(k);
+}
+
+async function runFor(s, pi) {
+  if (!state.view.coverage) return toast("No coverage yet: ask the agent to run margin coverage.");
+  let ids;
+  try {
+    ids = await api("Reviews.TestsFor", s.id, pi);
+  } catch (e) {
+    return toast(errText(e), true);
+  }
+  const what = pi < 0 ? `stop ${s.title ?? s.id}` : `${base(partData(s, pi).file)} ${partData(s, pi).label ?? ""}`.trim();
+  runTests(ids, what);
+}
+
+// runHere runs the tests of the selected line, or of the stop when no line is selected.
+async function runHere() {
+  const s = cur();
+  if (s?.kind !== "code") return toast("Go to a stop with code first.");
+  if (!state.view.coverage) return toast("No coverage yet: ask the agent to run margin coverage.");
+  if (!state.sel || state.sel.station !== s.id) return runFor(s, -1);
+  const r = partData(s, state.sel.part)?.rows.find((x) => x.n - 1 === state.sel.line);
+  if (r?.cov !== "run") return toast(`No test runs line ${state.sel.line + 1}; ▶ Tests runs the whole stop's.`);
+  runTests([...(await testsAtLine(s.id, state.sel.part, state.sel.line))], `${base(partData(s, state.sel.part).file)}:${state.sel.line + 1}`);
+}
+
+// covHint puts the selected line's actions right under it, with the tests that run it, like the
+// terminal viewer's notes column does.
+let hintTimer;
+function covHint() {
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(drawCovHint, 20);
+}
+
+async function drawCovHint() {
+  const s = cur();
+  const sel = state.sel;
+  const find = () => (sel && s && sel.station === s.id ? document.querySelector(`#station .row[data-part="${sel.part}"][data-line="${sel.line}"]`) : null);
+  const rowEl = find();
+  const p = rowEl && partData(s, sel.part);
+  const r = p?.rows.find((x) => x.n - 1 === sel.line);
+  const busy = (x) => x && x.station === sel.station && x.part === sel.part && x.line === sel.line;
+  const b = block();
+  const many = b && b.end > b.line ? b : null;
+  const key = r && !busy(state.compose) && !state.trying ? `${s.id}|${sel.part}|${sel.line}|${many ? many.line + "-" + many.end : ""}|${r.cov ?? ""}|${[...results.values()].join()}` : "";
+  const old = document.querySelector("#station .cov-hint");
+  if (old && old.dataset.key === key && old.previousElementSibling === rowEl) return;
+  old?.remove();
+  if (!key) return;
+  const ids = many ? await blockTests(s, many.part, many.line, many.end) : r.cov === "run" ? [...(await testsAtLine(s.id, sel.part, sel.line))] : [];
+  const now = find();
+  const same = state.sel && state.sel.station === sel.station && state.sel.part === sel.part && state.sel.line === sel.line;
+  if (!same || !now || document.querySelector("#station .cov-hint")) return;
+  const tests = state.view.coverage?.tests ?? [];
+  ids.sort((a, b) => tests[a].label.localeCompare(tests[b].label));
+  const shown = ids.slice(0, 4);
+  const what = many ? `lines ${many.line + 1}–${many.end + 1}` : `line ${r.n}`;
+  const head = ids.length
+    ? `<span class="ch-head">┃ ${what} run${many ? "" : "s"} in ${plural(ids.length, "test", "tests")}</span>
+    ${shown.map((ti) => `<button class="link-btn ch-test" data-ti="${ti}" title="Spotlight: dim what this test never runs">${statusIcon(statusOf(ti))}${esc(tests[ti].label)}</button>`).join("")}
+    ${ids.length > shown.length ? `<button class="link-btn" data-more>and ${ids.length - shown.length} more</button>` : ""}`
+    : `<span class="ch-head muted">${what}${many ? " · no test runs them" : r.cov === "missed" ? " · changed, and no test runs it" : ""}</span>`;
+  const btn = (attr, label, k, title, cls = "") => `<button class="na ${cls}" ${attr} title="${esc(title)}">${label} <kbd>${k}</kbd></button>`;
+  const h = el(`<div class="cov-hint${ids.length ? " covered" : ""}" data-key="${esc(key)}">${head}<span class="spacer"></span>
+    ${btn("data-comment", "Comment", "c", "Write a draft comment on this line")}
+    ${btn("data-ask", "Ask", "a", "Ask the agent about this line")}
+    ${ids.length && !many ? btn("data-list", "Tests", "t", "List the tests that run this line, peek at their source") + btn("data-run", "▶ Run", "T", "Run them with your test command", "run-btn") : ""}
+    ${p.base ? "" : btn("data-try", many ? `✎ Try a change to ${many.end - many.line + 1} lines` : "✎ Try a change", "i", "Edit or delete these lines and see whether the tests notice; margin puts them back after. Shift+click or J K selects more lines")}
+    ${many ? `<button class="na" data-unblock title="Back to one line (esc)">✕</button>` : ""}</div>`);
+  h.querySelectorAll("[data-ti]").forEach((b) => (b.onclick = () => spotlight(+b.dataset.ti)));
+  h.querySelector("[data-more]")?.addEventListener("click", openTests);
+  h.querySelector("[data-list]")?.addEventListener("click", openTests);
+  h.querySelector("[data-run]")?.addEventListener("click", runHere);
+  h.querySelector("[data-try]")?.addEventListener("click", () => startTry());
+  h.querySelector("[data-unblock]")?.addEventListener("click", () => {
+    state.block = null;
+    markBlock();
+    renderStatus();
+  });
+  h.querySelector("[data-comment]").onclick = () => startOnLine("comment");
+  h.querySelector("[data-ask]").onclick = () => startOnLine("ask");
+  now.after(h);
+}
+// Trying a change: the selected line, edited, runs its tests (or the stop's) with the edit in the
+// file; margin puts the line back after.
+
+async function startTry(again, range) {
+  const s = cur();
+  const from = again?.station ? again : range ?? block();
+  if (s?.kind !== "code" || !from || from.station !== s.id) return needLine("try a change to it");
+  if (state.compose?.text) return toast("Finish or cancel what you are writing first.");
+  const p = partData(s, from.part);
+  if (p.base) return toast("This part shows the code before the change; try changes on the new side.");
+  const end = Math.max(from.line, from.end ?? from.line);
+  let text;
+  try {
+    text = await api("Reviews.LinesText", s.id, from.part, from.line, end);
+  } catch (e) {
+    return toast(errText(e), true);
+  }
+  const lineTests = await blockTests(s, from.part, from.line, end);
+  state.sel = { station: s.id, part: from.part, line: end };
+  state.block = null;
+  state.compose = null;
+  endTry();
+  state.trying = { station: s.id, part: from.part, line: from.line, end, old: text, text: again?.text ?? text, lineTests, scope: lineTests.length ? "line" : "stop", compare: again?.compare ?? true };
+  renderKeepScroll();
+  focusTry();
+}
+
+function focusTry() {
+  const tr = state.trying;
+  if (!tr) return;
+  tr.focused = true;
+  tr.ed?.focus();
+  document.querySelector("#station .try-inline")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+// growTry adds the line above or below to the block being tried, keeping what was typed.
+async function growTry(dir) {
+  const tr = state.trying;
+  const s = cur();
+  const at = dir < 0 ? tr.line - 1 : tr.end + 1;
+  if (at < 0) return toast("That is the first line of the file.");
+  let t;
+  try {
+    t = await api("Reviews.LinesText", s.id, tr.part, at, at);
+  } catch (e) {
+    return toast(errText(e), true);
+  }
+  const edited = tr.text !== tr.old;
+  tr.old = dir < 0 ? t + "\n" + tr.old : tr.old + "\n" + t;
+  if (!edited) tr.text = tr.old;
+  else if (tr.text !== "") tr.text = dir < 0 ? t + "\n" + tr.text : tr.text + "\n" + t;
+  if (dir < 0) tr.line = at;
+  else tr.end = at;
+  state.sel = { station: s.id, part: tr.part, line: tr.end };
+  tr.lineTests = await blockTests(s, tr.part, tr.line, tr.end);
+  if (!tr.lineTests.length) tr.scope = "stop";
+  renderKeepScroll();
+  focusTry();
+}
+
+// tryPart tries a change to the part's changed lines, first to last.
+function tryPart(s, pi) {
+  const p = partData(s, pi);
+  const ch = (p.rows ?? []).filter((r) => r.n && (r.k === "add" || r.k === "chg")).map((r) => r.n - 1);
+  if (!ch.length) return toast("No changed line in this part to try.");
+  startTry(null, { station: s.id, part: pi, line: Math.min(...ch), end: Math.max(...ch) });
+}
+testHooks.edit = (req) => {
+  const i = state.view.stations.findIndex((x) => x.id === req.station);
+  if (i < 0) return toast("That stop is gone.");
+  if (i !== state.station) goStation(i);
+  startTry(req);
+};
+
+// The inline editor: CodeMirror with vim keys, loaded the first time a change is tried.
+let cmLib = null;
+const vimOn = () => {
+  try {
+    return localStorage.getItem("margin.vim") !== "off";
+  } catch {
+    return true;
+  }
+};
+
+export function endTry() {
+  state.trying?.ed?.destroy();
+  state.trying = null;
+}
+
+function tryBox(s, p) {
+  const tr = state.trying;
+  const covered = tr.lineTests.length;
+  const many = tr.end > tr.line;
+  const box = el(`<div class="try-inline">
+    <div class="try-bar">✎ <code>${esc(base(p.file))}:${tr.line + 1}${many ? "–" + (tr.end + 1) : ""}</code>
+      <button class="na" data-grow="-1" title="Take the line above in too">+ above</button><button class="na" data-grow="1" title="Take the line below in too">+ below</button>
+      <button class="na" data-del title="Empty the editor: the lines are deleted for the run">Delete</button>
+      <span class="sep"></span>
+      <label class="opt"><input type="radio" name="try-scope" value="line"${tr.scope === "line" ? " checked" : ""}${covered ? "" : " disabled"}> ${covered ? plural(covered, "test", "tests") + " of these lines" : "no test runs these lines"}</label>
+      <label class="opt"><input type="radio" name="try-scope" value="stop"${tr.scope === "stop" ? " checked" : ""}> the stop's tests</label>
+      <label class="opt" title="Run them on the code as it is first, to compare"><input type="checkbox" data-compare${tr.compare ? " checked" : ""}> compare</label>
+      <label class="opt" title="Vim keys in the editor"><input type="checkbox" data-vim${vimOn() ? " checked" : ""}> vim</label>
+      <span class="spacer"></span><button class="small" data-cancel>Cancel</button><button class="primary small" data-go title="Ctrl+Enter, or :w in vim">▶ Run</button></div>
+    <div class="try-host"></div>
+    <div class="try-help muted small">${vimOn() ? "<kbd>i</kbd> insert · <kbd>esc</kbd> normal · <kbd>:w</kbd> runs · <kbd>:q</kbd> cancels · " : ""}<kbd>ctrl+enter</kbd> runs · margin writes this into the file for the run, then puts the lines back · empty deletes them</div></div>`);
+  const host = box.querySelector(".try-host");
+  const cancel = () => {
+    endTry();
+    renderKeepScroll();
+  };
+  const go = async () => {
+    if (tr.text === tr.old) return toast("Change something first.");
+    let tests = [];
+    if (tr.scope === "stop") {
+      try {
+        tests = await api("Reviews.TestsFor", s.id, -1);
+      } catch (e) {
+        return toast(errText(e), true);
+      }
+      if (!tests.length) return toast("No test runs this stop's changes.");
+    }
+    const req = { station: tr.station, part: tr.part, line: tr.line, end: tr.end, text: tr.text, tests, compare: tr.compare };
+    if (await tryChange(req, `${base(p.file)}:${tr.line + 1}${many ? "–" + (tr.end + 1) : ""}`)) cancel();
+  };
+  tr.go = go;
+  tr.cancel = cancel;
+  const mount = (lib) => {
+    if (state.trying !== tr) return;
+    if (!tr.ed || tr.edVim !== vimOn()) {
+      tr.ed?.destroy();
+      tr.edVim = vimOn();
+      tr.ed = lib.createEditor(document.createElement("div"), {
+        doc: tr.text,
+        file: p.file,
+        firstLine: tr.line + 1,
+        vim: tr.edVim,
+        onChange: (t) => (tr.text = t),
+        onRun: (t) => ((tr.text = t), tr.go()),
+        onCancel: () => tr.cancel(),
+      });
+      tr.focused = true;
+    } else if (tr.ed.view.state.doc.toString() !== tr.text || tr.edLine !== tr.line) tr.ed.set(tr.text, tr.line + 1);
+    tr.edLine = tr.line;
+    host.append(tr.ed.view.dom);
+    tr.ed.view.dom.onfocusin = () => (tr.focused = true);
+    tr.ed.view.dom.onfocusout = () => setTimeout(() => tr.ed?.view.dom.isConnected && (tr.focused = tr.ed.view.hasFocus));
+    if (tr.focused) requestAnimationFrame(() => tr.ed?.focus());
+  };
+  if (cmLib) mount(cmLib);
+  else
+    import("./vendor/codemirror.js").then((lib) => {
+      cmLib = lib;
+      mount(lib);
+    }, (e) => toast("The editor did not load: " + errText(e), true));
+  box.querySelectorAll("[data-grow]").forEach((b) => (b.onclick = () => growTry(+b.dataset.grow)));
+  box.querySelector("[data-del]").onclick = () => {
+    tr.text = "";
+    tr.ed?.set("", tr.line + 1);
+    tr.ed?.focus();
+  };
+  box.querySelectorAll('input[name="try-scope"]').forEach((x) => (x.onchange = () => (tr.scope = x.value)));
+  box.querySelector("[data-compare]").onchange = (e) => (tr.compare = e.target.checked);
+  box.querySelector("[data-vim]").onchange = (e) => {
+    try {
+      localStorage.setItem("margin.vim", e.target.checked ? "on" : "off");
+    } catch {}
+    tr.focused = true;
+    renderKeepScroll();
+  };
+  box.querySelector("[data-cancel]").onclick = cancel;
+  box.querySelector("[data-go]").onclick = go;
+  return box;
+}
+
+testHooks.changed = () => {
+  covHint();
+  if (cur()?.kind === "tests") renderKeepScroll();
+};
 
 function untested() {
   const out = [];
@@ -2048,10 +2399,10 @@ async function openExport() {
 
 const helpKeys = [
   ["Walk", [["space", "next step; at the end of a stop, the next stop"], ["b", "previous step"], ["w", "guided walk or whole stop"], ["e", "more of the stop card or overview"], ["y n ?", "answer the orient question (overview)"]]],
-  ["Move", [["} {", "next / previous stop"], ["] [", "next / previous note"], ["j k", "move the selected line"], ["ctrl+d ctrl+u", "half a page down / up"], ["g G", "top / bottom"], ["h l 0", "scroll code sideways / back"], ["N", "next new note (or previous match)"]]],
+  ["Move", [["} {", "next / previous stop"], ["] [", "next / previous note"], ["j k", "move the selected line"], ["J K shift+click", "select a block of lines"], ["ctrl+d ctrl+u", "half a page down / up"], ["g G", "top / bottom"], ["h l 0", "scroll code sideways / back"], ["N", "next new note (or previous match)"]]],
   ["Judge", [["1 2 3", "verdict: looks good / needs changes / not sure"], ["space", "mark the selected note read (whole stop)"], ["?", "agree with the selected problem"], ["x", "dismiss the selected note"], ["enter", "tick the selected call"], ["v", "reveal notes in blind mode"]]],
   ["Talk", [["c", "comment on the selected line (draft)"], ["S", "send all drafts to the agent"], ["A", "the agent's answers to your comments: read, edit, reply"], ["a", "ask the agent about the selected line"], ["y Y", "copy the note / the whole stop"], ["`", "focus the agent terminal; ctrl+esc leaves it"]]],
-  ["See", [["/", "search; n N next / previous"], ["F", "filter notes"], ["n", "show or hide notes"], ["d", "removed lines"], ["s", "side by side"], ["z", "fold unchanged code"], ["+ -", "more / less context on the selected part"], ["f", "whole file of the selected part"], ["t", "tests that run the selected line"], ["u U", "next / previous untested change"], ["esc", "end search or spotlight, close an overlay"], ["r", "reload"], ["\\", "show or hide the sidebar"], ["ctrl+k", "go to a repository, worktree, branch or review"], ["ctrl+,", "settings"]]],
+  ["See", [["/", "search; n N next / previous"], ["F", "filter notes"], ["n", "show or hide notes"], ["d", "removed lines"], ["s", "side by side"], ["z", "fold unchanged code"], ["+ -", "more / less context on the selected part"], ["f", "whole file of the selected part"], ["t", "tests that run the selected line"], ["T", "run them (the stop's tests when no line is selected)"], ["i", "try a change to the selected line or block: edit or delete it, its tests run against that, then it is put back"], ["o", "show or hide the test output"], ["u U", "next / previous untested change"], ["esc", "end search or spotlight, close an overlay"], ["r", "reload"], ["\\", "show or hide the sidebar"], ["ctrl+k", "go to a repository, worktree, branch or review"], ["ctrl+,", "settings"]]],
 ];
 
 function openHelp() {
@@ -2106,6 +2457,8 @@ export function reviewKey(e) {
     "[": () => stepNote(-1),
     j: () => moveCursor(1),
     k: () => moveCursor(-1),
+    J: () => moveCursor(1, null, true),
+    K: () => moveCursor(-1, null, true),
     ArrowDown: () => moveCursor(1),
     ArrowUp: () => moveCursor(-1),
     g: () => moveCursor(-1, "first"),
@@ -2135,12 +2488,21 @@ export function reviewKey(e) {
     Escape: () => {
       if (state.query) return endSearch();
       if (state.spot >= 0) return endSpot();
-      if (state.compose) {
+      if (state.block && !state.trying) {
+        state.block = null;
+        markBlock();
+        return renderStatus();
+      }
+      if (state.compose || state.trying) {
         state.compose = null;
+        endTry();
         renderKeepScroll();
       }
     },
     t: openTests,
+    T: runHere,
+    i: () => startTry(),
+    o: toggleTestPanel,
     u: () => nextUntested(1),
     U: () => nextUntested(-1),
     "+": () => (sel ? widen(s, sel.part, 1) : needLine("show more around it")),
@@ -2154,6 +2516,10 @@ export function reviewKey(e) {
     r: () => reload().then(() => toast("reloaded")),
     H: openHelp,
   };
+  if (e.shiftKey && (k === "ArrowDown" || k === "ArrowUp")) {
+    moveCursor(k === "ArrowDown" ? 1 : -1, null, true);
+    return true;
+  }
   if (e.ctrlKey && (k === "d" || k === "u")) {
     pageMove(k === "d" ? 1 : -1);
     return true;
@@ -2225,6 +2591,7 @@ export function renderStatus() {
   const [p, warn] = pace();
   pills.push(`<span class="pill${warn ? " m-chg" : " muted"}">${esc(p)}</span>`);
   pills.push(cursorCoverage());
+  covHint();
   bar.innerHTML = `${pills.join("")}<span class="spacer"></span><span class="muted">${esc(viewHint())}H help</span>`;
 }
 
@@ -2234,7 +2601,7 @@ function navItems() {
   return $$("#station .row[data-line], #station .navable, #station .vb");
 }
 
-export function moveCursor(dir, jumpTo) {
+export function moveCursor(dir, jumpTo, extend) {
   const items = navItems();
   if (!items.length) return;
   let at = items.findIndex((x) => x.classList.contains("kcur"));
@@ -2246,7 +2613,7 @@ export function moveCursor(dir, jumpTo) {
   items.forEach((x) => x.classList.remove("kcur"));
   const it = items[next];
   if (it.dataset.line !== undefined) {
-    selectRow(cur().id, +it.dataset.part, +it.dataset.line, false);
+    selectRow(cur().id, +it.dataset.part, +it.dataset.line, false, extend);
   } else {
     $$("#station .row.sel").forEach((r) => r.classList.remove("sel"));
     it.classList.add("kcur");

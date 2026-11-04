@@ -89,7 +89,7 @@ until grep -q . "$work/server.log" 2>/dev/null && python3 -c "import socket; soc
 # the margin-tui shot it pairs with. It is drawn 1.4 times larger, so its text reads at the
 # terminal's size when the two are laid over each other.
 shot() {
-	"$chrome" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2.1 \
+	"$chrome" --headless=new --user-data-dir="$work/chrome" --no-first-run --disable-gpu --hide-scrollbars --force-device-scale-factor=2.1 \
 		--window-size="$(($2 * 10 / 14)),$(($3 * 10 / 14))" --virtual-time-budget=15000 --screenshot="$work/$1.png" \
 		"http://127.0.0.1:$port/?review=$review&side=hide&$4" >/dev/null 2>&1
 	python3 -c "import sys; from PIL import Image; Image.open(sys.argv[1]).convert('RGB').save(sys.argv[2], quality=86, method=6)" \
@@ -106,4 +106,5 @@ shot coverage 1462 532 "full=1&do=g:report,u"
 shot around 1472 700 "full=1&do=g:reserve,s:around this stop"
 shot spotlight 1472 700 "full=1&do=g:tests,j,j,j,Enter,g:reserve:2,s:// Reserve takes"
 shot guide-recap 1462 700 "full=0&do=g:store,1,g:reserve,1,g:recap"
+shot try-edit 1472 700 "full=1&do=g:reserve,s:// Reserve takes,l:if qty <= 0,J,J,i,z:1500,f,<,l,x"
 echo "wrote $(ls "$out"/*.webp | wc -l) screenshots to $out"

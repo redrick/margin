@@ -55,6 +55,16 @@ func (s *Settings) Get() SettingsView {
 
 func (s *Settings) Save(c config.Config) (SettingsView, error) {
 	c.Reviews, c.Agent, c.AgentNote = strings.TrimSpace(c.Reviews), strings.TrimSpace(c.Agent), strings.TrimSpace(c.AgentNote)
+	if c.Tests == nil {
+		old, err := config.File()
+		if err != nil {
+			return SettingsView{}, err
+		}
+		c.Tests = old.Tests
+	}
+	for i := range c.Tests {
+		c.Tests[i].Repo, c.Tests[i].Command = strings.TrimSpace(c.Tests[i].Repo), strings.TrimSpace(c.Tests[i].Command)
+	}
 	if err := c.Save(); err != nil {
 		return SettingsView{}, err
 	}

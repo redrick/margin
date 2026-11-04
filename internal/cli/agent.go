@@ -187,7 +187,9 @@ Review file format
           changed: ...                q:, qid: are written by margin answer and margin resolve
   skip: [{what, why}]    renames: [{before, after}]    tests: [{file, why}]
 
-margin never runs anything from the reviewed repo: you run the tests. It writes only its own files: the
-review beside its state, comments note and coverage (in .margin/reviews/, which git ignores, unless
-the reader keeps reviews elsewhere).
+margin runs nothing from the reviewed repo on its own: you run the tests for coverage. The reader can
+run tests with their own command, and try a change: margin writes their edit of a line or a block
+(maybe deleting it) into the file while its tests run, then puts it back. Lines that briefly change
+under you are that; do not build on them. It writes only its own files: the review beside its state, comments note and
+coverage (in .margin/reviews/, which git ignores, unless the reader keeps reviews elsewhere).
 `

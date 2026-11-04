@@ -1,6 +1,6 @@
 ---
 name: margin
-description: Review code changes with margin, a viewer that shows the diff with your notes beside each line while a person reads it. Use when the user asks for a margin review of uncommitted changes, a branch, a commit or a pull request; when a session starts with "Code review with margin"; or when a message starts with "[margin q", "[margin comments]", "[margin reply]" or "[margin run]".
+description: Review code changes with margin, a viewer that shows the diff with your notes beside each line while a person reads it. Use when the user asks for a margin review of uncommitted changes, a branch, a commit or a pull request; when a session starts with "Code review with margin"; or when a message starts with "[margin q", "[margin comments]", "[margin reply]", "[margin run]" or "[margin tryout]".
 ---
 
 # margin
@@ -52,5 +52,9 @@ viewer in a pane beside yours and sends you the instructions.
 - `[margin reply] …` is the reader answering your answer in the comments note. Reply under the
   same comment in that note, and resolve again if your answer changes.
 - `[margin run] …` asks you to run tests and report what they show; change nothing.
+- `[margin tryout] …` reports a change the reader tried on a line or block and which tests failed because of
+  it. Say what that shows about the tests and the line (a check no test notices is a testing gap);
+  change nothing unless asked. While the reader tries a change, the file briefly holds their edit;
+  margin puts the line back after.
 
 Never commit, push or run another git write command unless the person asks.

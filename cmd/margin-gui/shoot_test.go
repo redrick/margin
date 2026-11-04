@@ -145,8 +145,8 @@ export const Call = {
 // shootScript puts the window in the state one screenshot needs, from the page's query string:
 // review (a file to open), side=hide, full=1|0 (whole stops or the guided walk), and do, a comma
 // separated list of actions: g:TARGET is a margin goto, s:TEXT scrolls to the first text in the stop
-// that starts with TEXT, t:TEXT types into the focused field, and
-// anything else is a key ("Space", "comma"). Then it sets the title to "ready".
+// that starts with TEXT, l:TEXT clicks the first code line that starts with TEXT, z:MS waits, t:TEXT
+// types into the focused field, and anything else is a key ("Space", "comma"). Then it sets the title to "ready".
 const shootScript = `
 import { Events } from "/wails/runtime.js";
 import { state } from "./core.js";
@@ -169,6 +169,11 @@ for (const a of (q.get("do") ?? "").split(",").filter(Boolean)) {
   } else if (a.startsWith("s:")) {
     const want = a.slice(2).toLowerCase();
     [...document.querySelectorAll("#station *")].find((el) => el.childElementCount === 0 && el.textContent.trim().toLowerCase().startsWith(want))?.scrollIntoView({ block: "start" });
+  } else if (a.startsWith("l:")) {
+    const want = a.slice(2);
+    [...document.querySelectorAll("#station .row[data-line] .src")].find((el) => el.textContent.trim().startsWith(want))?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  } else if (a.startsWith("z:")) {
+    await sleep(+a.slice(2));
   } else if (a.startsWith("t:")) {
     const el = document.activeElement;
     el.value = a.slice(2);

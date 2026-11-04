@@ -45,3 +45,29 @@ func TestLoadSaveAndEnv(t *testing.T) {
 		t.Fatalf("env = %+v", c)
 	}
 }
+
+func TestTestCommandFor(t *testing.T) {
+	c := Config{Tests: []TestCommand{
+		{Repo: "/work/api", Command: "docker compose run --rm app go test {dir} -run {run}"},
+		{Repo: "shop-*", Command: "make test T={run}"},
+		{Command: "go test {dir} -run {run}"},
+	}}
+	for _, tc := range []struct{ dir, main, want string }{
+		{"/work/api", "", "docker compose run --rm app go test {dir} -run {run}"},
+		{"/work/api/sub", "", "docker compose run --rm app go test {dir} -run {run}"},
+		{"/wt/api-feature", "/work/api", "docker compose run --rm app go test {dir} -run {run}"},
+		{"/work/apis", "", "go test {dir} -run {run}"},
+		{"/x/shop-web", "", "make test T={run}"},
+	} {
+		got, ok := c.TestCommandFor(tc.dir, tc.main)
+		if !ok || got.Command != tc.want {
+			t.Errorf("%s: got %q, want %q", tc.dir, got.Command, tc.want)
+		}
+	}
+	if _, ok := (Config{}).TestCommandFor("/a", ""); ok {
+		t.Error("no tests set up should match nothing")
+	}
+	if err := (Config{Tests: []TestCommand{{Repo: "x"}}}).Check(); err == nil {
+		t.Error("a blank test command should not pass Check")
+	}
+}

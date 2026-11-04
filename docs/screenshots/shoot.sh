@@ -128,6 +128,13 @@ go_to tests
 shot grid
 
 open_viewer 30
+go_to reserve
+keys /
+text 'qty <= 0'
+keys Enter Escape V j j i f '<' l x
+shot try-edit
+
+open_viewer 30
 go_to tests
 keys j j j Enter
 keys '}' j j j

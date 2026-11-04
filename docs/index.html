@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>margin — code review, annotated</title>
+<title>margin — yet another code review tool</title>
 <meta name="description" content="margin opens a git change in your terminal or a desktop window with a coding agent beside you. It plans the route, writes a note beside every change, answers questions on the line, and tells you when the review is done.">
-<meta property="og:title" content="margin — code review, annotated">
+<meta property="og:title" content="margin — yet another code review tool (the one you actually read with)">
 <meta property="og:description" content="Open a change in the terminal or a desktop window with a coding agent writing in the margin. A guided route, a note on every hunk, answers on the line, a clear verdict.">
 <meta property="og:image" content="https://antas.cz/margin/screenshots/hero.svg">
 <meta name="theme-color" content="#f3eee3">
@@ -380,6 +380,74 @@ footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; g
 .tile .cmp img { margin-top: 0; }
 .cmp.hero-cmp .replay { z-index: 5; }
 .viewer .cmp .g { object-fit: contain; object-position: center top; border-radius: 0; filter: none; }
+/* "Yet another": the hero's red-pen correction */
+.hero h1:has(.strike) { margin-top: 2.6rem; }
+.hero h1 .strike { position: relative; display: inline-block; color: var(--ink-faint); }
+.hero h1 .strike svg { position: absolute; left: -3%; top: 48%; width: 106%; height: .3em; overflow: visible; }
+.hero h1 .strike path { stroke: var(--red); stroke-width: 4; fill: none; stroke-linecap: round; stroke-dasharray: 700; stroke-dashoffset: 700; animation: draw .7s .55s cubic-bezier(.6, 0, .3, 1) forwards; }
+.hero h1 .fix { position: absolute; left: 8%; top: -.62em; font: 600 .42em/1 var(--hand); color: var(--red); transform: rotate(-4deg); white-space: nowrap; opacity: 0; animation: ink .5s 1.2s forwards; letter-spacing: 0; }
+.hero h1 .fix::before { content: "‸"; position: absolute; left: 32%; top: 1.05em; font-size: .9em; }
+@keyframes ink { from { opacity: 0; transform: rotate(-4deg) translateY(6px); } to { opacity: 1; transform: rotate(-4deg); } }
+.hero .lede .tagline { display: block; font: italic 400 1.5em/1.1 var(--display); color: var(--ink); margin-bottom: .5rem; }
+
+/* Objections, answered in the margin */
+.objections { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--ink); }
+.objection { padding: 1.8rem 1.6rem 2rem 0; border-bottom: 1px solid var(--rule); position: relative; }
+.objection:not(:nth-child(3n+1)) { padding-left: 1.6rem; border-left: 1px solid var(--rule); }
+.objection q { display: block; font: italic 400 1.55rem/1.15 var(--display); color: var(--ink-soft); quotes: "“" "”"; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--red) 70%, transparent); text-decoration-thickness: 1.5px; }
+.objection .reply { display: block; font: 600 1.45rem/1.1 var(--hand); color: var(--red); margin: .55rem 0 .6rem; transform: rotate(-1.5deg); transform-origin: left; }
+.objection p { margin: 0; color: var(--ink-soft); font-size: 1rem; }
+@media (max-width: 960px) { .objections { grid-template-columns: repeat(2, minmax(0, 1fr)); } .objection:not(:nth-child(3n+1)) { padding-left: 0; border-left: 0; } .objection:nth-child(2n) { padding-left: 1.4rem; border-left: 1px solid var(--rule); } }
+@media (max-width: 620px) { .objections { grid-template-columns: minmax(0, 1fr); } .objection:nth-child(2n) { padding-left: 0; border-left: 0; } }
+
+.compare { margin-top: 3.5rem; border: 1px solid var(--ink); border-radius: 14px; overflow: hidden; background: var(--paper-3); }
+.compare table { width: 100%; border-collapse: collapse; font-size: .98rem; }
+.compare th, .compare td { padding: .85rem 1.1rem; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.compare tr:last-child td { border-bottom: 0; }
+.compare thead th { font: 600 .68rem var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); background: var(--paper-2); border-bottom: 1px solid var(--ink); }
+.compare thead th.us { color: var(--paper); background: var(--ink); }
+.compare td.us { background: color-mix(in srgb, var(--red) 7%, transparent); color: var(--ink); font-weight: 500; }
+.compare td:first-child { color: var(--ink); font: 400 1.2rem/1.2 var(--display); }
+.compare td { color: var(--ink-faint); }
+.compare .y::before { content: "✓ "; color: var(--red); font-weight: 700; }
+.compare .n::before { content: "✕ "; color: var(--ink-faint); }
+.compare .m::before { content: "~ "; color: var(--ink-soft); font-weight: 700; }
+.compare .scroll { overflow-x: auto; }
+@media (max-width: 760px) { .compare table { min-width: 640px; } }
+
+/* Break the code: the try-a-change demo */
+.breaker { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 3rem; align-items: center; }
+.breaker ol { list-style: none; margin: 0; padding: 0; counter-reset: s; display: grid; gap: 1.4rem; }
+.breaker li { counter-increment: s; display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); gap: .4rem; }
+.breaker li::before { content: counter(s); font: 400 2.2rem/1 var(--display); color: var(--red); }
+.breaker li strong { display: block; font: 400 1.5rem/1.1 var(--display); margin-bottom: .25rem; }
+.breaker li span { color: var(--ink-soft); }
+.breaker .aside { font: 600 1.35rem/1.15 var(--hand); color: var(--red); margin: 2rem 0 0; transform: rotate(-2deg); }
+.bk { position: relative; }
+.bk .term { font-size: 13px; font-variant-ligatures: none; }
+.bk .code { padding: 10px 0; }
+.ln.edit { background: #1d1a10; box-shadow: inset 3px 0 0 var(--t-amber); }
+.ln.edit .sg { color: var(--t-amber); }
+.ln .kw { color: var(--t-red); } .ln .ty { color: #ffa657; } .ln .fn { color: #d2a8ff; } .ln .cm { color: var(--t-dim); font-style: italic; } .ln .nu { color: var(--t-blue); }
+.ln .caret { background: var(--t-amber); color: var(--t-bg); border-radius: 1px; }
+.ln .caret.ins { background: none; box-shadow: inset 2px 0 0 var(--t-cyan); color: inherit; }
+.ln .back { margin-left: 1.2em; color: var(--t-green); font-size: 11px; opacity: 0; transition: opacity .4s; }
+.ln .back.on { opacity: 1; }
+.bk-mode { display: flex; gap: .8em; align-items: center; padding: 6px 12px; background: var(--t-bar); border-top: 1px solid var(--t-edge); color: var(--t-dim); font-size: 12px; min-height: 31px; }
+.bk-mode b { color: var(--t-bg); background: var(--t-amber); padding: 0 6px; border-radius: 2px; }
+.bk-mode b.run { background: var(--t-cyan); }
+.bk-mode .cmd { color: var(--t-fg); }
+.bk-out { border-top: 2px solid #21262d; padding: 10px 16px 14px; min-height: 150px; font-size: 12.5px; line-height: 1.7; }
+.bk-out div { opacity: 0; transform: translateY(4px); transition: opacity .3s, transform .3s; }
+.bk-out div.on { opacity: 1; transform: none; }
+.bk-out .p { color: var(--t-green); } .bk-out .f { color: var(--t-red); } .bk-out .d { color: var(--t-dim); }
+.bk-out .verdict { display: inline-block; margin-top: 6px; color: var(--t-bg); background: var(--t-red); font-weight: 700; padding: 1px 8px; border-radius: 3px; }
+.keycast { position: absolute; right: 18px; top: 52px; font: 700 15px var(--mono); color: var(--t-bg); background: var(--t-amber); padding: 4px 10px; border-radius: 6px; box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .6); opacity: 0; transform: scale(.85); transition: opacity .15s, transform .15s; z-index: 3; }
+.keycast.on { opacity: 1; transform: none; }
+.bk .replay { position: absolute; right: 14px; top: auto; bottom: 14px; z-index: 4; }
+@media (max-width: 960px) { .breaker { grid-template-columns: minmax(0, 1fr); } }
+
+.tile.dark code { background: color-mix(in srgb, var(--paper) 14%, transparent); color: var(--paper); }
 </style>
 </head>
 <body>
@@ -388,8 +456,10 @@ footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; g
   <div class="wrap">
     <a class="brand" href="#top">margin<i></i></a>
     <ul>
-      <li><a href="#why">Why</a></li>
+      <li><a href="#another">Why another</a></li>
+      <li><a href="#why">The problem</a></li>
       <li><a href="#walk">How it works</a></li>
+      <li><a href="#break">Break it</a></li>
       <li><a href="#features">Features</a></li>
       <li><a href="#apps">Terminal or desktop</a></li>
       <li><a href="#research">Research</a></li>
@@ -403,10 +473,10 @@ footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; g
     <div class="hero-grid">
       <div>
         <span class="eyebrow rise">Terminal or desktop · open source</span>
-        <h1 class="rise d1">Code review,<br><em>annotated.<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 60 4, 120 18, 180 9 S 270 6, 297 11"/></svg></em></h1>
+        <h1 class="rise d1" aria-label="The last code review tool."><span class="strike" aria-hidden="true">Yet another<svg viewBox="0 0 300 20" preserveAspectRatio="none"><path d="M2 12 C 70 6, 150 15, 220 8 S 285 10, 298 7"/></svg><span class="fix">the last</span></span><br>code review <em>tool.<svg viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true"><path d="M3 14 C 60 4, 120 18, 180 9 S 270 6, 297 11"/></svg></em></h1>
       </div>
       <div>
-        <p class="lede rise d2">margin opens any git change in your terminal or a desktop window with a coding agent beside you. <strong>It plans the route, writes a note beside every change, answers questions on the line, and tells you when you are done.</strong></p>
+        <p class="lede rise d2"><span class="tagline">Code review, annotated.</span>margin opens any git change in your terminal or a desktop window with a coding agent beside you. <strong>It plans the route, writes a note beside every change, answers questions on the line, and tells you when you are done.</strong></p>
         <div class="install rise d3"><b class="which">terminal</b><span id="cmd1">go install github.com/redrick/margin/cmd/margin-tui@latest</span><button type="button" data-copy="cmd1">copy</button></div>
         <div class="install rise d3"><b class="which">desktop</b><span id="cmd1g">go install github.com/redrick/margin/cmd/margin-gui@latest</span><button type="button" data-copy="cmd1g">copy</button></div>
         <p class="meta rise d3">Go 1.21+ · git · Claude Code, Codex, Gemini CLI, OpenCode or any CLI agent · tmux for the terminal, WebKit for the desktop · MIT</p>
@@ -450,6 +520,41 @@ footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; g
 </header>
 
 <main>
+
+  <section class="block" id="another">
+    <div class="wrap">
+      <div class="head reveal">
+        <span class="eyebrow">Yes, another one</span>
+        <h2>We know. <em>Yet another</em> code review tool.</h2>
+        <p>There are plenty of places to look at a diff. margin is the one that makes sure you actually read it, and can tell you when you are done. Here is what people say before they try it.</p>
+      </div>
+      <div class="objections">
+        <div class="objection reveal"><q>GitHub already has code review.</q><span class="reply">it has a comment box.</span><p>A pull request page lists files alphabetically and lets you approve without opening half of them. margin plans the route, and exports the review to GitHub when you are done.</p></div>
+        <div class="objection reveal"><q>My agent can just review it for me.</q><span class="reply">and here it does — in the margin.</span><p>The agent writes a note beside every change and answers on the line. You make the call. It never approves anything, and blind mode lets you read first.</p></div>
+        <div class="objection reveal"><q>I'll just read the diff.</q><span class="reply">for the first 400 lines, maybe.</span><p>margin cuts the change into a few stops, keeps the import churn for the end, counts what you read and tells you when it is time for a break.</p></div>
+        <div class="objection reveal"><q>The tests pass. Ship it.</q><span class="reply">do they test this line?</span><p>Per-line coverage shows what no test runs. Then break the line yourself, in place, with vim keys, and watch which tests notice.</p></div>
+        <div class="objection reveal"><q>Another AI thing touching my code.</q><span class="reply">read-only. honestly.</span><p>margin runs nothing from the repository and changes nothing, unless you try a change yourself. That one is put back the moment its tests end.</p></div>
+        <div class="objection reveal"><q>I live in the terminal. / I don't.</q><span class="reply">both. same review.</span><p>margin-tui runs beside your agent in tmux; margin-gui is a desktop window with the agent inside. Start in one, finish in the other.</p></div>
+      </div>
+      <div class="compare reveal">
+        <div class="scroll">
+          <table>
+            <thead><tr><th></th><th>A pull request page</th><th>“Review this” to an agent</th><th class="us">margin</th></tr></thead>
+            <tbody>
+              <tr><td>A reading order, with reasons</td><td class="n">alphabetical</td><td class="m">if you ask</td><td class="us y">stops, risky first</td></tr>
+              <tr><td>A note beside every change</td><td class="n">none</td><td class="m">one long reply</td><td class="us y">on the line</td></tr>
+              <tr><td>Ask about a line, get the answer there</td><td class="m">comment, then wait</td><td class="m">a new chat</td><td class="us y"><kbd>a</kbd>, answer in place</td></tr>
+              <tr><td>Which tests run this line</td><td class="n">no</td><td class="n">no</td><td class="us y">in the gutter</td></tr>
+              <tr><td>Break a line, see if a test notices</td><td class="n">no</td><td class="n">no</td><td class="us y"><kbd>i</kbd>, edit, <kbd>:w</kbd></td></tr>
+              <tr><td>Knows what you have not read</td><td class="m">viewed checkboxes</td><td class="n">no</td><td class="us y">the recap lists it</td></tr>
+              <tr><td>You make the call</td><td class="y">yes</td><td class="n">it does</td><td class="us y">yes, with a recommendation</td></tr>
+              <tr><td>Before you push, offline</td><td class="n">no</td><td class="y">yes</td><td class="us y">any branch, commit or worktree</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <section class="block" id="why">
     <div class="wrap">
@@ -555,6 +660,37 @@ diff --git a/inventory/report.py b/inventory/report.py
     </div>
   </section>
 
+
+  <section class="block" id="break">
+    <div class="wrap">
+      <div class="head reveal">
+        <span class="eyebrow">The part people love</span>
+        <h2>Don't trust the tests. <em>Break the code.</em></h2>
+        <p>A note says a check matters. Does any test agree? Change the line and find out, without leaving the review or touching your branch.</p>
+      </div>
+      <div class="breaker">
+        <div class="reveal">
+          <ol>
+            <li><div><strong>Press <kbd>i</kbd> on the line.</strong><span>Or <kbd>V</kbd> a whole block first. It turns into an editor right where it stands, colours and line numbers included.</span></div></li>
+            <li><div><strong>Edit it like vim.</strong><span><code>cw</code>, <code>dd</code>, <code>ciw</code>, <code>x</code>, <code>.</code>, <code>u</code>, visual mode. Delete the whole check if you like.</span></div></li>
+            <li><div><strong><kbd>:w</kbd></strong><span>The tests that run those lines go once as the code is, once with your edit. Then margin puts every line back.</span></div></li>
+          </ol>
+          <p class="aside">✓→✗ means a test caught it.<br>✓→✓ means nobody would have noticed.</p>
+        </div>
+        <div class="bk reveal">
+          <div class="term" id="bk" role="figure" aria-label="Animated demo: the line if qty <= 0 is opened in place with vim keys, changed to if qty < 0, and :w runs its tests: two catch the change, three still pass, and the line is put back.">
+            <div class="term-bar"><i></i><i></i><i></i><span>margin — inventory/stock.go</span></div>
+            <span class="keycast" id="bk-key"></span>
+            <div class="code" id="bk-code"></div>
+            <div class="bk-mode" id="bk-mode"></div>
+            <div class="bk-out" id="bk-out"></div>
+            <button class="replay" type="button" id="bk-replay" hidden>↻ replay</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <section class="block" id="features">
     <div class="wrap">
       <div class="head reveal">
@@ -566,7 +702,7 @@ diff --git a/inventory/report.py b/inventory/report.py
         <article class="tile s4 reveal">
           <span class="tag">Test coverage</span>
           <h3>See which changed lines no test runs.</h3>
-          <p>The agent measures coverage per test. Untested lines glow in the gutter, <kbd>u</kbd> jumps between them, <kbd>t</kbd> lists the tests that run a line and spotlights one.</p>
+          <p>The agent measures coverage per test. Untested lines glow in the gutter, <kbd>u</kbd> jumps between them, <kbd>t</kbd> lists the tests that run a line, spotlights one or runs them.</p>
           <div class="cmp tile-cmp"><img loading="lazy" src="screenshots/coverage.svg" width="1462" height="532" alt="Changed lines that no test runs, marked in the gutter"><img class="g" loading="lazy" src="screenshots/gui/coverage.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
         </article>
         <article class="tile s2 dark reveal">
@@ -591,6 +727,17 @@ diff --git a/inventory/report.py b/inventory/report.py
           <p>Pick a test and every line it does not run dims. See exactly which path it takes.</p>
           <div class="cmp tile-cmp"><img loading="lazy" src="screenshots/spotlight.svg" width="1472" height="700" alt="One test spotlighted, every line it does not run dimmed"><img class="g" loading="lazy" src="screenshots/gui/spotlight.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
         </article>
+        <article class="tile s3 reveal">
+          <span class="tag">Run the tests</span>
+          <h3>Run what runs this line.</h3>
+          <p><kbd>T</kbd> runs exactly the tests that run the selected line, with the command you set up once for the repository: <code>go test</code>, <code>docker compose run</code>, <code>pytest</code>. Each test gets its ✓ or ✗; the command lives in your settings, never in the repository.</p>
+        </article>
+        <article class="tile s3 dark reveal">
+          <span class="tag">Try a change</span>
+          <h3>Would a test notice if this line were wrong?</h3>
+          <p><kbd>i</kbd> turns a line, or a <kbd>V</kbd> block, into a vim right where it stands, in both apps. <a href="#break">See it run ↑</a> — or keep your own: <kbd>E</kbd> opens <code>$EDITOR</code>.</p>
+          <div class="cmp tile-cmp"><img loading="lazy" src="screenshots/try-edit.svg" width="1462" height="700" alt="Lines 32 to 34 of stock.go open in place in a vim editor, the check changed to qty &lt; 0"><img class="g" loading="lazy" src="screenshots/gui/try-edit.webp" alt=""><span class="cmp-tag l">margin-tui</span><span class="cmp-tag r">margin-gui</span><input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Drag to compare margin-tui and margin-gui"><span class="cmp-bar"></span></div>
+        </article>
         <article class="tile s2 reveal">
           <span class="tag">Moved code</span>
           <h3>Moved, not rewritten.</h3>
@@ -605,6 +752,21 @@ diff --git a/inventory/report.py b/inventory/report.py
           <span class="tag">Resume</span>
           <h3>Stop any time.</h3>
           <p>Come back tomorrow, in either app. Verdicts, marks, comments and notes are exactly where you left them.</p>
+        </article>
+        <article class="tile s2 reveal">
+          <span class="tag">Nothing left out</span>
+          <h3>Every change has a place.</h3>
+          <p>Changes no stop shows get a stop of their own, and ignored or binary files are listed, so the route never hides part of the diff.</p>
+        </article>
+        <article class="tile s2 reveal">
+          <span class="tag">Side by side</span>
+          <h3>Old left, new right.</h3>
+          <p><kbd>s</kbd> splits any stop, <kbd>d</kbd> hides removed lines, <kbd>f</kbd> shows the whole file and <kbd>+</kbd> more around the change.</p>
+        </article>
+        <article class="tile s2 reveal">
+          <span class="tag">Search</span>
+          <h3>Find it in every stop.</h3>
+          <p><kbd>/</kbd> searches the code of the whole review, <kbd>n</kbd> and <kbd>N</kbd> jump between the matches.</p>
         </article>
         <article class="tile s3 reveal">
           <span class="tag">Export</span>
@@ -628,7 +790,7 @@ dist/</pre>
       <div class="numbers reveal">
         <div><b>4</b><span>keys to learn: space, b, c, a</span></div>
         <div><b>3</b><span>phases, always in the same order</span></div>
-        <div><b>0</b><span>changes to your code, ever</span></div>
+        <div><b>0</b><span>changes to your code you did not try yourself</span></div>
         <div><b>400<sup>lines</sup></b><span>where the footer suggests a break, before quality drops</span></div>
       </div>
     </div>
@@ -709,7 +871,7 @@ dist/</pre>
         <p>margin treats the repository under review as untrusted. You can point it at a stranger's pull request.</p>
       </div>
       <ul>
-        <li class="reveal"><b>Never changes, never runs</b>Nothing executed from the repository, no change to its code or history. git only through read-only plumbing, refs after <code>--end-of-options</code>. margin writes only its own review files, which keep themselves out of git. The one fetch is a pull request you click <i>Fetch and review</i> on in margin-gui.</li>
+        <li class="reveal"><b>Runs only what you set up</b>On its own, margin runs nothing from the repository and changes neither its code nor its history. Tests run only with the command in your own settings, when you ask; a tried change is one line, put back when its tests end. git only through read-only plumbing, refs after <code>--end-of-options</code>. The one fetch is a pull request you click <i>Fetch and review</i> on in margin-gui.</li>
         <li class="reveal"><b>Rules from the base</b><code>.margin/</code> settings come from the commit compared against, so a change cannot loosen its own review.</li>
         <li class="reveal"><b>Clean terminal</b>Escape sequences and bidi controls are stripped before rendering. Questions never go to a plain shell.</li>
         <li class="reveal"><b>Untrusted text, labelled</b>Commit messages, PR descriptions and repo instructions reach the agent marked as written by someone else.</li>
@@ -719,7 +881,7 @@ dist/</pre>
 
   <section class="final">
     <div class="wrap">
-      <span class="eyebrow reveal">Try it on your next change</span>
+      <span class="eyebrow reveal">Yet another tool? Fine. Make it the one you open first.</span>
       <h2 class="reveal">Stop skimming.<br><em>Start reading.</em></h2>
       <p class="reveal">Install one, run <code>margin-tui</code> in a repository with uncommitted changes or open it in <code>margin-gui</code>, and press <kbd>space</kbd>.</p>
       <div class="install reveal"><b class="which">terminal</b><span id="cmd2">go install github.com/redrick/margin/cmd/margin-tui@latest</span><button type="button" data-copy="cmd2">copy</button></div>
@@ -922,6 +1084,100 @@ dist/</pre>
     }, { threshold: .35 });
     to.observe(document.getElementById("demo"));
   } else { run(); }
+})();
+</script>
+<script>
+// The try-a-change demo: a line opened in place, edited with vim keys, its tests run.
+(function () {
+  var box = document.getElementById("bk");
+  if (!box) return;
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var codeEl = document.getElementById("bk-code"), modeEl = document.getElementById("bk-mode"), outEl = document.getElementById("bk-out");
+  var keyEl = document.getElementById("bk-key"), replay = document.getElementById("bk-replay");
+  var T = "    ";
+  var L = [
+    { n: 30, k: "add", t: "// Reserve takes qty units of sku out of stock." },
+    { n: 31, k: "", t: "func (s *Store) Reserve(sku string, qty int) error {" },
+    { n: 32, k: "add", t: T + "if qty <= 0 {" },
+    { n: 33, k: "add", t: T + T + "return ErrInvalidQuantity" },
+    { n: 34, k: "add", t: T + "}" },
+    { n: 35, k: "", t: T + "s.mu.Lock()" },
+    { n: 36, k: "", t: T + "defer s.mu.Unlock()" },
+  ];
+  var ED = 2, timers = [], st;
+  function esc(x) { return x.replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+  function paint(t) {
+    if (/^\s*\/\//.test(t)) return '<span class="cm">' + esc(t) + "</span>";
+    return esc(t)
+      .replace(/\b(func|if|return|defer|error|string|int)\b/g, '<span class="kw">$1</span>')
+      .replace(/\b(Store)\b/g, '<span class="ty">$1</span>')
+      .replace(/\b(Reserve|Lock|Unlock)\b/g, '<span class="fn">$1</span>')
+      .replace(/\b(\d+)\b/g, '<span class="nu">$1</span>');
+  }
+  function withCaret(t, c, ins) {
+    var ch = t[c] || " ";
+    return paint(t.slice(0, c)) + '<span class="caret' + (ins ? " ins" : "") + '">' + esc(ch) + "</span>" + paint(t.slice(c + 1));
+  }
+  function render() {
+    codeEl.innerHTML = L.map(function (l, i) {
+      var editing = st.mode && i === ED;
+      var cls = "ln " + (editing ? "edit" : l.k) + (i === ED && !st.mode ? " cur" : "");
+      var sg = editing ? "✎" : l.k === "add" ? "+" : "";
+      var tx = editing ? withCaret(st.text, st.col, false) : paint(i === ED ? st.text : l.t);
+      var back = i === ED && st.back ? '<span class="back on">↺ put back</span>' : "";
+      return '<div class="' + cls + '"><span class="mk"></span><span class="no">' + l.n + '</span><span class="sg">' + sg + '</span><span class="tx">' + tx + back + "</span></div>";
+    }).join("");
+    if (st.mode === "cmd") modeEl.innerHTML = '<span class="cmd">:' + esc(st.cmd) + "█</span>";
+    else if (st.mode === "run") modeEl.innerHTML = '<b class="run">RUNNING</b><span>✎ stock.go:32 · 5 tests · unchanged first, then with your edit</span>';
+    else if (st.mode) modeEl.innerHTML = "<b>-- NORMAL --</b><span>✎ stock.go:32 · 5 tests</span><span style=\"margin-left:auto\">:w runs · :q cancels</span>";
+    else modeEl.innerHTML = "<span><b style=\"background:var(--t-blue)\">i</b> try a change · <b style=\"background:var(--t-blue)\">T</b> run its tests · line 32 runs in 5 tests</span>";
+  }
+  function key(k) {
+    keyEl.textContent = k;
+    keyEl.classList.add("on");
+    timers.push(setTimeout(function () { keyEl.classList.remove("on"); }, 520));
+  }
+  var OUT = [
+    ['<span class="d">try</span> stock.go:32 <span class="d">`if qty &lt;= 0 {` →</span> `if qty &lt; 0 {`', 0],
+    ['<span class="p">✓</span> unchanged · ./inventory · TestAuditLogRecords, TestReserve', 900],
+    ['<span class="f">✗</span> with change · ./inventory · TestAuditLogRecords, TestReserve', 2000],
+    ['<span class="f">✓→✗</span> TestReserve, TestReserve/rejects_non-positive_quantity', 2400],
+    ['<span class="p">✓→✓</span> TestAuditLogRecords, TestReserve/takes_stock, …', 2700],
+    ['<span class="verdict">2 caught it, 3 still pass</span>', 3100],
+  ];
+  function at(ms, fn) { timers.push(setTimeout(fn, ms)); }
+  function play() {
+    timers.forEach(clearTimeout); timers = [];
+    replay.hidden = true;
+    st = { mode: "", text: L[ED].t, col: 4, cmd: "", back: false };
+    outEl.innerHTML = OUT.map(function (o) { return "<div>" + o[0] + "</div>"; }).join("");
+    render();
+    var t = 900;
+    at(t, function () { key("i"); st.mode = "normal"; render(); });
+    at(t += 1200, function () { key("f<"); st.col = st.text.indexOf("<"); render(); });
+    at(t += 900, function () { key("l"); st.col++; render(); });
+    at(t += 800, function () { key("x"); st.text = st.text.slice(0, st.col) + st.text.slice(st.col + 1); render(); });
+    at(t += 1000, function () { key(":w"); st.mode = "cmd"; st.cmd = "w"; render(); });
+    at(t += 700, function () { key("⏎"); st.mode = "run"; render(); });
+    var rows = outEl.children;
+    OUT.forEach(function (o, i) { at(t + 300 + o[1], function () { rows[i].classList.add("on"); }); });
+    t += 300 + 3100 + 900;
+    at(t, function () { st.mode = ""; st.text = L[ED].t; st.back = true; render(); });
+    at(t + 1200, function () { replay.hidden = false; });
+  }
+  function finished() {
+    st = { mode: "", text: L[ED].t, col: 4, cmd: "", back: true };
+    outEl.innerHTML = OUT.map(function (o) { return '<div class="on">' + o[0] + "</div>"; }).join("");
+    render();
+  }
+  replay.addEventListener("click", play);
+  if (reduced || !("IntersectionObserver" in window)) return finished();
+  st = { mode: "", text: L[ED].t, col: 4, cmd: "", back: false };
+  render();
+  var io = new IntersectionObserver(function (es) {
+    if (es[0].isIntersecting) { io.disconnect(); play(); }
+  }, { threshold: 0.45 });
+  io.observe(box);
 })();
 </script>
 </body>

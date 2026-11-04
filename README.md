@@ -1,5 +1,9 @@
 # margin
 
+**Yet another code review tool.** Yes. The one that makes sure you actually read the change, shows
+which tests run each line, and lets you break a line in place, with vim keys, to see whether any of
+them notice. See [the project page](https://antas.cz/margin/).
+
 margin reviews git changes with a coding agent beside you. The agent reads the change first, lays
 out a route through it in reading order and writes a note on every change: what it does, why it is
 there and whether it looks right. You walk the route, ask about any line, comment, and decide, while
@@ -117,10 +121,12 @@ it is reviewed by. See [Repository settings](docs/tui.md#repository-settings).
 
 ## Safety
 
-margin is meant for reading code you did not write, so it treats the repository as untrusted. It
-never runs anything from it; git is used through read-only plumbing, and the only files margin
-writes are its own. The one exception is margin-gui's *Fetch and review* on a pull request, which
-runs `git fetch origin pull/N/head` when you click it. `--pr` and the pull request list read
+margin is meant for reading code you did not write, so it treats the repository as untrusted. On
+its own it runs nothing from it; git is used through read-only plumbing, and the only files margin
+writes are its own. The exceptions are yours to trigger: margin-gui's *Fetch and review* on a pull
+request runs `git fetch origin pull/N/head`; running tests runs only the test command you set up in
+your own settings, never one from the repository; and trying a change writes your edit of a line
+into the file while its tests run, then puts the line back. `--pr` and the pull request list read
 through `gh` and never post. Terminal
 escape sequences and bidi controls are stripped before anything is shown. Commit messages, pull
 request descriptions and `.margin/instructions` reach the agent marked as written by others. What

@@ -12,6 +12,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 
 	"github.com/redrick/margin/internal/cli"
+	"github.com/redrick/margin/internal/tryout"
 )
 
 //go:embed assets
@@ -50,6 +51,7 @@ func main() {
 		return
 	}
 	ws, rv, ag := &Workspace{}, &Reviews{}, &Agents{}
+	rv.recovered, rv.recoverErr = recoverTrials()
 	app := application.New(application.Options{
 		Name:        "margin",
 		Description: "Review git changes with an agent beside you",
@@ -79,4 +81,13 @@ func main() {
 	if err := app.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// recoverTrials puts back lines a margin that died mid-run left changed.
+func recoverTrials() ([]string, string) {
+	fixed, err := tryout.Recover()
+	if err != nil {
+		return fixed, err.Error()
+	}
+	return fixed, ""
 }

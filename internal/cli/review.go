@@ -119,7 +119,7 @@ func cmdReview(args []string) error {
 	}
 
 	agent := agentCommand()
-	exe, err := os.Executable()
+	exe, err := Self()
 	if err != nil {
 		return err
 	}

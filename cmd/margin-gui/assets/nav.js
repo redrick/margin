@@ -547,6 +547,10 @@ export async function openSettings() {
       <textarea id="set-note" class="note-input" placeholder="Optional. Added to the agent's instructions, e.g. File the review in the index of {project}.">${esc(f.agent_note ?? "")}</textarea>
       <p class="muted small"><code>{project}</code>, <code>{topic}</code> and <code>{dir}</code> are filled in.</p>
     </section>
+    <section><h4>Running tests</h4>
+      <p class="muted small">The commands that run a repository's tests when you click ▶ in a review; the first run in a repository asks for one. <code>{dir}</code> <code>{pkg}</code> <code>{run}</code> <code>{tests}</code> <code>{file}</code> are filled in.</p>
+      <div class="test-cmds"></div>
+    </section>
     <section><h4>Agent skill</h4>
       <p class="muted small">Teaches an agent margin's commands, also in sessions margin did not start, so you can ask it for "a margin review of this branch".</p>
       <div class="skills"></div>
@@ -561,6 +565,22 @@ export async function openSettings() {
     agents.append(c);
   }
   agents.append(el(`<label class="opt"><input type="radio" name="agent" value=""${agentKnown ? "" : " checked"}><span>Another command:</span></label>`));
+  let tests = (f.tests ?? []).map((t) => ({ ...t }));
+  const cmds = body.querySelector(".test-cmds");
+  const drawTests = () => {
+    cmds.innerHTML = tests.length ? "" : `<p class="muted small">None yet.</p>`;
+    tests.forEach((t, i) => {
+      const r = el(`<div class="skill-row"><span class="small" title="${esc(t.repo || "every repository")}">${esc(t.repo ? home(t.repo) : "every repository")}</span>
+        <input class="filter mono" spellcheck="false" value="${esc(t.command)}"><button class="small">Remove</button></div>`);
+      r.querySelector("input").oninput = (e) => (t.command = e.target.value);
+      r.querySelector("button").onclick = () => {
+        tests.splice(i, 1);
+        drawTests();
+      };
+      cmds.append(r);
+    });
+  };
+  drawTests();
   const skills = body.querySelector(".skills");
   for (const s of v.skills ?? []) {
     const r = el(`<div class="skill-row"><code>${esc(s.agent)}</code><span class="muted small" title="${esc(s.path)}">${esc(home(s.path))}</span>
@@ -586,6 +606,7 @@ export async function openSettings() {
       reviews: w === "dir" ? body.querySelector("#set-dir").value.trim() : w === "repo" ? "" : "state",
       agent: a ? (a === "claude" ? "" : a) : body.querySelector("#set-agent").value.trim(),
       agent_note: body.querySelector("#set-note").value.trim(),
+      tests,
     };
     try {
       await api("Settings.Save", cfg);

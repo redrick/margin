@@ -70,63 +70,30 @@
 <rect x="332.8" y="621" width="806.4" height="21" fill="#161b22"/>
 <text x="332.8" y="636" textLength="508.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> u U        next / previous changed line no test runs</text>
 <rect x="332.8" y="642" width="806.4" height="21" fill="#161b22"/>
-<text x="332.8" y="657" textLength="729.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> t          tests that run the line: enter spotlight, p source, r agent runs</text>
+<text x="332.8" y="657" textLength="796.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> t          tests that run the line: enter spotlight, p source, r run, A agent runs</text>
 <rect x="332.8" y="663" width="806.4" height="21" fill="#161b22"/>
-<text x="332.8" y="678" textLength="729.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> enter      on a test in the Tests stop: spotlight it · esc ends a spotlight</text>
+<text x="332.8" y="678" textLength="806.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> T          run the line's tests (the stop's when it has none) with your test comman</text>
 <rect x="332.8" y="684" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="699" textLength="806.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> i          try a change: the line (or V block) turns into a vim in place, :w runs i</text>
 <rect x="332.8" y="705" width="806.4" height="21" fill="#161b22"/>
-<text x="332.8" y="720" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> view</text>
+<text x="332.8" y="720" textLength="748.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> V          start a block of lines; move to grow it, then i (or E for $EDITOR)</text>
 <rect x="332.8" y="726" width="806.4" height="21" fill="#161b22"/>
-<text x="332.8" y="741" textLength="576.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> z d f      fold unchanged / hide removed lines / whole file</text>
+<text x="332.8" y="741" textLength="768.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">            (margin puts the line back after) · o shows or hides the test output</text>
 <rect x="332.8" y="747" width="806.4" height="21" fill="#161b22"/>
-<text x="332.8" y="762" textLength="374.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> n s        notes column / side by side</text>
+<text x="332.8" y="762" textLength="729.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> enter      on a test in the Tests stop: spotlight it · esc ends a spotlight</text>
 <rect x="332.8" y="768" width="806.4" height="21" fill="#161b22"/>
-<text x="332.8" y="783" textLength="451.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> h l 0      scroll sideways / back to the start</text>
 <rect x="332.8" y="789" width="806.4" height="21" fill="#161b22"/>
-<text x="332.8" y="804" textLength="240.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> r q        reload / quit</text>
-<rect x="83.2" y="810" width="67.2" height="21" fill="#2c1517"/>
-<rect x="150.4" y="810" width="480.0" height="21" fill="#6e2b30"/>
-<rect x="630.4" y="810" width="316.8" height="21" fill="#2c1517"/>
-<text x="83.2" y="825" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#f85149" font-weight="bold">▎- </text>
-<text x="112.0" y="825" textLength="38.4" lengthAdjust="spacingAndGlyphs" fill="#b08286">var </text>
-<text x="150.4" y="825" textLength="480.0" lengthAdjust="spacingAndGlyphs" fill="#b08286" text-decoration="line-through">ErrInsufficient = errors.New("insufficient stock")</text>
-<text x="947.2" y="825" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<rect x="83.2" y="831" width="67.2" height="21" fill="#12261e"/>
-<rect x="150.4" y="831" width="9.6" height="21" fill="#245c3a"/>
-<rect x="160.0" y="831" width="787.2" height="21" fill="#12261e"/>
-<text x="44.8" y="846" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590">  9</text>
-<text x="83.2" y="846" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
-<text x="112.0" y="846" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#ff7b71">var</text>
-<text x="150.4" y="846" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(</text>
-<text x="947.2" y="846" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<rect x="83.2" y="852" width="864.0" height="21" fill="#12261e"/>
-<text x="44.8" y="867" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 10</text>
-<text x="83.2" y="867" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
-<text x="150.4" y="867" textLength="144.0" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">ErrInsufficient</text>
-<text x="332.8" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">=</text>
-<text x="352.0" y="867" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">errors.</text>
-<text x="419.2" y="867" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">New</text>
-<text x="448.0" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(</text>
-<text x="457.6" y="867" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"insufficient stock"</text>
-<text x="649.6" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">)</text>
-<text x="947.2" y="867" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<rect x="83.2" y="873" width="864.0" height="21" fill="#12261e"/>
-<text x="44.8" y="888" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 11</text>
-<text x="83.2" y="888" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
-<text x="150.4" y="888" textLength="172.8" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">ErrInvalidQuantity</text>
-<text x="332.8" y="888" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">=</text>
-<text x="352.0" y="888" textLength="67.2" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">errors.</text>
-<text x="419.2" y="888" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#d2a8ff" font-weight="bold">New</text>
-<text x="448.0" y="888" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">(</text>
-<text x="457.6" y="888" textLength="259.2" lengthAdjust="spacingAndGlyphs" fill="#a5d6ff">"quantity must be positive"</text>
-<text x="716.8" y="888" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">)</text>
-<text x="947.2" y="888" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<rect x="83.2" y="894" width="864.0" height="21" fill="#12261e"/>
-<text x="44.8" y="909" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 12</text>
-<text x="83.2" y="909" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>
-<text x="112.0" y="909" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#e6edf3">)</text>
-<text x="947.2" y="909" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="956.8" y="909" textLength="144.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> ↓ 3 more below</text>
+<text x="332.8" y="804" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> view</text>
+<rect x="332.8" y="810" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="825" textLength="576.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> z d f      fold unchanged / hide removed lines / whole file</text>
+<rect x="332.8" y="831" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="846" textLength="624.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> + -        10 more / fewer lines around the changes of this part</text>
+<rect x="332.8" y="852" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="867" textLength="374.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> n s        notes column / side by side</text>
+<rect x="332.8" y="873" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="888" textLength="451.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> h l 0      scroll sideways / back to the start</text>
+<rect x="332.8" y="894" width="806.4" height="21" fill="#161b22"/>
+<text x="332.8" y="909" textLength="240.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> r q        reload / quit</text>
 <rect x="16.0" y="915" width="96.0" height="21" fill="#161b22"/>
 <rect x="112.0" y="915" width="48.0" height="21" fill="#ff7b71"/>
 <rect x="160.0" y="915" width="9.6" height="21" fill="#161b22"/>

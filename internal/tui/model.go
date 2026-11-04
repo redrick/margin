@@ -3,6 +3,7 @@ package tui
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -16,6 +17,7 @@ import (
 	"github.com/redrick/margin/internal/review"
 	"github.com/redrick/margin/internal/source"
 	"github.com/redrick/margin/internal/state"
+	"github.com/redrick/margin/internal/testrun"
 	"github.com/redrick/margin/internal/text"
 	"github.com/redrick/margin/internal/tmuxx"
 	"github.com/redrick/margin/internal/verdict"
@@ -123,6 +125,18 @@ type Model struct {
 	// tests is the picker of the tests that run the cursor line, open while testsOpen.
 	testsOpen bool
 	tests     testPicker
+	// run is the last test run, shown in the output overlay while outOpen; results holds what runs
+	// of the code as it is said about each test, by name.
+	run      *testOutput
+	runs     int
+	runner   testrun.Runner
+	runDone  chan struct{}
+	results  map[string]string
+	outOpen  bool
+	blockAt  *blockMark
+	edit     *editState
+	cmdAsk   bool
+	afterCmd func() tea.Cmd
 	// peekStyled means the peek lines are already painted to the overlay's width.
 	peekStyled bool
 
@@ -140,19 +154,20 @@ func New(opts Options) *Model {
 	in.Prompt = " ask › "
 	in.CharLimit = 4000
 	return &Model{
-		opts:   opts,
-		ghosts: true,
-		notes:  true,
-		note:   -1,
-		spot:   -1,
-		clip:   clip.Copy,
-		whole:  map[[2]int]bool{},
-		expand: map[[2]int]int{},
-		fresh:  map[string]bool{},
-		around: map[string]*aroundEntry{},
-		paint:  render.NewPainter(),
-		spans:  map[string][][]render.Span{},
-		input:  in,
+		opts:    opts,
+		ghosts:  true,
+		notes:   true,
+		note:    -1,
+		spot:    -1,
+		clip:    clip.Copy,
+		whole:   map[[2]int]bool{},
+		expand:  map[[2]int]int{},
+		fresh:   map[string]bool{},
+		around:  map[string]*aroundEntry{},
+		results: map[string]string{},
+		paint:   render.NewPainter(),
+		spans:   map[string][][]render.Span{},
+		input:   in,
 
 		lastInput:   time.Now(),
 		readSession: map[string]bool{},
@@ -200,7 +215,7 @@ func Load(path string) (*doc.Doc, *state.State, error) {
 
 func (m *Model) Init() tea.Cmd {
 	m.loading = true
-	return tea.Batch(m.load(nil), tick())
+	return tea.Batch(m.load(nil), tick(), recoverTrials)
 }
 
 func (m *Model) load(replies []chan control.Response) tea.Cmd {
@@ -277,9 +292,26 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.sessionSecs += int(tickEvery / time.Second)
 		}
 		return m, tick()
+	case runEventsMsg:
+		return m, m.gotRunEvents(msg)
+	case runDoneMsg:
+		m.gotRunDone(msg)
+		return m, nil
+	case editedMsg:
+		return m, m.gotEdited(msg)
+	case recoveredMsg:
+		switch {
+		case msg.err != nil:
+			m.setStatus(true, "%v", msg.err)
+		case len(msg.files) > 0:
+			m.setStatus(false, "put back %s: a tried change was left in from a run margin did not finish", strings.Join(msg.files, ", "))
+		}
+		return m, nil
 	case tea.KeyMsg:
 		m.lastInput = time.Now()
 		switch {
+		case m.edit != nil:
+			return m, m.updateEdit(msg)
 		case m.labeling:
 			return m, m.updateLabel(msg)
 		case m.asking:
@@ -297,6 +329,8 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case m.testsOpen:
 			return m, m.updateTests(msg)
+		case m.outOpen && m.run != nil:
+			return m, m.updateOutput(msg)
 		}
 		return m, m.key(msg)
 	}
@@ -511,6 +545,9 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 		return m.startSearch()
 	case "esc":
 		switch {
+		case m.blockAt != nil:
+			m.blockAt = nil
+			m.setStatus(false, "")
 		case m.query != "":
 			m.endSearch()
 		case m.spot >= 0:
@@ -519,6 +556,16 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 		}
 	case "t":
 		m.openTests()
+	case "T":
+		return m.runLine()
+	case "i":
+		return m.tryHere()
+	case "E":
+		return m.tryExternal()
+	case "V":
+		m.toggleMark()
+	case "o":
+		m.toggleOutput()
 	case "u":
 		m.nextUntested(1)
 	case "U":
@@ -575,10 +622,22 @@ func (m *Model) updateAsk(msg tea.KeyMsg) tea.Cmd {
 	switch msg.Type {
 	case tea.KeyEsc:
 		m.asking, m.commenting, m.designing, m.label, m.blocking = false, false, false, "", false
-		m.answerOn = false
+		m.answerOn, m.cmdAsk, m.afterCmd = false, false, nil
 		m.input.Blur()
+		m.setStatus(false, "")
 		return nil
 	case tea.KeyEnter:
+		if m.cmdAsk {
+			raw := m.input.Value()
+			m.asking, m.cmdAsk = false, false
+			m.input.Blur()
+			m.setStatus(false, "")
+			if strings.TrimSpace(raw) == "" {
+				m.afterCmd = nil
+				return nil
+			}
+			return m.saveCommand(raw)
+		}
 		q := text.Line(m.input.Value())
 		commenting, designing := m.commenting, m.designing
 		m.asking, m.commenting, m.designing = false, false, false

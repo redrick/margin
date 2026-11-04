@@ -17,6 +17,7 @@ import (
 	"github.com/redrick/margin/internal/source"
 	"github.com/redrick/margin/internal/state"
 	"github.com/redrick/margin/internal/target"
+	"github.com/redrick/margin/internal/tryout"
 	"github.com/redrick/margin/internal/tui"
 	"github.com/redrick/margin/internal/watch"
 )
@@ -30,6 +31,10 @@ type Reviews struct {
 	path    string
 	watcher *watch.Watcher
 	ctl     ctlServer
+	tests   testRuns
+	// recovered lists files put back on start, from a run margin did not live to undo.
+	recovered  []string
+	recoverErr string
 }
 
 type Opened struct {
@@ -83,6 +88,7 @@ type CoverageView struct {
 }
 
 type TestView struct {
+	Name      string `json:"name"`
 	Label     string `json:"label"`
 	Display   string `json:"display"`
 	Depth     int    `json:"depth"`
@@ -332,6 +338,8 @@ func (r *Reviews) watch(paths []string) {
 }
 
 func (r *Reviews) ServiceShutdown() error {
+	r.StopTests()
+	tryout.RestoreAll()
 	if r.ctl.srv != nil {
 		r.ctl.srv.Close()
 	}
@@ -375,7 +383,7 @@ func viewOf(d *doc.Doc) *View {
 			cv.Stale = append(cv.Stale, f)
 		}
 		for ti, t := range c.Tests {
-			cv.Tests = append(cv.Tests, TestView{Label: t.Label(), Display: t.Display, Depth: t.Depth, Synthetic: t.Synthetic, Group: t.Group, File: t.File, Line: t.Line, New: t.New})
+			cv.Tests = append(cv.Tests, TestView{Name: t.Name, Label: t.Label(), Display: t.Display, Depth: t.Depth, Synthetic: t.Synthetic, Group: t.Group, File: t.File, Line: t.Line, New: t.New})
 			row := make([][2]int, len(d.Stations))
 			for si, st := range d.Stations {
 				if st.Kind == doc.Code {

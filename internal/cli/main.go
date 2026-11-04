@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"syscall"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,6 +22,7 @@ import (
 	"github.com/redrick/margin/internal/source"
 	"github.com/redrick/margin/internal/state"
 	"github.com/redrick/margin/internal/tmuxx"
+	"github.com/redrick/margin/internal/tryout"
 	"github.com/redrick/margin/internal/tui"
 	"github.com/redrick/margin/internal/watch"
 )
@@ -214,7 +217,18 @@ func cmdOpen(args []string) error {
 		return err
 	}
 	defer srv.Close()
+	// Closing the pane hangs the viewer up; quit properly so a line being tried is put back.
+	hup := make(chan os.Signal, 1)
+	signal.Notify(hup, syscall.SIGHUP)
+	defer signal.Stop(hup)
+	go func() {
+		if _, ok := <-hup; ok {
+			p.Quit()
+		}
+	}()
 	_, err = p.Run()
+	m.StopTests()
+	tryout.RestoreAll()
 	return err
 }
 
@@ -241,7 +255,7 @@ func cmdSplit(args []string) error {
 		fmt.Println("already open; socket", sock)
 		return nil
 	}
-	exe, err := os.Executable()
+	exe, err := Self()
 	if err != nil {
 		return err
 	}
