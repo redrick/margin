@@ -672,7 +672,7 @@ func (m *Model) settleRows(st *doc.Station, notes []int) {
 		if m.state.Flagged[n.Key] {
 			mark = "⚑ "
 		}
-		m.rows = append(m.rows, row{kind: rowLink, fg: colProblem, text: m.fitHint(mark, oneLine(plain(n.Text)), " · ? agree · x dismiss"),
+		m.rows = append(m.rows, row{kind: rowLink, fg: colProblem, text: m.fitHint(mark, oneLine(plain(n.Text)), m.agreeHint(n.Key)),
 			target: m.station, noteAt: ni, comment: -1, notes: []int{ni}})
 	}
 }
@@ -879,7 +879,11 @@ func (m *Model) wrapRows(st *doc.Station) {
 	case verdict.Good:
 		m.wrapped(toneDim, 0, "space: on to the next stop.")
 	case verdict.Changes:
-		m.wrapped(toneFlow, 0, "Say what needs to change: b goes back to the code, c comments on a line. S sends your comments to the agent. Then space moves on.")
+		if id := m.fixSentAs(stopFixKey(st.ID)); id != "" {
+			m.wrapped(toneDim, 0, "Sent to the agent to change, as "+id+". space: on to the next stop.")
+		} else {
+			m.wrapped(toneFlow, 0, "Say what needs to change: b goes back to the code, c comments on a line. P asks the agent to make the changes, with your comments on this stop as the brief. Then space moves on.")
+		}
 	case verdict.Unsure:
 		m.wrapped(toneFlow, 0, "Not sure is a fine answer. b goes back and a asks the agent about the line that bothers you; w shows the whole stop at once. Then space moves on.")
 	default:
@@ -1360,4 +1364,25 @@ func (m *Model) design(why string) {
 		}
 	}
 	m.setStatus(false, "saved: this blocks the change. You can still walk the stops with }.")
+}
+
+// agreeHint is what the reader can do next with a problem note.
+func (m *Model) agreeHint(key string) string {
+	if !m.state.Flagged[key] {
+		return " · ? agree · x dismiss"
+	}
+	if id := m.fixSentAs(key); id != "" {
+		return " · sent to the agent to fix (" + id + ")"
+	}
+	return " · P asks the agent to fix it · ? takes it back"
+}
+
+// fixSentAs is the comment id a fix request for key was sent as, or "".
+func (m *Model) fixSentAs(key string) string {
+	for _, q := range m.state.Questions {
+		if q.Fix == key {
+			return q.ID
+		}
+	}
+	return ""
 }

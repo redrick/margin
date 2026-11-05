@@ -464,6 +464,10 @@ func (m *Model) recapRows() {
 	m.verdictRows()
 	m.wrapped(toneLede, 0, "The checklist before you approve: the calls only you can make, every problem and open question, and your own comments. Enter jumps to the line. A problem without evidence is listed as a question until the agent backs it up.")
 	m.add(rowText, tonePlain, "")
+	if fix := len(ToFix(m.doc, m.state)); fix > 0 {
+		m.wrapped(toneFlow, 0, fmt.Sprintf("⚑ %d to fix, not sent yet: the problems you agreed with and the stops you said need changes. Agreeing and verdicts only mark them; P asks the agent to change the code, and each comes back as a comment it resolves.", fix))
+		m.add(rowText, tonePlain, "")
+	}
 	found := m.callRows()
 	groups := []struct {
 		title string
@@ -486,7 +490,10 @@ func (m *Model) recapRows() {
 					heading, found = true, true
 				}
 				mark := ""
-				if m.state.Reviewed[n.Key] {
+				switch {
+				case m.state.Flagged[n.Key] && n.Level() == doc.KindIssue:
+					mark = "⚑ "
+				case m.state.Reviewed[n.Key]:
 					mark = "✓ "
 				}
 				m.wrappedLink(g.fg, fmt.Sprintf("%s%s — %s", mark, noteWhere(st, n), oneLine(plain(n.Text))), si, ni)
@@ -554,6 +561,10 @@ func (m *Model) commentRows() bool {
 		}
 		status, fg := "sent", colComment
 		switch {
+		case q.Fix != "" && resolved[q.ID]:
+			status, fg = "fixed", colDim
+		case q.Fix != "":
+			status = "fix sent"
 		case q.Draft:
 			status = "draft"
 		case resolved[q.ID]:
@@ -1214,6 +1225,7 @@ type Counts struct {
 	Lost      int `json:"lost"`
 	Open      int `json:"open_questions"`
 	Drafts    int `json:"draft_comments"`
+	ToFix     int `json:"to_fix"`
 	Calls     int `json:"calls"`
 	CallsMade int `json:"calls_made"`
 }
@@ -1255,6 +1267,7 @@ func CountsOf(d *doc.Doc, st *state.State) Counts {
 			}
 		}
 	}
+	c.ToFix = len(ToFix(d, st))
 	answered := d.AnsweredQuestions()
 	for _, q := range st.Questions {
 		switch {

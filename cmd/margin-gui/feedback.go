@@ -25,6 +25,7 @@ type ReaderView struct {
 	Dismissed []string          `json:"dismissed"`
 	Comments  []CommentView     `json:"comments"`
 	Drafts    int               `json:"drafts"`
+	ToFix     int               `json:"toFix"`
 	Outcome   OutcomeView       `json:"outcome"`
 	Labels    []LabelView       `json:"labels"`
 	Questions []QuestionView    `json:"questions"`
@@ -88,6 +89,7 @@ func readerOf(d *doc.Doc, st *state.State) ReaderView {
 			rv.Drafts++
 		}
 	}
+	rv.ToFix = len(tui.ToFix(d, st))
 	o := verdict.Recommend(d, st)
 	rv.Outcome = OutcomeView{Decision: o.Decision, Blockers: o.Blockers, Left: o.Left, Notes: o.Notes}
 	for _, l := range state.Labels {
@@ -267,6 +269,39 @@ func (r *Reviews) SendComments() (*View, error) {
 			return nil
 		})
 		return nil, fmt.Errorf("not sent, kept as drafts: %w", err)
+	}
+	return v, nil
+}
+
+// SendFixes asks the agent to fix the problems the reader agreed with and the stops they judged as
+// needing changes, all not sent yet; each becomes a sent comment the agent resolves.
+func (r *Reviews) SendFixes() (*View, error) {
+	path := r.current()
+	if !r.agents.Running(path) {
+		return nil, errors.New("start the agent first; what you want fixed waits until then")
+	}
+	var msg string
+	var ids []string
+	v, err := r.change(func(d *doc.Doc, st *state.State) error {
+		qs := tui.AddFixes(d, st)
+		if len(qs) == 0 {
+			return errors.New("nothing to fix yet: agree (?) with a problem, or give a stop the verdict needs changes")
+		}
+		for _, q := range qs {
+			ids = append(ids, q.ID)
+		}
+		msg = tui.FixMessage(qs, review.CommentsPath(path))
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if err := r.agents.Send(path, msg); err != nil {
+		_, _ = r.change(func(_ *doc.Doc, st *state.State) error {
+			tui.DropFixes(st, ids)
+			return nil
+		})
+		return nil, fmt.Errorf("not sent: %w", err)
 	}
 	return v, nil
 }

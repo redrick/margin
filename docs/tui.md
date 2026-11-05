@@ -212,6 +212,13 @@ wrong, for which input, and what you would do instead"). Comments stay drafts un
 to the agent, which fixes the code or explains why not and closes each one. The review reloads by
 itself: `N` jumps to the new notes, and notes marked Δ changed along with the code.
 
+Agreeing with one of the agent's problems (`?`) or giving a stop the verdict `2` needs changes only
+marks it: it blocks approval and goes into the export, but the agent does not hear about it. When
+you want it fixed, `P` sends everything of that kind not sent yet to the agent as one `[margin fix]`
+message. A stop goes with your comments on it as the brief (without any, the agent asks you what to
+change). Each becomes a comment (`cN`) that the agent fixes in the code, answers and resolves, so it
+shows up in the recap and in `A` like your other comments. `S` keeps meaning "here are my remarks, change code only where I ask".
+
 **5. Decide: the recap tells you what to do.** After the last stop, the recap recommends *approve*, *request
 changes*, or says the review is *not finished* and lists exactly what is left: stops without a
 verdict, calls not made, problems neither flagged nor dismissed, blocking comments not resolved.
@@ -763,6 +770,7 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 | `a` | ask about the current line |
 | `c` | comment on the current line: pick its kind (`i` `s` `q` `n` `p` `t`, `!` flips blocking), then write it; kept as a draft |
 | `S` | send the draft comments to the agent |
+| `P` | ask the agent to fix the problems you agreed with (`?`) and the stops you gave `2`; each comes back as a comment it resolves |
 | `A` | the agent's answers to your comments: `]` `[` between them, `r` reply, `e` edit in `$EDITOR` |
 | `space` in whole stops | mark the note reviewed, or a call made, and move on (again to undo) |
 | `?` | flag the note to come back to (again to undo) |

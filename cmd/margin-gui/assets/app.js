@@ -1,6 +1,6 @@
 import { Events } from "/wails/runtime.js";
 import { api, $, state, hooks, toast, errText, tail, closeModal } from "./core.js";
-import { openReview, openReviewFile, reviewKey, renderReview, sendComments } from "./review.js";
+import { openReview, openReviewFile, reviewKey, renderReview, sendComments, sendFixes } from "./review.js";
 import { loadWorkspace, loadRecent, renderSide, addFolder, selectWorktree, homeKey, backToReview, syncSideButtons, openSwitcher, switcherOpen, openSettings, navState } from "./nav.js";
 
 // Agent terminal
@@ -215,6 +215,7 @@ $("#back-review").onclick = backToReview;
 $("#wt-refresh").onclick = () => state.worktree && selectWorktree(state.worktree, state.worktree.repo);
 $("#agent-btn").onclick = toggleAgent;
 $("#send-btn").onclick = sendComments;
+$("#fix-btn").onclick = sendFixes;
 $("#agent-submit").onchange = (e) => api("Agents.SetSubmit", e.target.checked);
 
 function setAgentCollapsed(collapsed) {

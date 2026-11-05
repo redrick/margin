@@ -1,6 +1,6 @@
 ---
 name: margin
-description: Review code changes with margin, a viewer that shows the diff with your notes beside each line while a person reads it. Use when the user asks for a margin review of uncommitted changes, a branch, a commit or a pull request; when a session starts with "Code review with margin"; or when a message starts with "[margin q", "[margin comments]", "[margin reply]", "[margin run]" or "[margin tryout]".
+description: Review code changes with margin, a viewer that shows the diff with your notes beside each line while a person reads it. Use when the user asks for a margin review of uncommitted changes, a branch, a commit or a pull request; when a session starts with "Code review with margin"; or when a message starts with "[margin q", "[margin comments]", "[margin fix]", "[margin reply]", "[margin run]" or "[margin tryout]".
 ---
 
 # margin
@@ -49,6 +49,11 @@ viewer in a pane beside yours and sends you the instructions.
 - `[margin comments] …` is a batch of review comments. Change code only for a comment that
   explicitly asks for it. Answer every comment in the comments note the batch names, then close
   it with `margin resolve cN "short answer"`.
+- `[margin fix] …` lists what the reader wants changed: problems you pointed out that they agree
+  with, and stops they judged as needing changes (their comments on the stop say what; with none,
+  ask them first). Fix each in the code, update the affected notes, answer it in the comments note
+  and close it with `margin resolve cN "Fixed: ..."`. If one should not be fixed after all, leave
+  it and say why.
 - `[margin reply] …` is the reader answering your answer in the comments note. Reply under the
   same comment in that note, and resolve again if your answer changes.
 - `[margin run] …` asks you to run tests and report what they show; change nothing.

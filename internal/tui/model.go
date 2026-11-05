@@ -53,6 +53,8 @@ type sentMsg struct {
 	err error
 	// drafts are comments to turn back into drafts when sending them failed.
 	drafts []string
+	// fixes are fix requests to take back when sending them failed.
+	fixes []string
 }
 
 type Model struct {
@@ -280,7 +282,12 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setStatus(false, "copied %s to the clipboard", msg.what)
 		}
 	case sentMsg:
-		if msg.err != nil {
+		if msg.err != nil && len(msg.fixes) > 0 {
+			DropFixes(m.state, msg.fixes)
+			m.state.Save()
+			m.rebuildKeep()
+			m.setStatus(true, "%s not sent: %v", msg.id, msg.err)
+		} else if msg.err != nil {
 			m.redraft(msg.drafts)
 			m.setStatus(true, "%s saved, not sent: %v", msg.id, msg.err)
 		} else {
@@ -602,6 +609,8 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 		m.openAnswers()
 	case "S":
 		return m.sendComments()
+	case "P":
+		return m.sendFixes()
 	case "y":
 		return m.yank(false)
 	case "Y":

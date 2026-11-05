@@ -51,6 +51,8 @@ type Question struct {
 	Asked   time.Time `yaml:"asked" json:"asked"`
 	// Answers is the key of the agent's question note this comment answers.
 	Answers string `yaml:"answers,omitempty" json:"answers,omitempty"`
+	// Fix is the key of the agent's problem note the reader agreed with and sent to be fixed.
+	Fix string `yaml:"fix,omitempty" json:"fix,omitempty"`
 }
 
 func Load(path string) (*State, error) {

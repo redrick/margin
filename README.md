@@ -62,7 +62,8 @@ Set it with `margin-tui config set agent codex` or in margin-gui's settings.
 
 The agent learns the rest from margin: `margin brief` gives it the task, `margin agent-help` the
 full instructions and the review file format. Your questions reach it as `[margin qN] …`, your
-comments as `[margin comments] …`, and it answers through `margin answer`, `margin resolve` and the
+comments as `[margin comments] …`, the problems you agreed with and the stops you said need changes as `[margin fix] …`,
+and it answers through `margin answer`, `margin resolve` and the
 comments note beside the review.
 
 ### The skill

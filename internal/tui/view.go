@@ -148,6 +148,9 @@ func (m *Model) footerView() string {
 		}
 		segs = append(segs, pill(label, colInk, colComment)...)
 	}
+	if c.ToFix > 0 {
+		segs = append(segs, pill(fmt.Sprintf("⚑ %d to fix · P sends", c.ToFix), colInk, colProblem)...)
+	}
 	if c.Open > 0 {
 		segs = append(segs, pill(fmt.Sprintf("%d waiting for the agent", c.Open), colChanged, colBar)...)
 	}
@@ -563,6 +566,7 @@ var helpLines = []string{
 	" x          dismiss the note; in the recap, delete a draft comment",
 	" a          ask the agent now    c      comment: pick a kind, kept as a draft",
 	" S          send the drafts      v      show notes hidden by blind mode",
+	" P          ask the agent to fix the problems you agreed with (?) and stops marked 2",
 	" A          the agent's answers to your comments: ] [ between them, r reply, e edit",
 	" y Y        copy the note / the whole stop",
 	" F          filter: all, findings, problems, each focus area",

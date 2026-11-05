@@ -103,7 +103,10 @@ with pictures. In short:
 - **Your side.** Comment on a line with `c` (pick a kind: issue, suggestion, question, nitpick,
   praise, thought; `!` makes it blocking). Comments are drafts until `S` sends them all to the
   agent. Ask the agent about a line with `a`. Mark notes read, agree with a problem (`?`), dismiss
-  one (`x`), tick the calls only you can make, and answer the agent's questions.
+  one (`x`), tick the calls only you can make, and answer the agent's questions. Agreeing with a
+  problem or giving a stop "needs changes" only marks it; **Ask to fix** (`P`) in the top bar or
+  the recap hands them to the agent (a stop with your comments on it as the brief), and each comes
+  back as a comment it resolves.
 - **Seeing more.** Search (`/`), note filters (`F`), folding (`z`), removed lines (`d`), side by side
   (`s`), more context (`+` `-`) or the whole file (`f`), blind mode, callers and history around a
   stop, per-test coverage with the tests that run a line (`t`), a spotlight on one test, untested

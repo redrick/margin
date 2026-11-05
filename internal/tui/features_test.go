@@ -9,7 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/redrick/margin/internal/doc"
 	"github.com/redrick/margin/internal/state"
+	"github.com/redrick/margin/internal/verdict"
 )
 
 func TestIntentOnOverview(t *testing.T) {
@@ -387,5 +389,92 @@ func TestTestsPicker(t *testing.T) {
 	}
 	if msg := RunTestsMessage([]string{"./inventory TestReserve"}, "inventory/stock.go", 31, "if qty <= 0 {"); !strings.Contains(msg, "[margin run]") || !strings.Contains(msg, "change nothing") {
 		t.Errorf("run message: %s", msg)
+	}
+}
+
+func TestFixAgreedProblems(t *testing.T) {
+	m := newModel(t)
+	var key string
+	for _, n := range m.doc.CodeNotes() {
+		if n.Level() == doc.KindIssue && !n.Unbacked() && n.Part >= 0 {
+			key = n.Key
+			break
+		}
+	}
+	if key == "" {
+		t.Fatal("the example has no problem note")
+	}
+	m.state.Flagged[key] = true
+	if c := m.counts(); c.ToFix != 1 {
+		t.Fatalf("an agreed problem should wait to be fixed: %+v", c)
+	}
+	press(m, "P")
+	if len(m.state.Questions) != 0 || !strings.Contains(m.status, "no agent pane") {
+		t.Fatalf("without an agent pane nothing is sent: %+v %q", m.state.Questions, m.status)
+	}
+
+	m.opts.AgentPane = "%999"
+	if m.sendFixes() == nil {
+		t.Fatal("P should send the agreed problems")
+	}
+	if len(m.state.Questions) != 1 {
+		t.Fatalf("questions = %+v", m.state.Questions)
+	}
+	q := m.state.Questions[0]
+	if q.ID != "c1" || !q.IsComment() || q.Draft || q.Fix != key || q.Needle == "" || q.Line == 0 {
+		t.Fatalf("fix request = %+v", q)
+	}
+	if c := m.counts(); c.ToFix != 0 {
+		t.Errorf("a sent problem is not sent again: %+v", c)
+	}
+	msg := FixMessage(m.state.Questions, "/vault/x.comments.md")
+	for _, want := range []string{"[margin fix] 1 things the reader wants changed", "c1 " + q.File, "Fix each one in the code", "margin resolve", "/vault/x.comments.md"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("agent message misses %q: %s", want, msg)
+		}
+	}
+	if !strings.Contains(m.agreeHint(key), "sent to the agent to fix (c1)") {
+		t.Errorf("hint = %q", m.agreeHint(key))
+	}
+
+	m.Update(sentMsg{id: "fix request c1", err: os.ErrClosed, fixes: []string{"c1"}})
+	if len(m.state.Questions) != 0 || m.counts().ToFix != 1 {
+		t.Fatalf("a failed send should take the fix request back: %+v", m.state.Questions)
+	}
+}
+
+func TestFixNeedsChangesStop(t *testing.T) {
+	m := newModel(t)
+	mustGoto(t, m, "reserve:1")
+	press(m, "c", "enter", "reject zero too", "enter")
+	m.state.Verdicts["reserve"] = verdict.Changes
+	m.state.Verdicts["store"] = verdict.Good
+	items := ToFix(m.doc, m.state)
+	if len(items) != 1 || items[0].Key != "stop:reserve" || items[0].Note != nil {
+		t.Fatalf("a stop that needs changes should wait to be fixed: %+v", items)
+	}
+	mustGoto(t, m, "recap")
+	if !strings.Contains(strings.Join(strings.Fields(rowsText(m)), " "), "⚑ 1 to fix, not sent yet") {
+		t.Errorf("recap should say what is left to fix:\n%s", rowsText(m))
+	}
+
+	m.opts.AgentPane = "%999"
+	if m.sendFixes() == nil {
+		t.Fatal("P should send the stop")
+	}
+	q := m.state.Questions[len(m.state.Questions)-1]
+	if q.Fix != "stop:reserve" || q.Station != "reserve" || q.Needle == "" || q.Line == 0 || q.Draft {
+		t.Fatalf("fix request = %+v", q)
+	}
+	for _, want := range []string{`stop "`, "needs changes", `c1 (inventory/stock.go:32) "reject zero too"`} {
+		if !strings.Contains(q.Text, want) {
+			t.Errorf("request misses %q: %s", want, q.Text)
+		}
+	}
+	if _, s := m.doc.Station("reserve"); len(s.Hits(q.File, q.Needle)) == 0 {
+		t.Errorf("margin resolve must find the request's line %q in the stop", q.Needle)
+	}
+	if len(ToFix(m.doc, m.state)) != 0 {
+		t.Error("a sent stop is not sent again")
 	}
 }

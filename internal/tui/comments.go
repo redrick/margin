@@ -223,6 +223,36 @@ func (m *Model) sendComments() tea.Cmd {
 	return func() tea.Msg { return sentMsg{id: id, err: tmuxx.Send(pane, msg, submit), drafts: ids} }
 }
 
+// sendFixes hands the problems the reader agreed with and the stops they judged as needing changes
+// to the agent to fix, each as a comment it resolves when done.
+func (m *Model) sendFixes() tea.Cmd {
+	if m.state == nil || len(ToFix(m.doc, m.state)) == 0 {
+		m.setStatus(false, "nothing to fix yet: ? agrees with a problem, 2 says a stop needs changes")
+		return nil
+	}
+	if m.opts.AgentPane == "" {
+		m.setStatus(false, "no agent pane; what you want fixed waits until the viewer runs beside an agent")
+		return nil
+	}
+	qs := AddFixes(m.doc, m.state)
+	if err := m.state.Save(); err != nil {
+		m.setStatus(true, "saving fix requests: %v", err)
+		return nil
+	}
+	m.rebuildKeep()
+	pane, submit, msg := m.opts.AgentPane, m.opts.Submit, FixMessage(qs, review.CommentsPath(m.opts.ReviewPath))
+	ids := make([]string, len(qs))
+	for i, q := range qs {
+		ids[i] = q.ID
+	}
+	id := fmt.Sprintf("%d fix requests", len(qs))
+	if len(qs) == 1 {
+		id = "fix request " + qs[0].ID
+	}
+	m.setStatus(false, "sending %s…", id)
+	return func() tea.Msg { return sentMsg{id: id, err: tmuxx.Send(pane, msg, submit), fixes: ids} }
+}
+
 func (m *Model) redraft(ids []string) {
 	if len(ids) == 0 {
 		return

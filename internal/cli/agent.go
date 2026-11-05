@@ -133,6 +133,11 @@ little context, opened the viewer beside you and started you with the review fil
    comment if the answer was not obvious from the code); a suggestion or nitpick is yours to take
    or decline with a reason; praise needs no change, resolve it with a short thanks.
    margin questions lists what is still open.
+   What the reader wants changed arrives as "[margin fix] ...", one line per cN: a problem note of
+   yours they agreed with, or a stop they judged as needing changes, with their comments on it as
+   the brief (none: ask them in chat what to change first). Fix each in the code (step 4), answer
+   it in the comments note the same way, and close it with margin resolve cN "Fixed: ...". If one
+   should not be fixed after all, leave the code alone and say why.
 
 4. Code changes requested during the review: edit the code, add changed: "what and why" to the
    affected notes (the reader sees Δ), and add new notes with margin note.

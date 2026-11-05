@@ -271,6 +271,9 @@ export function renderReview() {
   const drafts = reader().drafts ?? 0;
   $("#send-btn").classList.toggle("hidden", !drafts);
   $("#send-btn").textContent = `Send ${drafts} comment${drafts > 1 ? "s" : ""}`;
+  const toFix = reader().toFix ?? 0;
+  $("#fix-btn").classList.toggle("hidden", !toFix);
+  $("#fix-btn").textContent = `Ask to fix ${toFix}`;
   renderToolbar();
   renderStatus();
   const nav = $("#stations");
@@ -392,6 +395,11 @@ export function goStation(i, noteIdx = -1, step = 0) {
 }
 
 function renderStation() {
+  drawStation();
+  covHint();
+}
+
+function drawStation() {
   const s = cur();
   const box = $("#station");
   box.innerHTML = "";
@@ -726,6 +734,11 @@ function noteCard(s, n, i, opts = {}) {
   };
   if (n.kind !== "decide") btn(marks.reviewed ? "✓ Read" : "Mark read", "You read and understood it (space)", marks.reviewed, () => act("MarkNote", n.key, "reviewed"));
   if (n.kind === "issue" && !n.unbacked) btn(marks.flagged ? "⚑ Agreed" : "Agree", "Agree it is a problem: it blocks approval (?)", marks.flagged, () => act("MarkNote", n.key, "flagged"));
+  if (n.kind === "issue" && !n.unbacked && marks.flagged) {
+    const sent = fixSent(n.key);
+    if (sent) actions.append(el(`<span class="muted small">sent to fix as ${esc(sent.id)}</span>`));
+    else btn("Have it fixed", "Ask the agent to fix every problem you agreed with (P)", false, sendFixes);
+  }
   if (n.kind === "decide") btn(marks.reviewed ? "☑ Decided" : "☐ Decided", "You made this call (enter)", marks.reviewed, () => act("MarkNote", n.key, "reviewed"));
   if ((n.kind === "question" || n.unbacked) && !n.q && n.part >= 0) {
     btn(answered ? "✓ Answered" : "Answer", "Answer the agent's question in a comment", answered, () => openComposer(s.id, n.part, n.line, { answers: n.key }));
@@ -850,7 +863,7 @@ function commentCard(c, opts = {}) {
   const card = el(`<div class="comment${c.draft ? " draft" : ""}${c.blocking ? " blocking" : ""}${opts.static ? " static" : ""}">
     ${opts.where ? `<div class="muted small">${esc(c.file)}:${c.line}</div>` : ""}
     <span class="ck">${esc(c.id)} · you${c.label ? " · " + esc(c.label) : ""}${c.blocking ? " (blocking)" : ""}</span>
-    <span class="badge">${c.resolved ? "resolved" : c.draft ? "draft" : "sent"}</span>
+    <span class="badge">${c.fix ? (c.resolved ? "fixed" : "fix sent") : c.resolved ? "resolved" : c.draft ? "draft" : "sent"}</span>
     <div>${prose(body)}</div></div>`);
   if (!c.draft) {
     const ans = el(`<button class="na" title="Read the agent's answer, reply to it (A)">Answer</button>`);
@@ -1067,6 +1080,19 @@ export async function sendComments() {
   if (!state.agentLive) return toast("Start the agent first; your drafts stay until then.", true);
   if (!(reader().drafts > 0)) return toast("No draft comments; c writes one on the selected line.");
   if (await act("SendComments")) toast("Comments sent to the agent. It answers each one and resolves it.");
+}
+
+// sendFixes asks the agent to fix the problems the reader agreed with; each comes back as a
+// comment it resolves.
+export async function sendFixes() {
+  const n = reader().toFix ?? 0;
+  if (!n) return toast("Nothing to fix yet: Agree (?) with a problem, or give a stop the verdict 2 needs changes.");
+  if (!state.agentLive) return toast("Start the agent first; what you want fixed waits until then.", true);
+  if (await act("SendFixes")) toast(`Sent ${n} to the agent to fix. Each comes back as a comment it resolves.`);
+}
+
+function fixSent(key) {
+  return reader().comments?.find((c) => c.fix === key);
 }
 
 // Verdicts
@@ -1382,7 +1408,11 @@ function settleRow(s, n, i, where = "") {
     row.append(btn("Dismiss", () => act("MarkNote", n.key, "dismissed")));
   } else {
     const flagged = rd.flagged.includes(n.key);
-    row.append(el(`<span class="sr-mark">${flagged ? "⚑" : "!"}</span>`), el(`<span class="sr-text">${text}</span>`), btn(flagged ? "Agreed" : "Agree", () => act("MarkNote", n.key, "flagged"), flagged), btn("Dismiss", () => act("MarkNote", n.key, "dismissed")));
+    row.append(el(`<span class="sr-mark">${flagged ? "⚑" : "!"}</span>`), el(`<span class="sr-text">${text}</span>`), btn(flagged ? "Agreed" : "Agree", () => act("MarkNote", n.key, "flagged"), flagged));
+    const sent = flagged && fixSent(n.key);
+    if (sent) row.append(el(`<span class="muted small">sent to fix as ${esc(sent.id)}</span>`));
+    else if (flagged) row.append(btn("Have it fixed (P)", sendFixes));
+    row.append(btn("Dismiss", () => act("MarkNote", n.key, "dismissed")));
   }
   row.onclick = () => {
     if (walking() && n.part >= 0) {
@@ -1426,7 +1456,9 @@ function wrapStep(body, s) {
   const v = rd.verdicts[s.id];
   const next = {
     good: "Space: on to the next stop.",
-    changes: "Say what needs to change: b goes back to the code, c comments on a line. Send your comments to the agent (S). Then space moves on.",
+    changes: fixSent("stop:" + s.id)
+      ? `Sent to the agent to change, as ${fixSent("stop:" + s.id).id}. Space moves on.`
+      : "Say what needs to change: b goes back to the code, c comments on a line. P asks the agent to make the changes, with your comments on this stop as the brief. Then space moves on.",
     unsure: "Not sure is a fine answer. b goes back and a asks the agent about the line that bothers you; w shows the whole stop at once. Then space moves on.",
   }[v] ?? "Press 1, 2 or 3.";
   body.append(navHint(next));
@@ -1735,6 +1767,11 @@ function renderRecap(box) {
   const exp = el(`<p><button class="small">Export for posting…</button> <span class="muted small">your comments, flagged problems and calls, as Markdown or GitHub review text. margin never posts.</span></p>`);
   exp.querySelector("button").onclick = openExport;
   ov.append(exp);
+  if (rd.toFix) {
+    const b = el(`<p><button class="primary small">Ask the agent to fix ${rd.toFix} (P)</button> <span class="muted small">the problems you agreed with and the stops you said need changes. Agreeing and verdicts only mark them; this hands them to the agent, which changes the code and resolves each one as a comment.</span></p>`);
+    b.querySelector("button").onclick = sendFixes;
+    ov.append(b);
+  }
   const where = (s, n) => (n.part < 0 ? s.id : `${s.id} · ${base(s.parts[n.part].file)}:${n.line + 1}`);
   const link = (cls, html, si, ni) => {
     const l = el(`<div class="peek-link navable ${cls}">${html}</div>`);
@@ -1760,7 +1797,7 @@ function renderRecap(box) {
     if (!items.length) continue;
     any = true;
     const g = el(`<div><h3>${h}</h3></div>`);
-    for (const [s, si, n, ni] of items) g.append(link(cls, `${rd.reviewed.includes(n.key) || rd.flagged.includes(n.key) ? "✓ " : ""}${esc(where(s, n))} — ${esc(oneLine(n.text).slice(0, 160))}`, si, ni));
+    for (const [s, si, n, ni] of items) g.append(link(cls, `${rd.flagged.includes(n.key) && n.kind === "issue" ? (fixSent(n.key) ? "⚑ sent to fix · " : "⚑ ") : rd.reviewed.includes(n.key) ? "✓ " : ""}${esc(where(s, n))} — ${esc(oneLine(n.text).slice(0, 160))}`, si, ni));
     ov.append(g);
   }
   if (!any) ov.append(el(`<p class="muted">Nothing open: every problem and question was dismissed.</p>`));
@@ -1988,31 +2025,72 @@ async function runHere() {
 
 // covHint puts the selected line's actions right under it, with the tests that run it, like the
 // terminal viewer's notes column does.
-let hintTimer;
+// It is kept between renders and put back in the same task, and replaced in place, so it never
+// leaves the page for a frame and the code under it does not jump.
+let hint = null;
 function covHint() {
-  clearTimeout(hintTimer);
-  hintTimer = setTimeout(drawCovHint, 20);
+  const c = hintContext();
+  const old = document.querySelector("#station .cov-hint");
+  if (!c) {
+    old?.remove();
+    hint = null;
+    return;
+  }
+  if (hint?.dataset.key === c.key) {
+    if (old && old !== hint) old.remove();
+    if (c.rowEl.nextElementSibling !== hint) c.rowEl.after(hint);
+    return;
+  }
+  const known = idsNow(c);
+  if (!known) {
+    old?.remove();
+    hint = null;
+    const ids = c.many ? blockTests(c.s, c.many.part, c.many.line, c.many.end) : testsAtLine(c.s.id, c.sel.part, c.sel.line);
+    ids.then((ids) => {
+      const now = hintContext();
+      if (now?.key !== c.key || hint?.dataset.key === c.key) return;
+      document.querySelector("#station .cov-hint")?.remove();
+      hint = buildHint(now, [...ids]);
+      now.rowEl.after(hint);
+    });
+    return;
+  }
+  hint = buildHint(c, known);
+  if (old) old.replaceWith(hint);
+  else c.rowEl.after(hint);
 }
 
-async function drawCovHint() {
+function hintContext() {
   const s = cur();
   const sel = state.sel;
-  const find = () => (sel && s && sel.station === s.id ? document.querySelector(`#station .row[data-part="${sel.part}"][data-line="${sel.line}"]`) : null);
-  const rowEl = find();
+  if (!sel || !s || sel.station !== s.id || state.trying) return null;
+  const rowEl = document.querySelector(`#station .row[data-part="${sel.part}"][data-line="${sel.line}"]`);
   const p = rowEl && partData(s, sel.part);
   const r = p?.rows.find((x) => x.n - 1 === sel.line);
-  const busy = (x) => x && x.station === sel.station && x.part === sel.part && x.line === sel.line;
+  const c = state.compose;
+  if (!r || (c && c.station === sel.station && c.part === sel.part && c.line === sel.line)) return null;
   const b = block();
   const many = b && b.end > b.line ? b : null;
-  const key = r && !busy(state.compose) && !state.trying ? `${s.id}|${sel.part}|${sel.line}|${many ? many.line + "-" + many.end : ""}|${r.cov ?? ""}|${[...results.values()].join()}` : "";
-  const old = document.querySelector("#station .cov-hint");
-  if (old && old.dataset.key === key && old.previousElementSibling === rowEl) return;
-  old?.remove();
-  if (!key) return;
-  const ids = many ? await blockTests(s, many.part, many.line, many.end) : r.cov === "run" ? [...(await testsAtLine(s.id, sel.part, sel.line))] : [];
-  const now = find();
-  const same = state.sel && state.sel.station === sel.station && state.sel.part === sel.part && state.sel.line === sel.line;
-  if (!same || !now || document.querySelector("#station .cov-hint")) return;
+  const key = `${s.id}|${sel.part}|${sel.line}|${many ? many.line + "-" + many.end : ""}|${r.cov ?? ""}|${[...results.values()].join()}`;
+  return { s, sel, rowEl, p, r, many, key };
+}
+
+// idsNow is the tests that run the hint's lines when they are known without asking, else null.
+function idsNow(c) {
+  if (!c.many && c.r.cov !== "run") return [];
+  if (atCache.view !== state.view) return null;
+  const ids = new Set();
+  const lines = c.many ? (c.p.rows ?? []).filter((r) => r.cov === "run" && r.n - 1 >= c.many.line && r.n - 1 <= c.many.end).map((r) => r.n - 1) : [c.sel.line];
+  for (const l of lines) {
+    const got = atCache.map.get(`${c.s.id}|${c.many?.part ?? c.sel.part}|${l}`);
+    if (!got) return null;
+    got.forEach((t) => ids.add(t));
+  }
+  return [...ids];
+}
+
+function buildHint(c, ids) {
+  const { r, p, many, key } = c;
   const tests = state.view.coverage?.tests ?? [];
   ids.sort((a, b) => tests[a].label.localeCompare(tests[b].label));
   const shown = ids.slice(0, 4);
@@ -2041,7 +2119,7 @@ async function drawCovHint() {
   });
   h.querySelector("[data-comment]").onclick = () => startOnLine("comment");
   h.querySelector("[data-ask]").onclick = () => startOnLine("ask");
-  now.after(h);
+  return h;
 }
 // Trying a change: the selected line, edited, runs its tests (or the stop's) with the edit in the
 // file; margin puts the line back after.
@@ -2400,7 +2478,7 @@ async function openExport() {
 const helpKeys = [
   ["Walk", [["space", "next step; at the end of a stop, the next stop"], ["b", "previous step"], ["w", "guided walk or whole stop"], ["e", "more of the stop card or overview"], ["y n ?", "answer the orient question (overview)"]]],
   ["Move", [["} {", "next / previous stop"], ["] [", "next / previous note"], ["j k", "move the selected line"], ["J K shift+click", "select a block of lines"], ["ctrl+d ctrl+u", "half a page down / up"], ["g G", "top / bottom"], ["h l 0", "scroll code sideways / back"], ["N", "next new note (or previous match)"]]],
-  ["Judge", [["1 2 3", "verdict: looks good / needs changes / not sure"], ["space", "mark the selected note read (whole stop)"], ["?", "agree with the selected problem"], ["x", "dismiss the selected note"], ["enter", "tick the selected call"], ["v", "reveal notes in blind mode"]]],
+  ["Judge", [["1 2 3", "verdict: looks good / needs changes / not sure"], ["space", "mark the selected note read (whole stop)"], ["?", "agree with the selected problem"], ["P", "ask the agent to fix the problems you agreed with and the stops that need changes"], ["x", "dismiss the selected note"], ["enter", "tick the selected call"], ["v", "reveal notes in blind mode"]]],
   ["Talk", [["c", "comment on the selected line (draft)"], ["S", "send all drafts to the agent"], ["A", "the agent's answers to your comments: read, edit, reply"], ["a", "ask the agent about the selected line"], ["y Y", "copy the note / the whole stop"], ["`", "focus the agent terminal; ctrl+esc leaves it"]]],
   ["See", [["/", "search; n N next / previous"], ["F", "filter notes"], ["n", "show or hide notes"], ["d", "removed lines"], ["s", "side by side"], ["z", "fold unchanged code"], ["+ -", "more / less context on the selected part"], ["f", "whole file of the selected part"], ["t", "tests that run the selected line"], ["T", "run them (the stop's tests when no line is selected)"], ["i", "try a change to the selected line or block: edit or delete it, its tests run against that, then it is put back"], ["o", "show or hide the test output"], ["u U", "next / previous untested change"], ["esc", "end search or spotlight, close an overlay"], ["r", "reload"], ["\\", "show or hide the sidebar"], ["ctrl+k", "go to a repository, worktree, branch or review"], ["ctrl+,", "settings"]]],
 ];
@@ -2512,6 +2590,7 @@ export function reviewKey(e) {
     a: () => startOnLine("ask"),
     c: () => startOnLine("comment"),
     S: sendComments,
+    P: sendFixes,
     A: () => openAnswers(),
     r: () => reload().then(() => toast("reloaded")),
     H: openHelp,
@@ -2584,6 +2663,7 @@ export function renderStatus() {
   if (c.lost) pills.push(`<span class="pill p-issue" title="notes whose line the agent's anchor no longer finds">lost ${c.lost}</span>`);
   if (c.calls) pills.push(`<span class="pill p-decide">◆ ${c.calls_made}/${c.calls}</span>`);
   if (c.draft_comments) pills.push(`<span class="pill p-draft">✎ ${plural(c.draft_comments, "draft", "drafts")} · S sends</span>`);
+  if (c.to_fix) pills.push(`<span class="pill p-issue">⚑ ${c.to_fix} to fix · P sends</span>`);
   if (c.open_questions) pills.push(`<span class="pill m-chg">${c.open_questions} waiting for the agent</span>`);
   if (cur()?.kind === "code" && !state.showGhosts && !state.split) pills.push(`<span class="pill p-info">removed lines hidden</span>`);
   if (state.filter > 0) pills.push(`<span class="pill p-info">${esc(filters()[state.filter])}</span>`);

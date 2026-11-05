@@ -98,7 +98,9 @@ export function openModal(title, body, cls = "") {
   const m = el(`<div class="modal-back"><div class="modal ${cls}"><div class="modal-head"><span>${esc(title)}</span><span class="spacer"></span><button class="icon" title="Close (esc)">✕</button></div></div></div>`);
   m.querySelector(".modal").append(body);
   m.querySelector("button").onclick = closeModal;
-  m.onclick = (e) => e.target === m && closeModal();
+  m.onclick = (e) => {
+    if (e.target === m) closeModal();
+  };
   document.body.append(m);
   return m;
 }

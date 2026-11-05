@@ -69,7 +69,7 @@ func collect(d *doc.Doc, st *state.State) (remarks []remark, calls []string) {
 		}
 	}
 	for _, q := range st.Questions {
-		if !q.IsComment() {
+		if !q.IsComment() || q.Fix != "" {
 			continue
 		}
 		body := strings.TrimSpace(q.Text)

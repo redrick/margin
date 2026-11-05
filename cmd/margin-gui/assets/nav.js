@@ -506,7 +506,9 @@ $("#switch-q").onkeydown = (e) => {
     renderSwitch();
   }
 };
-$("#switcher").onclick = (e) => e.target.id === "switcher" && closeSwitcher();
+$("#switcher").onclick = (e) => {
+  if (e.target.id === "switcher") closeSwitcher();
+};
 
 export function switcherOpen() {
   return !$("#switcher").classList.contains("hidden");
