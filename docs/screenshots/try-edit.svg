@@ -55,26 +55,29 @@
 <text x="956.8" y="300" textLength="364.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> :w  ctrl+s    run the tests with this</text>
 <text x="16.0" y="321" textLength="758.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">      inventory/stock_test.go:13  if err := s.Reserve("apple", 2); err != nil {</text>
 <text x="947.2" y="321" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="956.8" y="321" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> :q            cancel</text>
+<text x="956.8" y="321" textLength="403.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> :w!           with every test of the stop</text>
 <text x="16.0" y="342" textLength="931.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">      inventory/stock_test.go:19  if err := s.Reserve("apple", 0); !errors.Is(err, ErrInvalidQuan</text>
 <text x="947.2" y="342" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="956.8" y="342" textLength="364.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> :w nocompare  skip the run without it</text>
 <text x="16.0" y="363" textLength="931.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">      inventory/stock_test.go:26  if err := s.Reserve("pear", 2); !errors.Is(err, ErrInsufficient</text>
 <text x="947.2" y="363" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="956.8" y="363" textLength="297.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> the tests run unchanged first,</text>
+<text x="956.8" y="363" textLength="355.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> :above :below take more lines in (N)</text>
 <text x="16.0" y="384" textLength="748.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">      inventory/stock_test.go:29  if err := s.Reserve("pear", 1); err != nil {</text>
 <text x="947.2" y="384" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="956.8" y="384" textLength="316.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> then with your edit in the file;</text>
+<text x="956.8" y="384" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> :q            cancel</text>
 <text x="16.0" y="405" textLength="739.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">      inventory/stock_test.go:40  if err := s.Reserve("fig", 2); err != nil {</text>
 <text x="947.2" y="405" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="956.8" y="405" textLength="326.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> margin puts the lines back after.</text>
 <text x="16.0" y="426" textLength="604.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950">   func ReleaseAll, removed (stock.go:45): nothing else uses it</text>
 <text x="947.2" y="426" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
-<text x="956.8" y="426" textLength="326.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> an empty block deletes the lines.</text>
+<text x="956.8" y="426" textLength="297.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> the tests run unchanged first,</text>
 <text x="947.2" y="447" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="956.8" y="447" textLength="316.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> then with your edit in the file;</text>
 <text x="16.0" y="468" textLength="931.2" lengthAdjust="spacingAndGlyphs" fill="#79c0ff">── inventory/stock.go · Store.Reserve · 30–44 · +9 -3 ───────────────────────────────────────────</text>
 <text x="947.2" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="956.8" y="468" textLength="326.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> margin puts the lines back after.</text>
 <text x="44.8" y="489" textLength="729.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590" font-style="italic">The whole of Reserve, since the check, the error and the log call all moved.</text>
 <text x="947.2" y="489" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="956.8" y="489" textLength="326.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> an empty block deletes the lines.</text>
 <rect x="83.2" y="495" width="864.0" height="21" fill="#12261e"/>
 <text x="44.8" y="510" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 30</text>
 <text x="83.2" y="510" textLength="28.8" lengthAdjust="spacingAndGlyphs" fill="#3fb950" font-weight="bold">▎+ </text>

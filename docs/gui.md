@@ -256,14 +256,30 @@ Changed settings apply to reviews and agents started afterwards.
 
 ## Differences from margin-tui
 
-- No tmux: the agent runs in the window. `margin-tui split` and the tmux layouts have no
-  counterpart.
-- The list of stops is always shown, instead of behind `tab`.
-- Notes are shown in full under their line, instead of in a column beside the code.
-- Blind mode is a switch in the toolbar instead of the `--blind` flag, and *send messages with
+Both apps read and write the same review files and have the same review features: the guided walk,
+notes, comments and answers, coverage, running tests and trying a change. The keys are the same too.
+What differs is how you get around:
+
+- **Finding a review.** margin-gui keeps the sidebar beside the review, with `ctrl+k` to jump.
+  margin-tui has the same list in `margin-tui pick` (the folders are shared), shown before a review
+  starts rather than beside it, and the command line (`margin-tui feature-x`, `margin-tui --pr 123`).
+- **The agent.** margin-gui runs it in a terminal inside the window. margin-tui runs it in a tmux
+  pane beside the review; `margin-tui split` and the tmux layouts have no counterpart here.
+- **Settings and export.** margin-gui has a settings window (`ctrl+,`) and an export window.
+  margin-tui has `margin-tui config` and `margin-tui export`; they write the same settings file and
+  the same Markdown.
+- **Clicks and keys.** Every key in margin-gui also has a button. In margin-tui clicks only choose
+  where you are (a line, a block, a link, a note, a stop); every action is a key.
+- **Layout.** margin-gui always shows the list of stops (margin-tui: `tab`) and shows notes in full
+  under their line (margin-tui: a column beside the code).
+- **Trying a change.** Both edit in place with vim keys. In margin-gui the options are in the editor's
+  bar, and the vim keys can be switched off. In margin-tui they are commands: `:w!` runs the stop's
+  tests, `:w nocompare` skips the run without your edit, and `:above` and `:below` take more lines
+  in. margin-tui can also send the lines to `$EDITOR` with `E`.
+- **Answers to your comments.** margin-gui shows the note formatted, with a reply box under each
+  answer. margin-tui shows it as text in an overlay, `r` replies, and `e` edits it in `$EDITOR`.
+- **Switches.** Blind mode is a toolbar switch instead of the `--blind` flag, and *send messages with
   Enter* replaces `--no-submit`.
-- The answers to your comments open in the window, where you can reply and edit; in margin-tui they
-  are the markdown file beside the review.
 
 ## Building
 

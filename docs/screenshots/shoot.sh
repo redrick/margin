@@ -161,7 +161,7 @@ go_to reserve:2
 keys t j j p
 shot tests-source
 
-open_viewer 42
+open_viewer 48
 go_to store
 keys H
 shot help
@@ -357,5 +357,40 @@ open_viewer 22
 go_to audit
 shot hidden
 unset VIEW
+
+# The picker, over a few small repositories in a home of its own.
+T kill-server 2>/dev/null || true
+home="$work/home"
+mkdir -p "$home/.config" "$home/.local/state"
+g() { (cd "$1" && shift && env GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_AUTHOR_NAME=Dana GIT_AUTHOR_EMAIL=d@example.com \
+	GIT_COMMITTER_NAME=Dana GIT_COMMITTER_EMAIL=d@example.com git "$@" >/dev/null); }
+for r in shop billing-api docs-site; do
+	d="$home/src/$r"
+	mkdir -p "$d"
+	g "$d" init -q -b main
+	echo "package $r" >"$d/main.go"
+	g "$d" add .
+	g "$d" commit -q -m "Start $r"
+done
+d="$home/src/shop"
+for b in "reserve-stock:Refuse a reservation of zero items" "audit-log:Log every stock change" "fix-report:Count cancelled orders in the report"; do
+	g "$d" checkout -q -b "${b%%:*}"
+	echo "// ${b#*:}" >>"$d/main.go"
+	g "$d" commit -q -am "${b#*:}"
+	g "$d" checkout -q main
+done
+for c in "Move stock types into their own file" "Name the warehouse in errors" "Test the empty cart"; do
+	echo "// $c" >>"$d/main.go"
+	g "$d" commit -q -am "$c"
+done
+echo "// work in progress" >>"$d/main.go"
+echo "package shop" >"$d/cart.go"
+penv="env HOME=$home XDG_CONFIG_HOME=$home/.config XDG_STATE_HOME=$home/.local/state PATH=$(dirname "$(command -v git)") TERM=xterm-256color COLORTERM=truecolor"
+mkdir -p "$home/.config/margin"
+printf '{"folders": ["%s"]}\n' "$home/src" >"$home/.config/margin/gui.json"
+T new-session -d -x 150 -y 24 -c "$home" "$penv $work/margin pick --no-agent" \; set -g status off
+sleep 1.2
+keys Down Down Enter Down Down Down
+shot pick
 
 echo "wrote $(ls "$out"/*.svg | wc -l) screenshots to $out"

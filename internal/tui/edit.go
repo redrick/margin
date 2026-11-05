@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -41,6 +42,9 @@ var editHelp = []string{
 	" > < J ~ r     indent, join, case",
 	"",
 	" :w  ctrl+s    run the tests with this",
+	" :w!           with every test of the stop",
+	" :w nocompare  skip the run without it",
+	" :above :below take more lines in (N)",
 	" :q            cancel",
 	"",
 	" the tests run unchanged first,",
@@ -139,6 +143,8 @@ func (m *Model) updateEdit(msg tea.KeyMsg) tea.Cmd {
 		}
 	}
 	switch res {
+	case vimedit.Ex:
+		m.editEx(es.ed.Ex)
 	case vimedit.Cancel:
 		m.edit = nil
 		m.setStatus(false, "change dropped; the file was never touched")
@@ -148,11 +154,59 @@ func (m *Model) updateEdit(msg tea.KeyMsg) tea.Cmd {
 			m.setStatus(false, "nothing changed yet; :q leaves")
 			return nil
 		}
+		name, arg, _ := strings.Cut(es.ed.Ex, " ")
+		es.tt.nocompare = arg == "nocompare" || arg == "nc"
+		if strings.HasSuffix(name, "!") {
+			ids := m.stopTests(m.doc.Stations[m.station])
+			if len(ids) == 0 {
+				es.ed.Msg = "no test runs this stop's changes"
+				return nil
+			}
+			es.tt.ids = ids
+		}
 		m.edit = nil
 		es.tt.text = text
 		return m.runTry(es.tt, es.old)
 	}
 	return nil
+}
+
+// editEx runs the commands the editor leaves to margin: :above N and :below N take more lines in.
+func (m *Model) editEx(cmd string) {
+	es := m.edit
+	name, arg, _ := strings.Cut(cmd, " ")
+	n := 1
+	if arg != "" {
+		if v, err := strconv.Atoi(strings.TrimSpace(arg)); err == nil && v > 0 {
+			n = v
+		}
+	}
+	p := m.doc.Stations[m.station].Parts[es.tt.part]
+	switch name {
+	case "above", "ab":
+		n = min(n, es.tt.line)
+		if n == 0 {
+			es.ed.Msg = "that is the first line of the file"
+			return
+		}
+		es.tt.line -= n
+		es.ed.Grow(p.Lines[es.tt.line:es.tt.line+n], nil)
+	case "below", "be":
+		n = min(n, len(p.Lines)-1-es.tt.end)
+		if n <= 0 {
+			es.ed.Msg = "that is the last line of the file"
+			return
+		}
+		es.ed.Grow(nil, p.Lines[es.tt.end+1:es.tt.end+1+n])
+		es.tt.end += n
+	default:
+		es.ed.Msg = "Not an editor command: " + cmd
+		return
+	}
+	es.old = strings.Join(p.Lines[es.tt.line:es.tt.end+1], "\n")
+	if ids := m.blockTests(es.tt.part, es.tt.line, es.tt.end); len(ids) > 0 {
+		es.tt.ids = ids
+	}
 }
 
 // editRows draws the body with the editor in place of the block's rows.

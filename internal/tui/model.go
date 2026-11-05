@@ -127,16 +127,23 @@ type Model struct {
 	tests     testPicker
 	// run is the last test run, shown in the output overlay while outOpen; results holds what runs
 	// of the code as it is said about each test, by name.
-	run      *testOutput
-	runs     int
-	runner   testrun.Runner
-	runDone  chan struct{}
-	results  map[string]string
-	outOpen  bool
-	blockAt  *blockMark
-	edit     *editState
-	cmdAsk   bool
-	afterCmd func() tea.Cmd
+	run     *testOutput
+	runs    int
+	runner  testrun.Runner
+	runDone chan struct{}
+	results map[string]string
+	outOpen bool
+	blockAt *blockMark
+	// cardAt is, per line of the notes column as last drawn, the row its card hangs from.
+	cardAt map[int]int
+	// dragFrom is the row a press of the mouse started on, while the button is held.
+	dragFrom  int
+	lastClick time.Time
+	clickRow  int
+	edit      *editState
+	ans       *answersView
+	cmdAsk    bool
+	afterCmd  func() tea.Cmd
 	// peekStyled means the peek lines are already painted to the overlay's width.
 	peekStyled bool
 
@@ -154,20 +161,21 @@ func New(opts Options) *Model {
 	in.Prompt = " ask › "
 	in.CharLimit = 4000
 	return &Model{
-		opts:    opts,
-		ghosts:  true,
-		notes:   true,
-		note:    -1,
-		spot:    -1,
-		clip:    clip.Copy,
-		whole:   map[[2]int]bool{},
-		expand:  map[[2]int]int{},
-		fresh:   map[string]bool{},
-		around:  map[string]*aroundEntry{},
-		results: map[string]string{},
-		paint:   render.NewPainter(),
-		spans:   map[string][][]render.Span{},
-		input:   in,
+		opts:     opts,
+		ghosts:   true,
+		notes:    true,
+		note:     -1,
+		spot:     -1,
+		clip:     clip.Copy,
+		whole:    map[[2]int]bool{},
+		expand:   map[[2]int]int{},
+		fresh:    map[string]bool{},
+		around:   map[string]*aroundEntry{},
+		results:  map[string]string{},
+		paint:    render.NewPainter(),
+		dragFrom: -1,
+		spans:    map[string][][]render.Span{},
+		input:    in,
 
 		lastInput:   time.Now(),
 		readSession: map[string]bool{},
@@ -279,14 +287,7 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setStatus(false, "%s sent to the agent pane", msg.id)
 		}
 	case tea.MouseMsg:
-		if msg.Action == tea.MouseActionPress {
-			switch msg.Button {
-			case tea.MouseButtonWheelUp:
-				m.move(-3)
-			case tea.MouseButtonWheelDown:
-				m.move(3)
-			}
-		}
+		return m, m.mouse(msg)
 	case tickMsg:
 		if time.Since(m.lastInput) < 5*time.Minute {
 			m.sessionSecs += int(tickEvery / time.Second)
@@ -299,6 +300,9 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case editedMsg:
 		return m, m.gotEdited(msg)
+	case answersEditedMsg:
+		m.gotAnswersEdited(msg)
+		return m, nil
 	case recoveredMsg:
 		switch {
 		case msg.err != nil:
@@ -316,6 +320,8 @@ func (m *Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.updateLabel(msg)
 		case m.asking:
 			return m, m.updateAsk(msg)
+		case m.ans != nil:
+			return m, m.updateAnswers(msg)
 		case m.searching:
 			return m, m.updateSearch(msg)
 		case m.listOpen:
@@ -558,6 +564,10 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 		m.openTests()
 	case "T":
 		return m.runLine()
+	case "ctrl+t":
+		if m.doc.Stations[m.station].Kind == doc.Tests {
+			return m.runAll()
+		}
 	case "i":
 		return m.tryHere()
 	case "E":
@@ -588,6 +598,8 @@ func (m *Model) key(msg tea.KeyMsg) tea.Cmd {
 		return m.startAsk()
 	case "c":
 		return m.startComment()
+	case "A":
+		m.openAnswers()
 	case "S":
 		return m.sendComments()
 	case "y":
@@ -623,10 +635,24 @@ func (m *Model) updateAsk(msg tea.KeyMsg) tea.Cmd {
 	case tea.KeyEsc:
 		m.asking, m.commenting, m.designing, m.label, m.blocking = false, false, false, "", false
 		m.answerOn, m.cmdAsk, m.afterCmd = false, false, nil
+		if m.ans != nil {
+			m.ans.replyTo = ""
+		}
 		m.input.Blur()
 		m.setStatus(false, "")
 		return nil
 	case tea.KeyEnter:
+		if m.ans != nil && m.ans.replyTo != "" {
+			raw := m.input.Value()
+			m.asking = false
+			m.input.Blur()
+			m.setStatus(false, "")
+			if strings.TrimSpace(raw) == "" {
+				m.ans.replyTo = ""
+				return nil
+			}
+			return m.sendReply(raw)
+		}
 		if m.cmdAsk {
 			raw := m.input.Value()
 			m.asking, m.cmdAsk = false, false

@@ -11,13 +11,14 @@ the agent answers in the review as you go.
 
 ![margin: the review on top with the agent's notes beside the code, the agent below answering a question](docs/screenshots/hero.svg)
 
-It comes in two front ends over the same reviews. Pick the one that fits how you work, or use both:
-a review started in one goes on in the other.
+It comes in two front ends over the same reviews, with the same features. Pick the one that fits how
+you work, or use both: a review started in one goes on in the other.
 
 | | [**margin-tui**](docs/tui.md) | [**margin-gui**](docs/gui.md) |
 | --- | --- | --- |
 | What it is | the review in your terminal, the agent in a tmux pane beside it | a desktop app: the review in a window, the agent in a terminal inside it |
-| Start a review | `margin-tui` (uncommitted changes), `margin-tui feature-x`, `margin-tui --pr 123` in a repository | pick a repository, worktree and branch, commit or pull request in the sidebar, or ctrl+k |
+| Start a review | `margin-tui pick` lists your repositories, worktrees, branches, commits and pull requests; or `margin-tui`, `margin-tui feature-x`, `margin-tui --pr 123` in a repository | pick a repository, worktree and branch, commit or pull request in the sidebar, or ctrl+k |
+| Using it | keys; the mouse picks lines, blocks, links and stops | buttons, and the same keys |
 | Needs | git, tmux, an agent CLI | git, an agent CLI, a WebKit webview (built into macOS; WebKitGTK on Linux) |
 | Install | `go install github.com/redrick/margin/cmd/margin-tui@latest` | `go install github.com/redrick/margin/cmd/margin-gui@latest`, then `margin-gui --install` |
 | Read the manual | [docs/tui.md](docs/tui.md) | [docs/gui.md](docs/gui.md) |

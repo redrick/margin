@@ -44,7 +44,7 @@ func (m *Model) View() string {
 func (m *Model) headerView() string {
 	st := m.doc.Stations[m.station]
 	name := st.ID
-	segs := []seg{{text: fmt.Sprintf(" margin › %s %d/%d  ", name, m.station, len(m.doc.Stations)-1), fg: colTitle, bg: colBar, bold: true}}
+	segs := []seg{{text: fmtHeaderTitle(name, m.station, len(m.doc.Stations)), fg: colTitle, bg: colBar, bold: true}}
 	segs = append(segs, m.progressDots()...)
 	if name := m.spotName(); name != "" {
 		segs = append(segs, seg{text: " spotlight: " + name + " ", fg: colInk, bg: colTested, bold: true}, seg{text: " ", bg: colBar})
@@ -63,6 +63,10 @@ func (m *Model) headerView() string {
 		segs = append(segs, seg{text: st.Title, fg: colText, bg: colBar})
 	}
 	return m.bar(segs, m.width, "  "+doc.Short(m.doc.Review.Kicker, max(m.width/4, 10))+" ")
+}
+
+func fmtHeaderTitle(id string, station, stations int) string {
+	return fmt.Sprintf(" margin › %s %d/%d  ", id, station, stations-1)
 }
 
 func (m *Model) progressDots() []seg {
@@ -240,6 +244,8 @@ func (m *Model) bodyView() string {
 	case m.testsOpen:
 		entries, at := m.testsLines()
 		m.overlay(lines, entries, at, 110)
+	case m.ans != nil:
+		m.overlay(lines, m.answersEntries(), -1, peekWidth)
 	case m.outOpen && m.run != nil:
 		m.overlay(lines, m.outputLines(), -1, peekWidth)
 	case m.helpOpen:
@@ -557,6 +563,7 @@ var helpLines = []string{
 	" x          dismiss the note; in the recap, delete a draft comment",
 	" a          ask the agent now    c      comment: pick a kind, kept as a draft",
 	" S          send the drafts      v      show notes hidden by blind mode",
+	" A          the agent's answers to your comments: ] [ between them, r reply, e edit",
 	" y Y        copy the note / the whole stop",
 	" F          filter: all, findings, problems, each focus area",
 	"",
@@ -567,7 +574,8 @@ var helpLines = []string{
 	" i          try a change: the line (or V block) turns into a vim in place, :w runs its tests",
 	" V          start a block of lines; move to grow it, then i (or E for $EDITOR)",
 	"            (margin puts the line back after) · o shows or hides the test output",
-	" enter      on a test in the Tests stop: spotlight it · esc ends a spotlight",
+	" enter      on a test in the Tests stop: spotlight it, T runs it, ctrl+t runs all · esc ends",
+	" C          in the test output or list: change the repository's test command",
 	"",
 	" view",
 	" z d f      fold unchanged / hide removed lines / whole file",
@@ -575,6 +583,9 @@ var helpLines = []string{
 	" n s        notes column / side by side",
 	" h l 0      scroll sideways / back to the start",
 	" r q        reload / quit",
+	"",
+	" mouse      click a line, link, note card or stop dot · drag or shift+click a block",
+	"            double click a line for its notes · wheel scrolls the code or the open list",
 }
 
 // peekWidth is the widest the peek overlay gets.

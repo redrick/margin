@@ -37,9 +37,12 @@ func Version() string {
 
 const usageText = `margin-tui — review git changes in the terminal, with an agent beside you
 
-  margin-tui              review uncommitted changes
+  margin-tui              review uncommitted changes (outside a repository: margin-tui pick)
   margin-tui <branch>     review a branch against the main branch
   margin-tui <commit>     review one commit
+  margin-tui pick [dir]   choose from your folders of repositories: changes, branches, commits,
+                          pull requests and reviews kept; dir is added to the list margin-gui shares
+  margin-tui <file.review.yaml>   go on with a review file
 
   The review opens on top, a new agent (claude unless set otherwise) below. Inside gw it gets its
   own sub-window; in plain tmux it splits the current pane; outside tmux it takes over the terminal.
@@ -71,7 +74,7 @@ commands for the agent (margin-tui, margin-gui and the margin link the agent get
 var commands = map[string]bool{
 	"review": true, "open": true, "split": true, "lint": true, "goto": true, "where": true, "reload": true,
 	"questions": true, "answer": true, "resolve": true, "export": true, "note": true, "brief": true, "session": true, "coverage": true, "agent-help": true, "version": true, "help": true,
-	"prepare": true, "config": true, "skill": true,
+	"prepare": true, "config": true, "skill": true, "pick": true,
 }
 
 // Run runs the margin command line with args (without the program name) and returns the exit code.
@@ -88,7 +91,13 @@ func run(args []string) int {
 	var err error
 	switch cmd {
 	case "review":
+		if wd, _ := os.Getwd(); len(rest) == 0 && !inRepo(wd) {
+			err = cmdPick(nil)
+			break
+		}
 		err = cmdReview(rest)
+	case "pick":
+		err = cmdPick(rest)
 	case "open":
 		err = cmdOpen(rest)
 	case "split":

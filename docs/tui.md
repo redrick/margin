@@ -20,13 +20,16 @@ margin-tui --staged     # review only what is staged
 margin-tui feature-x    # review a branch against the main branch
 margin-tui a1b2c3d      # review one commit
 margin-tui --pr 123     # review a GitHub pull request (read-only)
+margin-tui pick         # choose from your repositories: changes, branches, commits, pull requests
+margin-tui x.review.yaml  # go on with a review file
 ```
 
 > Status: early, but the whole loop works. New to it? Jump to
 > [How to use it, really](#how-to-use-it-really): margin walks you through the review one step at
 > a time.
 
-**Contents:** [Install](#install) · [Settings](#settings) · [How a review goes](#how-a-review-goes) ·
+**Contents:** [Install](#install) · [Settings](#settings) · [Choosing what to review](#choosing-what-to-review) ·
+[How a review goes](#how-a-review-goes) ·
 [How to use it, really](#how-to-use-it-really) (the guided walk,
 [in pictures](#the-guided-walk-in-pictures)) · [A walk through the viewer](#a-walk-through-the-viewer) ·
 [Answering the agent's questions](#answering-the-agents-questions) · [Test coverage](#test-coverage) ·
@@ -72,6 +75,33 @@ margin-tui and [margin-gui](gui.md) share one settings file, `~/.config/margin/c
 | `agent_note` | A line added to the agent's instructions, with `{project}`, `{topic}` and `{dir}` filled in, for example "File the review in the index of {project}." |
 
 `$MARGIN_DIR` and `$MARGIN_AGENT` override the file for one run.
+
+## Choosing what to review
+
+`margin-tui pick` lists what you can review without typing a branch name or knowing where a
+repository is. It also opens when you run `margin-tui` outside a git repository.
+
+![margin-tui pick: repositories and worktrees on the left, what the selected one offers in the middle, details on the right](screenshots/pick.svg)
+
+- **Left:** the repository you ran it in, the reviews you opened lately, then every folder on your
+  list with its repositories and their worktrees, each with its branch and how many files changed.
+  A folder is a repository or a folder of repositories, up to two levels deep. `a` adds one (or
+  `margin-tui pick ~/src`), `X` takes the selected one's folder off the list. margin-gui keeps the
+  same list, so a folder added in one shows in the other.
+- **Middle:** what the selected worktree offers: its uncommitted and staged changes, the reviews
+  kept for the repository, open pull requests (asked from `gh` when you pick *list the open pull
+  requests*), branches with how far they are ahead of and behind the main branch, and the last 80
+  commits. A ● marks one that already has a review, with how many stops are judged.
+- **Right:** details of the selected item, on a terminal at least 100 columns wide.
+
+`enter` starts the review, or goes on with the one kept; `F` starts it over. A pull request whose
+head is not in your repository yet says so; `f` fetches it (`git fetch origin pull/N/head`, the
+only git write margin makes, and only when you press it) and starts the review. `/` filters the
+column you are in, `r` reads everything again, `q` leaves without starting anything.
+
+The mouse works too: a click selects, a double click starts, the wheel scrolls the column under
+the pointer. Once picked, the review starts as `margin-tui <target>` would in that worktree, with
+the agent beside it; `margin-tui pick --no-agent` opens only the viewer.
 
 ## How a review goes
 
@@ -381,8 +411,9 @@ other key closes it.
 ![Every note on line 39 opened at full length in an overlay above the code](screenshots/note-full.svg)
 
 A part without notes says so, which tells you the agent never looked at it, as opposed to having
-looked and found it fine. The viewer uses the mouse for scrolling, so text cannot be selected with
-a drag; press `y` to copy the selected note instead, or `Y` for the whole stop. Copying uses
+looked and found it fine. The viewer takes the mouse, so text cannot be selected with a plain drag
+(most terminals select with shift held); press `y` to copy the selected note instead, or `Y` for
+the whole stop. Copying uses
 `wl-copy`, `xclip` or `xsel` when installed, and otherwise hands the text to tmux. A note marked Δ was changed after the agent edited the code; read it
 again.
 
@@ -459,10 +490,10 @@ what a good comment of that kind says while you type. The comment is kept as a d
 the gutter and shown in the notes column. Press `S` to send every draft to the agent in one message.
 The agent changes code only for a comment that explicitly asks it to. It answers every comment, with
 its file:line, in a `.comments.md` note beside the review file, and closes it with `margin resolve`; the short answer lands on that line as a note under
-your comment. Open the note in your editor to read the answers in full or reply under one; the
-recap lists your comments with where each stands, and `x` on a draft there deletes it.
-[margin-gui](gui.md#answers-to-your-comments) shows the note in the window, with a reply box under
-each answer.
+your comment. `A` opens the note in an overlay: `]` and `[` go from answer to answer, `r` replies
+under the one you are on (the reply goes into the note and the agent is asked to answer it there),
+and `e` opens the note in `$EDITOR` to edit it. The recap lists your comments with where each
+stands, and `x` on a draft there deletes it.
 
 ![A draft comment in the notes column and the drafts counter in the footer](screenshots/comment.svg)
 
@@ -579,9 +610,10 @@ reports whether they pass and what each one checks about the line.
 runs the picked ones. margin runs them with a command you set up once per repository: the first time,
 it asks for one, offering `go test -count=1 -v {dir} -run {run}` for Go, and saves it in your
 settings under `tests` (`{dir} {run} {pkg} {tests} {file}` are filled in and shell-quoted; docker
-works too, see [Running tests](gui.md#running-tests) in the margin-gui manual). The output opens in
-an overlay, `o` shows or hides it, and the footer keeps the result. With Go's `-v`, the list marks
-each test `✓` or `✗`.
+works too, see [Running tests](gui.md#running-tests) in the margin-gui manual). `C` in the output or
+in the list changes it later. The output opens in an overlay, `o` shows or hides it, and the footer
+keeps the result. With Go's `-v`, the list marks each test `✓` or `✗`. In the Tests stop, `T` runs
+the test under the cursor and `ctrl+t` runs every test.
 
 ### Does a test notice when the line is wrong?
 
@@ -604,6 +636,10 @@ To change more than one line, or delete a block, press `V` on its first line and
 the block's line numbers light up, and `i` opens all of it in place. `dG` empties it, which deletes
 the lines for the run; the tests of every line in the block run against it. `V` or `esc` drops the
 block. `E` opens the line or block in `$VISUAL` or `$EDITOR` (`vi` when neither is set) instead.
+
+The editor takes a few commands of margin's own. `:w!` runs every test of the stop's changes instead
+of the lines' tests. `:w nocompare` skips the run without your edit, when you already know the tests
+pass. `:above` and `:below` take one more line in, `:above 3` three, keeping what you typed.
 
 A change that does not build is reported as that, not as caught. In the overlay `a` tells the agent
 what happened, `w` keeps the change in the file, `i` edits the line again and `R` runs it again.
@@ -711,6 +747,7 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 | `N` | next note the agent added while you were reading |
 | `u` `U` | next / previous changed line that no test runs |
 | `enter` on a test in the Tests stop | spotlight it: dim every line it does not run |
+| `T` / `ctrl+t` in the Tests stop | run the test under the cursor / every test |
 | `esc` | end a spotlight (after ending a search, if one is on) |
 | `t` | list the tests that run the current line: `enter` spotlights one, `p` shows its source, `space` picks, `r` runs them, `A` has the agent run them |
 | `T` | run the tests of the current line (the stop's when none runs it) with your test command |
@@ -718,6 +755,7 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 | `V` | start a block of lines at the cursor; move to grow it, then `i` |
 | `E` | the same, in `$VISUAL` or `$EDITOR` |
 | `o` | show or hide the test output |
+| `C` | in the test output or the list of tests: change the repository's test command |
 | `/` | search the code in every stop; `n` `N` then jump to the next / previous match, `esc` ends the search |
 | `enter` | open the selected link, tick a call, answer a `?` question from the agent, or unfold |
 | `enter` on a line with notes | read every note on that line at full length in an overlay |
@@ -725,6 +763,7 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 | `a` | ask about the current line |
 | `c` | comment on the current line: pick its kind (`i` `s` `q` `n` `p` `t`, `!` flips blocking), then write it; kept as a draft |
 | `S` | send the draft comments to the agent |
+| `A` | the agent's answers to your comments: `]` `[` between them, `r` reply, `e` edit in `$EDITOR` |
 | `space` in whole stops | mark the note reviewed, or a call made, and move on (again to undo) |
 | `?` | flag the note to come back to (again to undo) |
 | `x` | dismiss the note as not useful; in the recap, delete a draft comment |
@@ -741,7 +780,21 @@ the viewer. Coverage is stored beside the review as `<name>.review.coverage.json
 | `q` | quit |
 
 In an overlay (a peek, a full note, a test's source), `j` `k` and `ctrl+d` `ctrl+u` scroll when it
-is long and any other key closes it. `H` shows the keys grouped by what you are doing:
+is long and any other key closes it.
+
+The mouse picks where you are; what to do there stays on the keys:
+
+| Mouse | Action |
+| --- | --- |
+| click a line | move there; a double click opens its notes, like `enter` |
+| click a link, a fold, a test, a call | follow it, as `enter` would |
+| drag over lines, or shift+click (alt+click where the terminal keeps shift) | a block, as `V` makes; then `i` or `E` |
+| click a note card | go to its line |
+| click a dot in the top bar | go to that stop |
+| click an entry in the list of stops or tests | go there; a second click on a test spotlights it |
+| wheel | scroll the code, or the overlay that is open |
+
+In tmux, clicks reach margin-tui with `set -g mouse on`, as the wheel does. `H` shows the keys grouped by what you are doing:
 
 ![The help overlay: keys for the guided walk, moving, notes and comments, tests and the view](screenshots/help.svg)
 

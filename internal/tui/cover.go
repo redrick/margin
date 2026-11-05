@@ -117,6 +117,7 @@ func (m *Model) gridRows() {
 	}
 	m.add(rowText, toneHeading, "What each test runs · enter on a test spotlights it")
 	m.wrapped(toneDim, 0, "● runs every changed line of the stop, ◐ some, · none. Running a line is not checking it: a test can run a line and assert nothing about the result.")
+	m.wrapped(toneDim, 0, "enter spotlights the test under the cursor, T runs it, ctrl+t runs them all with your test command.")
 	m.add(rowText, tonePlain, "")
 	if len(cols) == 0 {
 		m.wrapped(toneDim, 0, "None of the stops' files were measured.")

@@ -105,6 +105,9 @@ func (m *Model) updateTests(msg tea.KeyMsg) tea.Cmd {
 	case "i":
 		m.testsOpen = false
 		return m.tryHere()
+	case "C":
+		m.testsOpen = false
+		return m.askCommand(nil)
 	case "esc", "q", "t":
 		m.testsOpen = false
 	}
@@ -115,7 +118,7 @@ func (m *Model) updateTests(msg tea.KeyMsg) tea.Cmd {
 func (m *Model) testsLines() ([]string, int) {
 	tp := m.tests
 	c := m.doc.Coverage
-	title := fmt.Sprintf(" %d tests run %s:%d · enter spotlight · p source · space pick · a all · r run · i try a change · A agent runs · esc",
+	title := fmt.Sprintf(" %d tests run %s:%d · enter spotlight · p source · space pick · a all · r run · i try a change · A agent runs · C command · esc",
 		len(tp.list), path.Base(tp.file), tp.line)
 	if len(tp.list) == 1 {
 		title = strings.Replace(title, "1 tests run", "1 test runs", 1)

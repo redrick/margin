@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 
@@ -60,6 +59,7 @@ type tryTarget struct {
 	part, line, end int
 	text            string
 	ids             []int
+	nocompare       bool
 }
 
 func (t *tryTarget) block() bool { return t.end > t.line }
@@ -106,6 +106,13 @@ func jobStates(jobs []testrun.Job) []jobState {
 // runLine runs the tests of the cursor line, or of the stop when the line has none.
 func (m *Model) runLine() tea.Cmd {
 	st := m.doc.Stations[m.station]
+	if st.Kind == doc.Tests {
+		if m.cur >= 0 && m.cur < len(m.rows) && m.rows[m.cur].kind == rowTest && m.doc.Coverage != nil {
+			r := m.rows[m.cur]
+			return m.runTestIDs([]int{r.target}, testLabel(m.doc.Coverage.Tests[r.target]))
+		}
+		return m.runAll()
+	}
 	if st.Kind != doc.Code {
 		m.setStatus(false, "go to a stop with code to run its tests")
 		return nil
@@ -129,6 +136,21 @@ func (m *Model) runLine() tea.Cmd {
 }
 
 // stopTests lists the tests that run the stop's changed lines, or any of its lines when none do.
+// runAll runs every test the coverage names.
+func (m *Model) runAll() tea.Cmd {
+	if m.doc.Coverage == nil {
+		m.setStatus(false, "no coverage yet: ask the agent to run margin coverage")
+		return nil
+	}
+	var ids []int
+	for i, t := range m.doc.Coverage.Tests {
+		if !t.Synthetic {
+			ids = append(ids, i)
+		}
+	}
+	return m.runTestIDs(ids, "every test")
+}
+
 func (m *Model) stopTests(st *doc.Station) []int {
 	c := m.doc.Coverage
 	collect := func(changed bool) []int {
@@ -191,7 +213,7 @@ func (m *Model) runTry(tt *tryTarget, old string) tea.Cmd {
 	}
 	out := &testOutput{what: what, ids: tt.ids, edits: edits, try: tt,
 		before: map[string]string{}, after: map[string]string{}, implied: map[string]bool{}}
-	return m.startRun(tryout.Plan{Dir: dir, Jobs: jobs, Edits: edits, Compare: true}, out)
+	return m.startRun(tryout.Plan{Dir: dir, Jobs: jobs, Edits: edits, Compare: !tt.nocompare}, out)
 }
 
 // askCommand asks for the repository's test command, saves it, then does next.
@@ -199,10 +221,20 @@ func (m *Model) askCommand(next func() tea.Cmd) tea.Cmd {
 	m.asking, m.commenting, m.cmdAsk, m.afterCmd = true, false, true, next
 	m.input.Prompt = " test command › "
 	m.input.Width = max(m.width-20, 10)
-	m.input.SetValue(tryout.Suggest(m.doc))
+	dir := m.doc.Review.RepoDir()
+	current, ok := config.Load().TestCommandFor(dir, tryout.MainWorktree(dir))
+	if ok {
+		m.input.SetValue(current.Command)
+	} else {
+		m.input.SetValue(tryout.Suggest(m.doc))
+	}
 	m.input.CursorEnd()
 	m.input.Placeholder = "how this repository runs tests, like go test -count=1 -v {dir} -run {run}"
-	m.setStatus(false, "no test command for this repository yet: {dir} {run} {pkg} {tests} {file} are filled in, shell-quoted; enter saves it to your settings")
+	what := "no test command for this repository yet"
+	if ok {
+		what = "the test command for this repository"
+	}
+	m.setStatus(false, "%s: {dir} {run} {pkg} {tests} {file} are filled in, shell-quoted; enter saves it to your settings, esc keeps it", what)
 	return m.input.Focus()
 }
 
@@ -490,11 +522,11 @@ func (m *Model) outputLines() []string {
 		title += " · " + o.what
 	}
 	title += " · " + o.summary()
-	keys := " j k scroll · R again · esc closes"
+	keys := " j k scroll · R again · C test command · esc closes"
 	if !o.done {
 		keys = " j k scroll · s stop · esc closes"
 	} else if o.edits != nil && o.applied && !o.stopped {
-		keys = " j k scroll · R again · i edit again · w keep the change · a tell the agent · esc"
+		keys = " j k scroll · R again · i edit again · w keep the change · a tell the agent · C command · esc"
 	}
 	out := []string{title, keys}
 	jobs := func(list []jobState, tag string) {
@@ -591,6 +623,11 @@ func (m *Model) updateOutput(msg tea.KeyMsg) tea.Cmd {
 		pane, submit, text := m.opts.AgentPane, m.opts.Submit, tryout.Message(o.edits, o.verdict())
 		m.setStatus(false, "telling the agent…")
 		return func() tea.Msg { return sentMsg{id: "tryout result", err: tmuxx.Send(pane, text, submit)} }
+	case "C":
+		if o.done {
+			m.outOpen = false
+			return m.askCommand(nil)
+		}
 	case "esc", "q", "o":
 		m.outOpen = false
 	}
@@ -693,16 +730,10 @@ func (m *Model) editBlock(tt *tryTarget, old string) tea.Cmd {
 		m.setStatus(true, "%v", err)
 		return nil
 	}
-	editor := os.Getenv("VISUAL")
-	if editor == "" {
-		editor = os.Getenv("EDITOR")
-	}
-	if editor == "" {
-		editor = "vi"
-	}
-	args := append(strings.Fields(editor), f.Name())
+	cmd := editorCmd(f.Name())
+	editor := strings.Join(cmd.Args[:len(cmd.Args)-1], " ")
 	name := f.Name()
-	return tea.ExecProcess(exec.Command(args[0], args[1:]...), func(err error) tea.Msg {
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		defer os.Remove(name)
 		if err != nil {
 			return editedMsg{tt: tt, old: old, err: fmt.Errorf("%s: %w", editor, err)}

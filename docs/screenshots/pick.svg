@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="1462" height="574" viewBox="0 0 1462 574">
+<style>text{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:16px;white-space:pre}</style>
+<rect width="1462" height="574" rx="10" fill="#0d1117" stroke="#30363d"/>
+<rect width="1462" height="38" rx="10" fill="#161b22"/><rect y="28" width="1462" height="10" fill="#161b22"/>
+<line x1="0" y1="38" x2="1462" y2="38" stroke="#30363d"/>
+<circle cx="22" cy="19.0" r="6.5" fill="#ff5f57"/>
+<circle cx="44" cy="19.0" r="6.5" fill="#febc2e"/>
+<circle cx="66" cy="19.0" r="6.5" fill="#28c840"/>
+<text x="731.0" y="24.0" text-anchor="middle" fill="#8b949e">margin</text>
+<rect x="16.0" y="54" width="345.6" height="21" fill="#161b22"/>
+<text x="16.0" y="69" textLength="249.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> margin › what to review  </text>
+<text x="265.6" y="69" textLength="96.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">~/src/shop</text>
+<text x="16.0" y="90" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> ~/src</text>
+<text x="448.0" y="90" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="90" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> changes</text>
+<text x="1052.8" y="90" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1062.4" y="90" textLength="105.6" lengthAdjust="spacingAndGlyphs" fill="#f0f6fc" font-weight="bold"> fix-report</text>
+<text x="16.0" y="111" textLength="124.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">  billing-api</text>
+<text x="400.0" y="111" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> main</text>
+<text x="448.0" y="111" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="111" textLength="297.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">  uncommitted changes · 2 files</text>
+<text x="1052.8" y="111" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1062.4" y="111" textLength="355.2" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9"> Count cancelled orders in the report</text>
+<text x="16.0" y="132" textLength="105.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">  docs-site</text>
+<text x="400.0" y="132" textLength="48.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> main</text>
+<text x="448.0" y="132" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="132" textLength="134.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> pull requests</text>
+<text x="1052.8" y="132" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1062.4" y="132" textLength="124.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 1 second ago</text>
+<rect x="16.0" y="138" width="432.0" height="21" fill="#1c2433"/>
+<text x="16.0" y="153" textLength="57.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">  shop</text>
+<text x="284.8" y="153" textLength="163.2" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> main · 2 changed</text>
+<text x="448.0" y="153" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="153" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">  list the open pull requests</text>
+<text x="918.4" y="153" textLength="134.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> gh, read-only</text>
+<text x="1052.8" y="153" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1062.4" y="153" textLength="249.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 1 ahead of main, 3 behind</text>
+<text x="448.0" y="174" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="174" textLength="86.4" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> branches</text>
+<text x="1052.8" y="174" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="195" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="195" textLength="105.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">  audit-log</text>
+<text x="851.2" y="195" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> +1 −3 · 1 second ago</text>
+<text x="1052.8" y="195" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1062.4" y="195" textLength="384.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> enter starts the review, with the agent</text>
+<rect x="457.6" y="201" width="595.2" height="21" fill="#58a6ff"/>
+<text x="448.0" y="216" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="216" textLength="115.2" lengthAdjust="spacingAndGlyphs" fill="#0d1117" font-weight="bold">  fix-report</text>
+<text x="851.2" y="216" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#0d1117"> +1 −3 · 1 second ago</text>
+<text x="1052.8" y="216" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1062.4" y="216" textLength="96.0" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> beside it</text>
+<text x="448.0" y="237" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="237" textLength="144.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">  reserve-stock</text>
+<text x="851.2" y="237" textLength="201.6" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> +1 −3 · 1 second ago</text>
+<text x="1052.8" y="237" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="258" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="258" textLength="76.8" lengthAdjust="spacingAndGlyphs" fill="#79c0ff" font-weight="bold"> commits</text>
+<text x="1052.8" y="258" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="279" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="279" textLength="278.4" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">  5e9d1c4 Test the empty cart</text>
+<text x="928.0" y="279" textLength="124.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 1 second ago</text>
+<text x="1052.8" y="279" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="300" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="300" textLength="364.8" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">  17895b4 Name the warehouse in errors</text>
+<text x="928.0" y="300" textLength="124.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 1 second ago</text>
+<text x="1052.8" y="300" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="321" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="321" textLength="441.6" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">  632c6d5 Move stock types into their own file</text>
+<text x="928.0" y="321" textLength="124.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 1 second ago</text>
+<text x="1052.8" y="321" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="342" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="457.6" y="342" textLength="192.0" lengthAdjust="spacingAndGlyphs" fill="#c9d1d9">  0e4cbde Start shop</text>
+<text x="928.0" y="342" textLength="124.8" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> 1 second ago</text>
+<text x="1052.8" y="342" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="363" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1052.8" y="363" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="384" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1052.8" y="384" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="405" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1052.8" y="405" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="426" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1052.8" y="426" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="447" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1052.8" y="447" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1052.8" y="468" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="489" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1052.8" y="489" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="510" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1052.8" y="510" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="448.0" y="531" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<text x="1052.8" y="531" textLength="9.6" lengthAdjust="spacingAndGlyphs" fill="#161b22">│</text>
+<rect x="16.0" y="537" width="950.4" height="21" fill="#161b22"/>
+<text x="16.0" y="552" textLength="950.4" lengthAdjust="spacingAndGlyphs" fill="#7d8590"> enter review · F start over · f fetch PR · / filter · a add folder · X remove · r refresh · q quit</text>
+</svg>

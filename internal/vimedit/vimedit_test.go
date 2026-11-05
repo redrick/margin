@@ -92,9 +92,15 @@ func TestCommands(t *testing.T) {
 	if e.Row != 1 {
 		t.Fatalf(":N goes to line N of the file, got row %d", e.Row)
 	}
-	feed(e, ":nope<enter>")
-	if !strings.Contains(e.Msg, "nope") {
-		t.Fatalf("an unknown command says so: %q", e.Msg)
+	if r := feed(e, ":nope 2<enter>"); r != Ex || e.Ex != "nope 2" {
+		t.Fatalf("an unknown command goes to the owner: %v %q", r, e.Ex)
+	}
+	if r := feed(e, ":w! nocompare<enter>"); r != Run || e.Ex != "w! nocompare" {
+		t.Fatalf(":w keeps its ! and arguments for the owner: %v %q", r, e.Ex)
+	}
+	e.Grow([]string{"top"}, []string{"end"})
+	if e.Text() != "top\nxa\nb\nend" || e.Row != 2 || e.First != 9 {
+		t.Fatalf("Grow: %q row %d first %d", e.Text(), e.Row, e.First)
 	}
 }
 

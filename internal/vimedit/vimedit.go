@@ -38,8 +38,9 @@ type Result int
 
 const (
 	None   Result = iota
-	Run           // :w, :wq, :x, ctrl+s
+	Run           // :w, :wq, :x, ctrl+s; Ex holds the command, so the owner can read its ! and arguments
 	Cancel        // :q, :q!
+	Ex            // a command the editor does not know; Ex holds it for the owner
 )
 
 // Key is one key press: Name as Bubble Tea spells it ("esc", "enter", "ctrl+r", "a"), and the runes
@@ -67,6 +68,7 @@ type Editor struct {
 	First int
 	Cmd   string // the command line, in Command mode
 	Msg   string // what the last command said
+	Ex    string // the last command run from the command line
 
 	reg        register
 	undo, redo []snapshot
@@ -1208,11 +1210,12 @@ func (e *Editor) command(k Key) Result {
 		return None
 	case "enter":
 		cmd := strings.TrimSpace(e.Cmd)
-		e.Mode, e.Cmd = Normal, ""
-		switch cmd {
-		case "w", "w!", "wq", "wq!", "x", "x!", "up", "update":
+		e.Mode, e.Cmd, e.Ex, e.Msg = Normal, "", cmd, ""
+		name, _, _ := strings.Cut(cmd, " ")
+		switch strings.TrimSuffix(name, "!") {
+		case "w", "wq", "x", "up", "update":
 			return Run
-		case "q", "q!", "cq", "qa", "qa!":
+		case "q", "cq", "qa":
 			return Cancel
 		case "":
 			return None
@@ -1222,8 +1225,7 @@ func (e *Editor) command(k Key) Result {
 			e.Col = indentOf(e.line())
 			return None
 		}
-		e.Msg = "Not an editor command: " + cmd
-		return None
+		return Ex
 	}
 	if len(k.Runes) > 0 {
 		e.Cmd += string(k.Runes)
@@ -1235,6 +1237,20 @@ func (e *Editor) command(k Key) Result {
 
 var pairs = map[string][2]rune{"(": {'(', ')'}, ")": {'(', ')'}, "b": {'(', ')'}, "[": {'[', ']'}, "]": {'[', ']'},
 	"{": {'{', '}'}, "}": {'{', '}'}, "B": {'{', '}'}, "<": {'<', '>'}, ">": {'<', '>'}}
+
+// Grow takes lines in above and below the ones being edited, keeping the cursor on its line.
+func (e *Editor) Grow(above, below []string) {
+	var top [][]rune
+	for _, l := range above {
+		top = append(top, []rune(l))
+	}
+	e.Lines = append(top, e.Lines...)
+	for _, l := range below {
+		e.Lines = append(e.Lines, []rune(l))
+	}
+	e.Row += len(top)
+	e.First -= len(top)
+}
 
 func order(r1, c1, r2, c2 int) (int, int, int, int) {
 	if r2 < r1 || (r2 == r1 && c2 < c1) {

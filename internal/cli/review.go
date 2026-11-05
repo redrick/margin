@@ -18,6 +18,7 @@ import (
 	"github.com/redrick/margin/internal/target"
 	"github.com/redrick/margin/internal/text"
 	"github.com/redrick/margin/internal/tmuxx"
+	"github.com/redrick/margin/internal/workspace"
 )
 
 // prepared is a review file made ready for a target, with what the command line asked.
@@ -100,21 +101,57 @@ func cmdPrepare(args []string) error {
 }
 
 func cmdReview(args []string) error {
-	p, err := prepareReview(args, "usage: margin [branch | commit] [--base REF] [--staged] [--pr N] [--intent TEXT] [--instructions TEXT] [--fresh] [--no-agent]")
+	if path, noAgent, ok := reviewFileArg(args); ok {
+		r, err := review.Load(path)
+		if err != nil {
+			return err
+		}
+		return launchReview(r.RepoDir(), r.Title, path, false, noAgent)
+	}
+	p, err := prepareReview(args, "usage: margin [branch | commit | file.review.yaml] [--base REF] [--staged] [--pr N] [--intent TEXT] [--instructions TEXT] [--fresh] [--no-agent]")
 	if err != nil {
 		return err
 	}
-	t, loc, path, created := p.t, p.loc, p.loc.Path, p.created
+	return launchReview(p.t.Repo, p.t.Label(), p.loc.Path, p.created, p.noAgent)
+}
+
+// reviewFileArg reads `margin <file.review.yaml> [--no-agent]`, which goes on with a review file
+// as it is, without resolving a target.
+func reviewFileArg(args []string) (path string, noAgent, ok bool) {
+	for _, a := range args {
+		switch {
+		case a == "--no-agent":
+			noAgent = true
+		case strings.HasSuffix(a, ".review.yaml") && path == "":
+			path = a
+		default:
+			return "", false, false
+		}
+	}
+	if path == "" {
+		return "", false, false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", false, false
+	}
+	return abs, noAgent, true
+}
+
+// launchReview opens the review at path with the agent beside it, in whatever terminal layout
+// margin runs in, or only the viewer with noAgent.
+func launchReview(repo, label, path string, created, noAgent bool) error {
 	r, err := review.Load(path)
 	if err != nil {
 		return err
 	}
-
+	loc := target.LocationOf(path)
 	if control.Alive(control.SocketPath(path)) {
 		fmt.Println("this review is already open in another pane")
 		return nil
 	}
-	if p.noAgent {
+	workspace.OpenedReview(path)
+	if noAgent {
 		return cmdOpen([]string{path})
 	}
 
@@ -149,8 +186,8 @@ func cmdReview(args []string) error {
 		fmt.Println("the viewer opens beside this pane; review instructions follow as a message")
 	}
 	return tmuxx.Launch(tmuxx.Layout{
-		Dir:      t.Repo,
-		Name:     "margin " + t.Label(),
+		Dir:      repo,
+		Name:     "margin " + label,
 		AgentCmd: agentShell(agentPrompt(r, loc, created)),
 		InAgent:  inAgent,
 		Kickoff:  "Start the margin code review: run `" + brief + "` and follow its instructions." + shimHint(),

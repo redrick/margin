@@ -6,6 +6,7 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"github.com/redrick/margin/internal/doc"
+	"github.com/redrick/margin/internal/render"
 )
 
 const (
@@ -86,8 +87,12 @@ type seg struct {
 	bold         bool
 }
 
-// bar renders segments left to right into width cells and right-aligns right while it still fits.
 func (m *Model) bar(segs []seg, width int, right string) string {
+	return paintBar(m.paint, segs, width, right)
+}
+
+// paintBar renders segments left to right into width cells and right-aligns right while it still fits.
+func paintBar(paint *render.Painter, segs []seg, width int, right string) string {
 	var b strings.Builder
 	avail := width
 	if rw := runewidth.StringWidth(right); rw > 0 && width > rw+20 {
@@ -99,14 +104,14 @@ func (m *Model) bar(segs []seg, width int, right string) string {
 		if w <= 0 {
 			break
 		}
-		b.WriteString(m.paint.Text(s.text, w, s.fg, s.bg, s.bold, false))
+		b.WriteString(paint.Text(s.text, w, s.fg, s.bg, s.bold, false))
 		used += w
 	}
 	if gap := avail - used; gap > 0 {
-		b.WriteString(m.paint.Text("", gap, "", colBar, false, false))
+		b.WriteString(paint.Text("", gap, "", colBar, false, false))
 	}
 	if avail < width {
-		b.WriteString(m.paint.Text(right, width-avail, colDim, colBar, false, false))
+		b.WriteString(paint.Text(right, width-avail, colDim, colBar, false, false))
 	}
 	return b.String()
 }

@@ -45,6 +45,7 @@ func (m *Model) notesPanel(w, h int) ([]string, map[int]string) {
 		out[i] = strings.Repeat(" ", w)
 	}
 	marks := map[int]string{}
+	m.cardAt = map[int]int{}
 	if m.blind(st) {
 		msg := []string{"", " your pass first", "", " This station is high risk. Read it", " before the agent's notes, then press", " v to compare with what it found."}
 		for i, l := range msg {
@@ -168,6 +169,7 @@ func (m *Model) notesPanel(w, h int) ([]string, map[int]string) {
 				break
 			}
 			out[y+j] = l
+			m.cardAt[y+j] = c.row
 		}
 		color := colComment
 		if c.comment == nil {
