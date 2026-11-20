@@ -25,36 +25,8 @@ type LineInput struct {
 	Text    string `json:"text"`
 }
 
-// Ask saves a question about a line and sends it to the agent straight away, like a in the terminal
-// viewer; without a running agent it stays saved for `margin questions`.
-func (r *Reviews) Ask(in LineInput) (*View, error) {
-	body := text.Sanitize(strings.TrimSpace(in.Text))
-	if body == "" {
-		return nil, errors.New("the question is empty")
-	}
-	var q state.Question
-	v, err := r.change(func(d *doc.Doc, st *state.State) error {
-		_, s := d.Station(in.Station)
-		if s == nil || in.Part < 0 || in.Part >= len(s.Parts) || in.Line < 0 || in.Line >= len(s.Parts[in.Part].Lines) {
-			return errors.New("that line is no longer in the review")
-		}
-		q = lineQuestion(s, s.Parts[in.Part], in.Line, st.NextQuestionID(), body)
-		st.Questions = append(st.Questions, q)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	if path := r.current(); r.agents.Running(path) {
-		if err := r.agents.Send(path, tui.AgentMessage(q)); err != nil {
-			return nil, err
-		}
-	}
-	return v, nil
-}
-
 // ReadNotes marks the notes a walk step showed as read, the way space does in the terminal viewer.
-func (r *Reviews) ReadNotes(keys []string) (*View, error) {
+func (r *Reviews) ReadNotes(keys []string) (*ReaderUpdate, error) {
 	return r.change(func(d *doc.Doc, st *state.State) error {
 		want := map[string]bool{}
 		for _, k := range keys {
@@ -77,7 +49,7 @@ func (r *Reviews) ReadNotes(keys []string) (*View, error) {
 func (r *Reviews) ExpandStep() int { return tui.ExpandStep }
 
 // Visit records that the reader opened a stop.
-func (r *Reviews) Visit(station string) (*View, error) {
+func (r *Reviews) Visit(station string) (*ReaderUpdate, error) {
 	return r.change(func(_ *doc.Doc, st *state.State) error {
 		st.Visited[station] = true
 		return nil
@@ -85,7 +57,7 @@ func (r *Reviews) Visit(station string) (*View, error) {
 }
 
 // SetFull switches between the guided walk and whole stops, remembered for the review.
-func (r *Reviews) SetFull(full bool) (*View, error) {
+func (r *Reviews) SetFull(full bool) (*ReaderUpdate, error) {
 	return r.change(func(_ *doc.Doc, st *state.State) error {
 		st.Full = full
 		return nil
@@ -93,14 +65,14 @@ func (r *Reviews) SetFull(full bool) (*View, error) {
 }
 
 // SetBlind hides the agent's notes on high-risk stops until the reader revealed them.
-func (r *Reviews) SetBlind(blind bool) (*View, error) {
+func (r *Reviews) SetBlind(blind bool) (*ReaderUpdate, error) {
 	return r.change(func(_ *doc.Doc, st *state.State) error {
 		st.Blind = blind
 		return nil
 	})
 }
 
-func (r *Reviews) Reveal(station string) (*View, error) {
+func (r *Reviews) Reveal(station string) (*ReaderUpdate, error) {
 	return r.change(func(_ *doc.Doc, st *state.State) error {
 		st.Revealed[station] = true
 		return nil
@@ -109,8 +81,8 @@ func (r *Reviews) Reveal(station string) (*View, error) {
 
 // Lines returns a part with extra lines of context around it (a multiple of ExpandStep), or the
 // whole file, the way + - and f do in the terminal viewer.
-func (r *Reviews) Lines(station string, part, extra int, whole bool) (*PartView, error) {
-	d, err := r.build(r.current())
+func (r *Reviews) Lines(station string, part, extra int, whole bool, version int) (*PartView, error) {
+	d, err := r.document(version)
 	if err != nil {
 		return nil, err
 	}
@@ -146,7 +118,7 @@ type SymbolView struct {
 
 // Around finds who outside the tour uses what a stop changes, and which commits wrote the code it replaces.
 func (r *Reviews) Around(station string) (*AroundView, error) {
-	d, err := r.build(r.current())
+	d, err := r.document(0)
 	if err != nil {
 		return nil, err
 	}
@@ -190,6 +162,10 @@ func (r *Reviews) Peek(file string, line int) (*PeekView, error) {
 	if err != nil {
 		return nil, err
 	}
+	return peek(rv, file, line)
+}
+
+func peek(rv *review.Review, file string, line int) (*PeekView, error) {
 	files, err := source.Open(rv)
 	if err != nil {
 		return nil, err
@@ -230,8 +206,8 @@ func (r *Reviews) Commit(sha string) (*PeekView, error) {
 }
 
 // TestSource peeks at where a test of the coverage is defined.
-func (r *Reviews) TestSource(ti int) (*PeekView, error) {
-	d, err := r.build(r.current())
+func (r *Reviews) TestSource(ti, version int) (*PeekView, error) {
+	d, err := r.document(version)
 	if err != nil {
 		return nil, err
 	}
@@ -242,12 +218,12 @@ func (r *Reviews) TestSource(ti int) (*PeekView, error) {
 	if err != nil {
 		return nil, err
 	}
-	return r.Peek(file, line-1)
+	return peek(d.Review, file, line-1)
 }
 
 // TestsAt lists the tests that run a line, by index into the coverage's tests.
-func (r *Reviews) TestsAt(station string, part, line int) ([]int, error) {
-	d, err := r.build(r.current())
+func (r *Reviews) TestsAt(station string, part, line, version int) ([]int, error) {
+	d, err := r.document(version)
 	if err != nil {
 		return nil, err
 	}
@@ -259,8 +235,8 @@ func (r *Reviews) TestsAt(station string, part, line int) ([]int, error) {
 }
 
 // RunsLines lists, per part of every code stop, the lines a test runs, for the spotlight.
-func (r *Reviews) RunsLines(ti int) (map[string][]int, error) {
-	d, err := r.build(r.current())
+func (r *Reviews) RunsLines(ti, version int) (map[string][]int, error) {
+	d, err := r.document(version)
 	if err != nil {
 		return nil, err
 	}
@@ -286,14 +262,14 @@ func (r *Reviews) RunsLines(ti int) (map[string][]int, error) {
 }
 
 // RunTests asks the agent to run tests that run a line; margin never runs tests itself.
-func (r *Reviews) RunTests(tests []int, file string, line int, needle string) error {
-	path := r.current()
-	if !r.agents.Running(path) {
-		return errors.New("start the agent first")
-	}
-	d, err := r.build(path)
+func (r *Reviews) RunTests(tests []int, file string, line int, needle string, version int) error {
+	d, err := r.document(version)
 	if err != nil {
 		return err
+	}
+	path := d.Review.Path
+	if !r.agents.Running(path) {
+		return errors.New("start the agent first")
 	}
 	if d.Coverage == nil {
 		return errors.New("no coverage")

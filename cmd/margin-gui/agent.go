@@ -46,6 +46,7 @@ func (a *Agents) SetSubmit(submit bool) {
 
 type session struct {
 	cmd          *exec.Cmd
+	command      string
 	pty          *os.File
 	lease        *os.File
 	exited       chan struct{}
@@ -128,7 +129,7 @@ func (a *Agents) launch(lease *os.File, path, repo string, argv []string, saved 
 		return err
 	}
 	s := &session{
-		cmd: cmd, pty: f, lease: lease, run: saved.Run, resuming: resuming,
+		cmd: cmd, command: saved.Command, pty: f, lease: lease, run: saved.Run, resuming: resuming,
 		exited: make(chan struct{}), registration: registration,
 	}
 	if err := updateReviewResume(path, func(record *reviewResume) bool {

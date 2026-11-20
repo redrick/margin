@@ -10,7 +10,7 @@ import (
 
 type Watcher struct {
 	w        *fsnotify.Watcher
-	onChange func()
+	onChange func([]string)
 
 	mu    sync.Mutex
 	dirs  map[string]bool
@@ -19,6 +19,10 @@ type Watcher struct {
 }
 
 func New(onChange func()) (*Watcher, error) {
+	return NewWithPaths(func([]string) { onChange() })
+}
+
+func NewWithPaths(onChange func([]string)) (*Watcher, error) {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -54,9 +58,18 @@ func (w *Watcher) Set(paths []string) {
 	w.files, w.dirs = files, dirs
 }
 
-func (w *Watcher) Close() { w.w.Close() }
+func (w *Watcher) Close() {
+	w.mu.Lock()
+	if w.timer != nil {
+		w.timer.Stop()
+		w.timer = nil
+	}
+	w.mu.Unlock()
+	w.w.Close()
+}
 
 func (w *Watcher) loop() {
+	pending := map[string]bool{}
 	for {
 		select {
 		case ev, ok := <-w.w.Events:
@@ -67,11 +80,32 @@ func (w *Watcher) loop() {
 				continue
 			}
 			w.mu.Lock()
-			if w.files[filepath.Clean(ev.Name)] {
+			path := filepath.Clean(ev.Name)
+			if w.files[path] {
+				pending[path] = true
 				if w.timer != nil {
 					w.timer.Stop()
 				}
-				w.timer = time.AfterFunc(200*time.Millisecond, w.onChange)
+				var timer *time.Timer
+				timer = time.AfterFunc(200*time.Millisecond, func() {
+					w.mu.Lock()
+					if w.timer != timer {
+						w.mu.Unlock()
+						return
+					}
+					var changed []string
+					for path := range pending {
+						if w.files[path] {
+							changed = append(changed, path)
+						}
+					}
+					clear(pending)
+					w.mu.Unlock()
+					if len(changed) > 0 {
+						w.onChange(changed)
+					}
+				})
+				w.timer = timer
 			}
 			w.mu.Unlock()
 		case _, ok := <-w.w.Errors:

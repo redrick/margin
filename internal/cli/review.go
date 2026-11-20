@@ -354,7 +354,7 @@ func cmdNote(args []string) error {
 		return err
 	}
 	fmt.Printf("note %s:%d on %s:%d\n", st.ID, idx+1, file, at+1)
-	return notifyViewer(sock, *jump, st.ID, idx)
+	return notifyViewer(sock, *jump, false, st.ID, idx)
 }
 
 func findLine(d *doc.Doc, stationID, file string, line int) (*doc.Station, *doc.Part) {
@@ -433,7 +433,7 @@ func readText(parts []string) (string, error) {
 	return s, nil
 }
 
-func notifyViewer(sock string, jump bool, station string, idx int) error {
+func notifyViewer(sock string, jump, reply bool, station string, idx int) error {
 	if sock == "" {
 		return nil
 	}
@@ -443,7 +443,7 @@ func notifyViewer(sock string, jump bool, station string, idx int) error {
 	if !jump {
 		return nil
 	}
-	_, err := control.Call(sock, control.Request{Cmd: "goto", Arg: fmt.Sprintf("%s:%d", station, idx+1)})
+	_, err := control.Call(sock, control.Request{Cmd: "goto", Arg: fmt.Sprintf("%s:%d", station, idx+1), Reply: reply})
 	return err
 }
 

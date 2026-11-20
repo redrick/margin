@@ -125,6 +125,18 @@ with pictures. In short:
 The page reloads by itself whenever the agent changes the review, so notes appear as it writes them;
 new ones are marked and `N` jumps to them.
 
+Choose **Ask agent** in the gutter composer, or select a line with the mouse and press `a`.
+Shift-click extends the selection. Margin sends the selected code to a separate session using the
+connected Codex, Claude Code, Gemini CLI, or OpenCode agent. Two questions can run at once. Each
+reply appears below its selection and has a **Jump to reply** notification. The **Questions**
+toolbar button opens previous replies and lets you retry failed or interrupted questions. The GUI
+saves them locally as JSON and ends outstanding sessions when you quit.
+
+**Next ask** cycles through your comments and questions in the current stop. **Next reply** cycles
+through agent replies, including replies to comments. New replies are marked on their threads and
+stops until you open them. **Back to reading** returns to your original position after any number
+of jumps.
+
 ## The agent
 
 *Start agent* runs the agent from [Settings](#settings) in a terminal under the review, in the
@@ -147,12 +159,12 @@ default. The agent keeps its conversation history in its own storage. Notes, ver
 coverage stay with the review files.
 
 The agent talks to the window with `margin` commands: `margin note` adds a note, `margin goto` shows
-you a line, `margin where` tells it what you are looking at, `margin answer` and `margin resolve`
-answer your questions and comments, `margin coverage` records which tests run which lines. These
+you a line, `margin where` tells it what you are looking at, `margin answer` answers terminal review
+questions, `margin resolve` answers comments, and `margin coverage` records which tests run which lines. These
 commands are this same binary: margin-gui puts a `margin` link to itself first on the agent's
 `PATH`, so you need no other margin installed. `MARGIN_CLI=1 margin-gui <command>` runs one by hand.
 
-Untick *send messages with Enter* to have your questions, comments and test runs only typed into
+Untick *send messages with Enter* to have your comments and test runs only typed into
 the agent's prompt, so you can add to them before pressing Enter yourself.
 
 If the same review is also open in margin-tui, the window says so: the agent's `margin goto` and

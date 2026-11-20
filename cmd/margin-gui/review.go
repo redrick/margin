@@ -28,12 +28,17 @@ type Reviews struct {
 	app    *application.App
 	agents *Agents
 
-	mu      sync.Mutex
-	stateMu sync.Mutex
-	path    string
-	watcher *watch.Watcher
-	ctl     ctlServer
-	tests   testRuns
+	mu             sync.Mutex
+	loadMu         sync.Mutex
+	stateMu        sync.Mutex
+	path           string
+	loaded         *doc.Doc
+	version        int
+	readerRevision int
+	watcher        *watch.Watcher
+	ctl            ctlServer
+	tests          testRuns
+	questions      questionQueue
 	// recovered lists files put back on start, from a run margin did not live to undo.
 	recovered  []string
 	recoverErr string
@@ -52,25 +57,26 @@ type Opened struct {
 }
 
 type View struct {
-	Path         string        `json:"path"`
-	Title        string        `json:"title"`
-	Kicker       string        `json:"kicker"`
-	Asked        string        `json:"asked"`
-	AskedFrom    string        `json:"askedFrom"`
-	Did          string        `json:"did"`
-	Gap          string        `json:"gap"`
-	Summary      string        `json:"summary"`
-	Motivation   string        `json:"motivation"`
-	Outcome      string        `json:"outcome"`
-	Complexity   string        `json:"complexity"`
-	Flow         string        `json:"flow"`
-	BaseDesc     string        `json:"baseDesc"`
-	HeadDesc     string        `json:"headDesc"`
-	Stats        string        `json:"stats"`
-	Stations     []StationView `json:"stations"`
-	Problems     []string      `json:"problems"`
-	Unshown      []string      `json:"unshown"`
-	Reader       ReaderView    `json:"reader"`
+	Path       string        `json:"path"`
+	Title      string        `json:"title"`
+	Kicker     string        `json:"kicker"`
+	Asked      string        `json:"asked"`
+	AskedFrom  string        `json:"askedFrom"`
+	Did        string        `json:"did"`
+	Gap        string        `json:"gap"`
+	Summary    string        `json:"summary"`
+	Motivation string        `json:"motivation"`
+	Outcome    string        `json:"outcome"`
+	Complexity string        `json:"complexity"`
+	Flow       string        `json:"flow"`
+	BaseDesc   string        `json:"baseDesc"`
+	HeadDesc   string        `json:"headDesc"`
+	Stats      string        `json:"stats"`
+	Stations   []StationView `json:"stations"`
+	Problems   []string      `json:"problems"`
+	Unshown    []string      `json:"unshown"`
+	ReaderUpdate
+	Version      int           `json:"version"`
 	Coverage     *CoverageView `json:"coverage,omitempty"`
 	Ignored      []string      `json:"ignored,omitempty"`
 	Guidance     string        `json:"guidance,omitempty"`
@@ -78,7 +84,6 @@ type View struct {
 	Instructions string        `json:"instructions,omitempty"`
 	Renames      []string      `json:"renames,omitempty"`
 	Skip         []string      `json:"skip,omitempty"`
-	Counts       tui.Counts    `json:"counts"`
 	HasBase      bool          `json:"hasBase"`
 }
 
@@ -257,9 +262,7 @@ func (r *Reviews) Open(dir, arg string, fresh bool) (*Opened, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.mu.Lock()
-	r.path = loc.Path
-	r.mu.Unlock()
+	r.setReview(loc.Path)
 	openedReview(loc.Path)
 	if created {
 		if err := clearReviewResume(loc.Path); err != nil {
@@ -275,9 +278,7 @@ func (r *Reviews) OpenFile(path string) (*Opened, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.mu.Lock()
-	r.path = rv.Path
-	r.mu.Unlock()
+	r.setReview(rv.Path)
 	openedReview(rv.Path)
 	loc := target.LocationOf(rv.Path)
 	return &Opened{Path: rv.Path, Repo: rv.RepoDir(), Label: rv.Title, Notes: loc.Notes, Shared: r.serve(rv.Path)}, nil
@@ -291,25 +292,55 @@ func (r *Reviews) PickFile() (string, error) {
 
 // Current builds the view of the open review and watches the files it shows for changes.
 func (r *Reviews) Current() (*View, error) {
-	path := r.current()
+	r.loadMu.Lock()
+	defer r.loadMu.Unlock()
+	r.mu.Lock()
+	path, version := r.path, r.version
+	r.mu.Unlock()
 	if path == "" {
 		return nil, errors.New("no review open")
 	}
 	d, err := r.build(path)
+	var v *View
+	if err == nil {
+		v = viewOf(d)
+	}
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.version != version {
+		return nil, errors.New("the open review changed")
+	}
 	if err != nil {
-		r.watch([]string{path})
+		if r.loaded == nil {
+			r.watch([]string{path})
+		}
 		return nil, err
 	}
-	statePath := review.StatePath(path)
-	st, err := state.Load(statePath)
+	st, err := state.Load(review.StatePath(path))
 	if err != nil {
 		return nil, err
 	}
-	r.watch(append([]string{path, statePath, review.CommentsPath(path)}, d.WatchPaths()...))
-	v := viewOf(d)
-	v.Reader = readerOf(d, st)
-	v.Counts = tui.CountsOf(d, st)
+	r.watch(append(d.WatchPaths(), review.StatePath(path), review.CommentsPath(path)))
+	r.loaded = d
+	r.version++
+	v.Version = r.version
+	v.ReaderUpdate = r.readerUpdate(d, st)
 	return v, nil
+}
+
+// document is the snapshot backing the window. Test indices belong to a specific version.
+func (r *Reviews) document(version int) (*doc.Doc, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.loaded == nil {
+		return nil, errors.New("open a review first")
+	}
+	if version != 0 && version != r.version {
+		return nil, errors.New("the review changed; select the tests again")
+	}
+	return r.loaded, nil
 }
 
 func (r *Reviews) current() string {
@@ -337,29 +368,46 @@ func (r *Reviews) build(path string) (*doc.Doc, error) {
 	return d, nil
 }
 
-func (r *Reviews) Close() {
+func (r *Reviews) Close() { r.setReview("") }
+
+func (r *Reviews) setReview(path string) {
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.path = ""
+	r.path, r.loaded = path, nil
+	r.version++
 	if r.watcher != nil {
 		r.watcher.Set(nil)
 	}
 }
 
+// watch is called with mu held.
 func (r *Reviews) watch(paths []string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.watcher == nil {
-		w, err := watch.New(func() { r.app.Event.Emit("review:changed") })
+	if r.watcher == nil && r.app != nil {
+		w, err := watch.NewWithPaths(func(changed []string) {
+			path := r.current()
+			if path == "" {
+				return
+			}
+			if len(changed) == 1 && changed[0] == review.StatePath(path) {
+				r.app.Event.Emit("review:reader")
+			} else {
+				r.app.Event.Emit("review:changed")
+			}
+		})
 		if err != nil {
 			return
 		}
 		r.watcher = w
 	}
-	r.watcher.Set(paths)
+	if r.watcher != nil {
+		r.watcher.Set(paths)
+	}
 }
 
 func (r *Reviews) ServiceShutdown() error {
+	r.questions.stop()
 	r.StopTests()
 	tryout.RestoreAll()
 	if r.ctl.srv != nil {
@@ -410,7 +458,8 @@ func viewOf(d *doc.Doc) *View {
 			for si, st := range d.Stations {
 				if st.Kind == doc.Code {
 					sc := st.Coverage(c, ti)
-					row[si] = [2]int{sc.Run, st.Coverage(c, -1).Total()}
+					total := v.Stations[si].Cov
+					row[si] = [2]int{sc.Run, total.Run + total.Missed}
 				}
 			}
 			cv.Grid = append(cv.Grid, row)
@@ -435,9 +484,9 @@ func stationOf(d *doc.Doc, st *doc.Station, hl map[string][][]render.Span) Stati
 	if st.Kind == doc.Code {
 		sv.Steps = tui.Walk(st, func(pi int) anchor.Range { return st.Parts[pi].Range })
 		sv.ChecksAll, sv.OwnChecks = tui.Checks(st)
-		sv.NeedsTest = st.NeedsTests() && st.Coverage(d.Coverage, -1).Run == 0
+		sc := st.Coverage(d.Coverage, -1)
+		sv.NeedsTest = st.NeedsTests() && sc.Run == 0
 		if d.Coverage != nil {
-			sc := st.Coverage(d.Coverage, -1)
 			sv.Cov = &StopCovView{Run: sc.Run, Missed: sc.Missed, Measured: sc.Measured, Stale: sc.Stale, Current: sc.Current}
 		}
 	}

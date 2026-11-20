@@ -1,6 +1,5 @@
 import { api, $, $$, state, hooks, esc, el, toast, errText, tail, plural, fuzzy, openModal, closeModal, applyTheme, setThemeMode } from "./core.js";
-import { openReview, openReviewFile } from "./review.js";
-import { openAnswers } from "./answers.js";
+import { openReview, openReviewFile, openDiscussionAnswers } from "./review.js";
 
 // Navigation: the sidebar holds the reviews in progress and the repositories with their worktrees;
 // the worktree page lists what there is to review in one worktree; ctrl+k jumps anywhere.
@@ -433,7 +432,7 @@ function candidates() {
   add("cmd:settings", "command", "Settings", "where reviews are kept, which agent runs, the agent skill", openSettings);
   add("cmd:add", "command", "Add a repository…", "a repository or a folder of repositories", addFolder);
   add("cmd:file", "command", "Open a review file…", "any .review.yaml", hooks.pickReviewFile);
-  if (state.opened) add("cmd:answers", "command", "Answers to your comments", "the comments note of the open review", () => openAnswers());
+  if (state.opened) add("cmd:answers", "command", "Answers to your comments", "the comments note of the open review", () => openDiscussionAnswers());
   if (state.opened && !$("#home-pane").classList.contains("hidden")) add("cmd:back", "command", "Back to the review", state.view?.title ?? "", backToReview);
   return items;
 }

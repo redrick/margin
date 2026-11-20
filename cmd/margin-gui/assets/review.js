@@ -1,6 +1,7 @@
 import { Events, Clipboard } from "/wails/runtime.js";
-import { api, $, $$, state, hooks, esc, prose, oneLine, el, toast, errText, tail, plural, shortList, base, openModal, closeModal } from "./core.js";
-import { openAnswers } from "./answers.js";
+import { api, $, $$, state, hooks, esc, prose, md, oneLine, el, toast, errText, tail, plural, shortList, base, openModal, closeModal } from "./core.js";
+import { openAnswers, hasAnswerDraft } from "./answers.js";
+import { agentReply, discussionThreads, nextThread, questionSelection, readReply, unreadReply } from "./discussions.js";
 import { runTests, tryChange, toggleTestPanel, resetTests, statusOf, statusIcon, testHooks, results } from "./tests.js";
 
 export { closeModal };
@@ -21,18 +22,18 @@ const partData = (s, pi) => state.parts[partKey(s, pi)] ?? s.parts[pi];
 
 // Loading
 
-export function openReviewFile(path, restore = false) {
-  return openReview("", "", false, path, restore);
+export function openReviewFile(path, restore = false, browsing = false) {
+  return openReview("", "", false, path, restore, browsing);
 }
 
 let openingReview = Promise.resolve();
-export function openReview(dir, arg, fresh = false, file = "", restore = false) {
-  const opened = openingReview.then(() => loadReview(dir, arg, fresh, file, restore));
+export function openReview(dir, arg, fresh = false, file = "", restore = false, browsing = false) {
+  const opened = openingReview.then(() => loadReview(dir, arg, fresh, file, restore, browsing));
   openingReview = opened.catch(() => {});
   return opened;
 }
 
-async function loadReview(dir, arg, fresh, file, restore) {
+async function loadReview(dir, arg, fresh, file, restore, browsing) {
   const previous = state.opened;
   const scroll = $("#station").scrollTop;
   if (previous) previous.restoringPosition = true;
@@ -59,9 +60,15 @@ async function loadReview(dir, arg, fresh, file, restore) {
   const active = state.opened;
   active.restoringPosition = true;
   if (!same) {
+    if (!browsing) readingOrigin = null;
+    activeThread = "";
+    commentSections = {};
+    threads = new Map();
     resetTests();
     endTry();
     state.view = null;
+    diffQuestions = [];
+    questionsByRow.clear();
     Object.assign(state, { station: 0, note: -1, step: 0, sel: null, compose: null, editing: null, block: null, parts: {}, expand: {}, whole: {}, around: {}, known: null,
       query: "", spot: -1, spotLines: null, filter: 0 });
     state.fresh = new Set();
@@ -73,7 +80,7 @@ async function loadReview(dir, arg, fresh, file, restore) {
     active.restoringPosition = false;
     return false;
   }
-  if (!same && !restoreReadingPosition(position)) {
+  if (!same && !await restoreReadingPosition(position)) {
     // Like the terminal viewer: the first code stop, unless a guided walk starts fresh at the overview.
     const atOverview = guided() && !reader().visited.length;
     if (!atOverview && state.view.stations.length > 1) goStation(1);
@@ -88,10 +95,15 @@ async function loadReview(dir, arg, fresh, file, restore) {
   return true;
 }
 
+let reloadRequest = 0;
 async function reload(top = false) {
+  const opened = state.opened;
+  const request = ++reloadRequest;
   try {
-    applyView(await api("Reviews.Current"), top);
+    const view = await api("Reviews.Current");
+    if (request === reloadRequest && state.opened === opened && view.path === opened?.path) applyView(view, top);
   } catch (e) {
+    if (request !== reloadRequest || state.opened !== opened) return;
     if (!state.view) $("#station").innerHTML = `<div class="spinner error">${esc(errText(e))}</div>`;
     else toast(errText(e), true);
   }
@@ -100,28 +112,54 @@ async function reload(top = false) {
 function applyView(view, top = false) {
   if (view.path !== state.opened?.path) return;
   const prevId = cur()?.id;
+  const prev = state.view;
+  if (prev?.path === view.path && prev.readerRevision > view.readerRevision) {
+    view.reader = prev.reader;
+    view.counts = prev.counts;
+    view.readerRevision = prev.readerRevision;
+  }
   trackFresh(view);
-  if (state.view && state.view !== view && !top) {
+  if (prev && prev !== view && !top) {
     state.around = {};
     if (state.spot >= 0) {
-      if (!view.coverage || state.spot >= view.coverage.tests.length) {
-        state.spot = -1;
-        state.spotLines = null;
-      } else {
-        api("Reviews.RunsLines", state.spot).then((l) => {
+      const test = prev.coverage?.tests[state.spot];
+      const spot = test ? view.coverage?.tests.findIndex((t) => t.name === test.name && t.group === test.group && t.file === test.file) ?? -1 : -1;
+      state.spot = spot;
+      state.spotLines = null;
+      if (spot >= 0) {
+        api("Reviews.RunsLines", spot, view.version).then((l) => {
+          if (state.view !== view || state.spot !== spot) return;
           state.spotLines = l;
           renderKeepScroll();
-        });
+        }).catch((e) => state.view === view && toast(errText(e), true));
       }
     }
   }
   state.view = view;
+  indexDiscussions();
   const i = view.stations.findIndex((s) => s.id === prevId);
   state.station = i >= 0 ? i : Math.min(state.station, view.stations.length - 1);
   const scroll = $("#station").scrollTop;
   renderReview();
   if (!top) $("#station").scrollTop = scroll;
   refreshParts();
+  refreshDiffQuestions(view);
+  refreshCommentReplies(view);
+}
+
+function applyReader(update) {
+  const v = state.view;
+  if (!v || update.path !== v.path || update.readerRevision <= v.readerRevision) return;
+  v.readerRevision = update.readerRevision;
+  if (JSON.stringify(v.reader) === JSON.stringify(update.reader) && JSON.stringify(v.counts) === JSON.stringify(update.counts)) return;
+  const sent = sentComments(v);
+  v.reader = update.reader;
+  v.counts = update.counts;
+  indexDiscussions();
+  const scroll = $("#station").scrollTop;
+  renderReview();
+  $("#station").scrollTop = scroll;
+  if (sent !== sentComments(v)) refreshCommentReplies(v);
 }
 
 // trackFresh marks notes that appeared since the last load, so notes the agent adds elsewhere are not missed.
@@ -147,27 +185,27 @@ function trackFresh(view) {
 async function refreshParts() {
   const s = cur();
   if (!s) return;
+  const view = state.view;
   let changed = false;
-  for (const k of Object.keys(state.parts)) {
-    const [sid, pi] = k.split("|");
-    if (sid !== s.id) continue;
-    try {
-      state.parts[k] = await api("Reviews.Lines", sid, +pi, state.expand[k] ?? 0, !!state.whole[k]);
-      changed = true;
-    } catch {
-      delete state.parts[k];
-    }
+  for (let pi = 0; pi < s.parts.length; pi++) {
+    if (state.view !== view || cur() !== s) return;
+    const k = partKey(s, pi);
+    const extra = state.expand[k] ?? 0, whole = !!state.whole[k];
+    if (!extra && !whole) continue;
+    if (await loadPart(s, pi, extra, whole, true)) changed = true;
   }
-  if (changed) renderKeepScroll();
+  if (changed && state.view === view && cur() === s) renderKeepScroll();
 }
 
 export async function act(name, ...args) {
+  const opened = state.opened;
   try {
     const v = await api("Reviews." + name, ...args);
-    if (v) applyView(v);
+    if (state.opened !== opened || v?.path !== opened?.path) return false;
+    applyReader(v);
     return true;
   } catch (e) {
-    toast(errText(e), true);
+    if (state.opened === opened) toast(errText(e), true);
     return false;
   }
 }
@@ -191,6 +229,9 @@ Events.On("review:changed", () => {
       reloading = false;
     }
   }, 150);
+});
+Events.On("review:reader", () => {
+  if (state.opened && state.view) act("Reader");
 });
 
 // The agent drives the window through the control socket: margin goto, where and reload.
@@ -267,8 +308,8 @@ async function gotoFileLine(file, line) {
         if (!match(p) || line < 1 || line > p.len || (pass === 0 && (line - 1 < p.start || line - 1 > p.end))) continue;
         if (pass === 1) {
           if (si !== state.station) goStation(si);
-          state.whole[partKey(st[si], pi)] = true;
-          await loadPart(st[si], pi);
+          const s = st[si];
+          if (!(await loadPart(s, pi, state.expand[partKey(s, pi)] ?? 0, true))) return;
         }
         jump({ si, pi, line: line - 1 });
         return;
@@ -346,7 +387,7 @@ export function renderReview() {
     const vd = verdicts.find((x) => x.id === reader().verdicts?.[s.id]);
     const visited = !vd && reader().visited.includes(s.id) && s.kind === "code";
     const item = el(`<div class="st${i === state.station ? " on" : ""}"><span class="num">${vd ? `<span class="vdot ${vd.cls}" title="${vd.label}"></span>` : visited ? `<span class="vdot half" title="visited"></span>` : num}</span>
-      <span class="t">${esc(s.title || s.id)}</span><div class="meta">${meta.join("")}</div></div>`);
+      <span class="t">${esc(s.title || s.id)}</span><div class="meta">${meta.join("")}<span class="m-fresh hidden" data-reply-stop="${esc(s.id)}"></span></div></div>`);
     item.onclick = () => goStation(i);
     nav.append(item);
   });
@@ -368,7 +409,7 @@ function renderToolbar() {
   btn("Removed", "Show removed lines (d)", state.showGhosts, () => toggle("showGhosts"));
   btn("Split", "Old and new side by side (s)", state.split, () => toggle("split"));
   btn("Notes", "Show the agent's notes (n)", state.showNotes, () => toggle("showNotes"));
-  btn("Fold", "Fold unchanged stretches (z)", !state.unfold, () => toggle("unfold"));
+  if (!guided()) btn("Fold", "Fold unchanged stretches (z)", !state.unfold, () => toggle("unfold"));
   btn("Blind", "Hide the agent's notes on high-risk stops until you revealed them", reader().blind, () => act("SetBlind", !reader().blind));
   if (blind(s)) btn("Reveal notes", "Show the agent's notes on this stop (v)", false, reveal, "warn");
   const search = el(`<input id="search" class="search" placeholder="Search /" value="${esc(state.query)}">`);
@@ -389,7 +430,11 @@ function renderToolbar() {
   if (s?.kind === "code" && state.view.coverage && s.cov?.measured) btn("▶ Tests", "Run the tests that run this stop's changed lines (T without a selected line)", false, () => runFor(s, -1));
   if (s?.kind === "code" && state.view.coverage && s.cov?.missed) btn("Next untested", "The next changed line no test runs (u, U goes back)", false, () => nextUntested(1));
   if (state.spot >= 0) btn("Spotlight: " + esc(state.view.coverage?.tests[state.spot]?.label ?? "") + " ✕", "End the spotlight (esc)", true, endSpot, "warn");
-  if (reader().comments.some((c) => !c.draft)) btn("Answers", "The agent's answers to your comments, to read, edit or reply to (A)", false, () => openAnswers());
+  if (reader().comments.some((c) => !c.draft)) btn("Answers", "The agent's answers to your comments, to read, edit or reply to (A)", false, () => openDiscussionAnswers());
+  const questions = btn("Questions", "Your diff questions and the agent's replies", false, () => openDiffQuestions());
+  questions.id = "diff-questions-btn";
+  questions.classList.toggle("hidden", !diffQuestions.length);
+  tb.append(discussionNavigation());
   btn("Export", "Your comments, flagged problems and calls, to post yourself", false, openExport);
   btn("?", "All keys (H)", false, openHelp);
 }
@@ -419,6 +464,7 @@ function codeStops() {
 
 export function goStation(i, noteIdx = -1, step = 0) {
   if (!state.view) return;
+  if (!discussionBusy) activeThread = "";
   state.station = Math.max(0, Math.min(i, state.view.stations.length - 1));
   state.note = noteIdx;
   state.step = step;
@@ -437,11 +483,21 @@ export function goStation(i, noteIdx = -1, step = 0) {
   document.querySelector("#stations .st.on")?.scrollIntoView({ block: "nearest" });
   if (noteIdx >= 0) focusNote(noteIdx);
   else if (walking()) enterStep();
-  refreshParts();
+  return refreshParts();
 }
 
 function renderStation() {
+  const focus = discussionFocus();
+  const compose = state.compose, editor = document.activeElement;
+  const caret = editor?.matches("#station .composer:not(.edit-box) textarea") ? [editor.selectionStart, editor.selectionEnd] : null;
   drawStation();
+  syncDiscussionUI();
+  restoreDiscussionFocus(focus);
+  if (caret && state.compose === compose) {
+    const textarea = $("#station .composer:not(.edit-box) textarea:not(:disabled)");
+    textarea?.focus({ preventScroll: true });
+    textarea?.setSelectionRange(...caret);
+  }
   covHint();
   queueMicrotask(() => queueReadingPosition());
 }
@@ -568,7 +624,7 @@ function codeRows(s, pi, from, to, opts = {}) {
   const code = scroll.firstElementChild;
   const shown = opts.shown ?? new Set();
   const spotSet = state.spotLines ? new Set(state.spotLines[partKey(s, pi)] ?? []) : null;
-  const folds = state.unfold || opts.step ? [] : (p.folds ?? []);
+  const folds = state.unfold || opts.step || opts.whole ? [] : (p.folds ?? []);
   const rows = p.rows.filter((r) => (r.n ? r.n - 1 >= from && r.n - 1 <= to : to >= p.len - 1));
   const hlOld = (r) => (r.hl ? [r.hl[0], r.hl[1]] : null);
   // In side by side, removed lines pair with the changed lines that replaced them.
@@ -601,7 +657,7 @@ function codeRows(s, pi, from, to, opts = {}) {
     const inTry = trb && trb.station === s.id && trb.part === pi && r.n && line >= trb.line && line <= trb.end;
     if (inTry && line > trb.line) continue;
     const ghosts = r.g ?? [];
-    if (split) {
+    if (split && state.showGhosts) {
       const paired = [...pairedLeft.values()].filter((v) => v.from === k).length;
       ghosts.slice(paired).forEach((g, j) => code.append(ghostRow(g, r.gm?.[paired + j], null, "")));
     } else if (state.showGhosts) {
@@ -632,7 +688,7 @@ function codeRows(s, pi, from, to, opts = {}) {
     const moved = r.mv ? " moved" : "";
     const row = el(`<div class="row ${r.k ?? ""}${moved}${notes.length ? " has-note" : ""}${sel ? " sel" : ""}${blk ? " blk" : ""}${dim ? " dim" : ""}" data-part="${pi}" data-line="${line}"${r.mv ? ` title="moved here unchanged from ${esc(r.mv)}"` : ""}>
       <span class="mark">${r.mv ? "→" : ""}</span><span class="cov ${ccls}" title="${r.cov === "run" ? `${r.tn} tests run this line · click lists them (t)` : r.cov === "missed" ? "changed, and no test runs it" : ""}">${cm}</span>
-      <span class="ln" title="Comment on this line (c)">${badge}${r.n}</span>${left}<span class="src${split ? " right" : ""}">${src}</span></div>`);
+      <span class="ln" title="Comment or ask the agent">${badge}${r.n}</span>${left}<span class="src${split ? " right" : ""}">${src}</span></div>`);
     if (r.cov === "run") {
       const cv = row.querySelector(".cov");
       cv.onmouseenter = async () => {
@@ -654,15 +710,17 @@ function codeRows(s, pi, from, to, opts = {}) {
     };
     row.onmousedown = (e) => e.shiftKey && e.preventDefault();
     code.append(row);
+    const qs = questionsByRow.get(questionRowKey(s.id, pi, line));
+    if (qs) code.append(diffQuestionGroup(qs));
     for (const i of notes) {
       shown.add(i);
       code.append(noteCard(s, s.notes[i], i));
     }
     for (const c of reader().comments) {
-      if (c.station === s.id && c.file === p.file && c.line === r.n && (c.side === "base") === !!p.base && !c.resolved) code.append(commentCard(c));
+      if (c.station === s.id && c.part === pi && c.at === line && (!c.resolved || activeThread === c.id || unreadReply(state.view.path, threads.get(c.id)))) code.append(commentCard(c));
     }
     for (const q of reader().questions) {
-      if (q.station === s.id && q.file === p.file && q.line === r.n && (q.side === "base") === !!p.base && !q.answered) code.append(questionCard(q));
+      if (q.station === s.id && q.part === pi && q.at === line && (!q.answered || activeThread === q.id || unreadReply(state.view.path, threads.get(q.id)))) code.append(questionCard(q));
     }
     const cp = state.compose;
     if (cp && cp.station === s.id && cp.part === pi && cp.line === line) code.append(composer(s, p));
@@ -690,38 +748,52 @@ function partTitle(s, pi, p) {
 function partBox(s, pi, from, to, title, opts = {}) {
   const p = partData(s, pi);
   const k = partKey(s, pi);
+  const extra = state.parts[k] ? (state.expand[k] ?? 0) : 0;
+  const whole = !!state.parts[k] && !!state.whole[k];
+  const start = whole ? p.start : opts.step ? Math.max(p.start, from - extra) : from;
+  const end = whole ? p.end : opts.step ? Math.min(p.end, to + extra) : to;
+  const folded = !opts.step && !state.unfold && p.folds?.length;
+  const wholeShown = start === 0 && end >= p.len - 1 && !folded;
+  const tryStart = opts.step ? from : s.parts[pi].start;
+  const tryEnd = opts.step ? to : s.parts[pi].end;
+  const changes = p.base || p.err ? [] : p.rows.filter((r) => r.n && r.n - 1 >= tryStart && r.n - 1 <= tryEnd && (r.k === "add" || r.k === "chg"));
   const part = el(`<section class="part${p.background ? " bgpart" : ""}">
     <div class="part-head"><span class="file">${esc(title ?? p.file)}</span><span class="label">${title ? (p.baseFile ? "renamed from " + esc(p.baseFile) : "") : partTitle(s, pi, p)}</span>
     <span class="spacer"></span>
     ${!p.err && state.view.coverage && p.rows?.some((r) => r.cov === "run") ? `<button class="na run-btn" data-run="1" title="Run the tests that run this part's changed lines">▶ tests</button>` : ""}
-    ${!p.err && !p.base && p.rows?.some((r) => r.k === "add" || r.k === "chg") ? `<button class="na" data-try="1" title="Edit or delete this part's changed lines and see whether the tests notice">✎ try a change</button>` : ""}
-    ${p.err ? "" : `<button class="na" data-w="-1" title="Less context (-)">−</button><button class="na" data-w="1" title="More context (+)">+</button>
-    <button class="na${state.whole[k] ? " on" : ""}" data-f="1" title="Whole file (f)">whole file</button>`}</div></section>`);
+    ${changes.length ? `<button class="na" data-try="1" title="Edit the reviewed changes and see whether the tests notice">✎ try a change</button>` : ""}
+    ${p.err ? "" : `<button class="na" data-w="-1" title="Less context (-)"${whole || !extra ? " disabled" : ""}>−</button><button class="na" data-w="1" title="More context (+)"${whole || wholeShown ? " disabled" : ""}>+</button>
+    <button class="na${whole ? " on" : ""}" data-f="1" aria-pressed="${whole}" title="${whole ? "Return to the reviewed range" : "Show the whole file"} (f)"${!whole && wholeShown ? " disabled" : ""}>${whole ? "Back to change" : wholeShown ? "Whole file shown" : "Whole file"}</button>`}</div></section>`);
   part.querySelectorAll("[data-w]").forEach((b) => (b.onclick = () => widen(s, pi, +b.dataset.w)));
   part.querySelector("[data-f]")?.addEventListener("click", () => wholeFile(s, pi));
   part.querySelector("[data-run]")?.addEventListener("click", () => runFor(s, pi));
-  part.querySelector("[data-try]")?.addEventListener("click", () => tryPart(s, pi));
+  part.querySelector("[data-try]")?.addEventListener("click", () => startTry(null, { station: s.id, part: pi, line: changes[0].n - 1, end: changes.at(-1).n - 1 }));
   if (p.about && opts.about !== false && (p.hunk ?? 0) <= 1) part.append(el(`<div class="part-about">${prose(p.about)}</div>`));
   if (p.err) {
     part.append(el(`<div class="part-err">${esc(p.err)}</div>`));
     return part;
   }
-  const extra = state.expand[k] || state.whole[k];
-  part.append(codeRows(s, pi, extra && opts.step ? Math.min(from, p.start) : from, extra && opts.step ? Math.max(to, p.end) : to, opts));
+  part.append(codeRows(s, pi, start, end, { ...opts, whole }));
   return part;
 }
 
 async function widen(s, pi, dir) {
+  const view = state.view;
   const k = partKey(s, pi);
-  const step = await stepSize();
-  state.expand[k] = Math.max(0, (state.expand[k] ?? 0) + dir * step);
-  await loadPart(s, pi);
+  if (state.whole[k]) return toast("Return to the change to adjust its context.");
+  try {
+    const step = await stepSize();
+    if (state.view !== view || cur() !== s) return;
+    const extra = Math.max(0, (state.expand[k] ?? 0) + dir * step);
+    if (extra !== (state.expand[k] ?? 0)) await loadPart(s, pi, extra, false);
+  } catch (e) {
+    if (state.view === view) toast(errText(e), true);
+  }
 }
 
-async function wholeFile(s, pi) {
+function wholeFile(s, pi) {
   const k = partKey(s, pi);
-  state.whole[k] = !state.whole[k];
-  await loadPart(s, pi);
+  return loadPart(s, pi, state.expand[k] ?? 0, !state.whole[k]);
 }
 
 let expandStep = 0;
@@ -730,18 +802,31 @@ async function stepSize() {
   return expandStep;
 }
 
-async function loadPart(s, pi) {
+const partLoads = new Map();
+async function loadPart(s, pi, extra, whole, refresh = false) {
+  const view = state.view;
   const k = partKey(s, pi);
-  if (!state.expand[k] && !state.whole[k]) {
-    delete state.parts[k];
-  } else {
-    try {
-      state.parts[k] = await api("Reviews.Lines", s.id, pi, state.expand[k] ?? 0, !!state.whole[k]);
-    } catch (e) {
-      toast(errText(e), true);
+  if (refresh && partLoads.get(k)?.view === view) return false;
+  const request = { view };
+  partLoads.set(k, request);
+  try {
+    const part = extra || whole ? await api("Reviews.Lines", s.id, pi, extra, whole, view.version) : null;
+    if (state.view !== view || partLoads.get(k) !== request) return false;
+    state.expand[k] = extra;
+    state.whole[k] = whole;
+    if (part) state.parts[k] = { ...part, viewVersion: view.version };
+    else delete state.parts[k];
+    if (!refresh && cur() === s) renderKeepScroll();
+    return true;
+  } catch (e) {
+    if (state.view === view && partLoads.get(k) === request) {
+      if (refresh) delete state.parts[k];
+      else toast(errText(e), true);
     }
+    return false;
+  } finally {
+    if (partLoads.get(k) === request) partLoads.delete(k);
   }
-  renderKeepScroll();
 }
 
 // Notes, comments and questions
@@ -770,10 +855,17 @@ function noteCard(s, n, i, opts = {}) {
     ${n.changed ? `<div class="ev">Changed: ${prose(n.changed)}</div>` : ""}
     ${n.problem ? `<div class="ev problems">${esc(n.problem)} — anchored at “${esc(n.at)}”</div>` : ""}
     <div class="note-actions"></div></div>`);
+  if (n.qid) {
+    card.dataset.discussion = n.qid;
+    card.dataset.discussionReply = "";
+    card.tabIndex = -1;
+  }
   card.onclick = () => {
     state.fresh.delete(n.key);
     if (opts.jump) return opts.jump();
     focusNote(i);
+    const thread = threads.get(n.qid);
+    if (thread?.reply?.kind === "note") openedReply(thread);
   };
   const actions = card.querySelector(".note-actions");
   const btn = (label, title, on, fn) => {
@@ -912,21 +1004,11 @@ function yank(all) {
 
 function commentCard(c, opts = {}) {
   const body = c.text.replace(/^[a-z]+(?: \([a-z, -]+\))?: /, "");
-  const card = el(`<div class="comment${c.draft ? " draft" : ""}${c.blocking ? " blocking" : ""}${opts.static ? " static" : ""}">
+  const card = el(`<div class="comment${c.draft ? " draft" : ""}${c.blocking ? " blocking" : ""}${opts.static ? " static" : ""}" data-discussion="${esc(c.id)}" tabindex="-1">
     ${opts.where ? `<div class="muted small">${esc(c.file)}:${c.line}</div>` : ""}
     <span class="ck">${esc(c.id)} · you${c.label ? " · " + esc(c.label) : ""}${c.blocking ? " (blocking)" : ""}</span>
     <span class="badge">${c.fix ? (c.resolved ? "fixed" : "fix sent") : c.resolved ? "resolved" : c.draft ? "draft" : "sent"}</span>
     <div>${prose(body)}</div></div>`);
-  if (!c.draft) {
-    const ans = el(`<button class="na" title="Read the agent's answer, reply to it (A)">Answer</button>`);
-    ans.onclick = (e) => {
-      e.stopPropagation();
-      openAnswers(c.id);
-    };
-    const actions = el(`<div class="note-actions"></div>`);
-    actions.append(ans);
-    card.append(actions);
-  }
   if (c.draft && state.editing?.id === c.id) {
     card.querySelector(":scope > div:last-of-type").replaceWith(editBox(c));
     card.classList.add("editing");
@@ -1015,7 +1097,7 @@ function editKey(s, sel) {
 }
 
 function questionCard(q, opts = {}) {
-  const card = el(`<div class="comment question${opts.static ? " static" : ""}">
+  const card = el(`<div class="comment question${opts.static ? " static" : ""}" data-discussion="${esc(q.id)}" tabindex="-1">
     ${opts.where ? `<div class="muted small">${esc(q.file)}:${q.line}</div>` : ""}
     <span class="ck">${esc(q.id)} · you asked</span><span class="badge">${q.answered ? "answered" : state.agentLive ? "waiting for the agent" : "saved; start the agent"}</span>
     <div>${prose(q.text)}</div></div>`);
@@ -1023,10 +1105,375 @@ function questionCard(q, opts = {}) {
   return card;
 }
 
+let diffQuestions = [], questionFetch = 0;
+const questionsByRow = new Map();
+const renderedQuestionGroups = new WeakMap();
+const questionRowKey = (station, part, line) => JSON.stringify([station, part, line]);
+const rowAt = (part, line) => $(`#station .row[data-part="${part}"][data-line="${line}"]`);
+const questionLastLine = (q) => q.at + q.end - q.line;
+const questionWhere = (q) => `${q.file}:${q.line}${q.end > q.line ? `–${q.end}` : ""}${q.side === "base" ? " (base)" : ""}`;
+const questionStatus = { queued: "Queued", answering: "Answering", answered: "Answered", failed: "Failed", interrupted: "Interrupted" };
+
+let commentSections = {}, threads = new Map(), replyFetch = 0;
+let readingOrigin = null, activeThread = "", activeReply = false, discussionBusy = false;
+const sentComments = (view) => view.reader.comments.filter((c) => !c.draft).map((c) => c.id).join(",");
+
+function indexDiscussions() {
+  threads = discussionThreads(state.view, diffQuestions, commentSections);
+  if (activeThread && !threads.has(activeThread)) activeThread = "";
+}
+
+async function refreshCommentReplies(view) {
+  const request = ++replyFetch;
+  if (!sentComments(view)) {
+    commentSections = {};
+    return;
+  }
+  try {
+    const { sections } = await api("Reviews.Answers");
+    if (state.view !== view || request !== replyFetch || JSON.stringify(sections) === JSON.stringify(commentSections)) return;
+    commentSections = sections;
+    indexDiscussions();
+    syncDiscussionUI();
+  } catch (e) {
+    if (state.view === view && request === replyFetch) toast(errText(e), true);
+  }
+}
+
+function discussionNavigation() {
+  const bar = el(`<span class="discussion-nav hidden">
+    <button class="small" data-next-ask title="Next comment or question in this stop">Next ask</button>
+    <button class="small" data-next-reply title="Next reply in this stop">Next reply</button>
+    <button class="small" data-reading-back>Back to reading</button></span>`);
+  bar.querySelector("[data-next-ask]").onclick = () => nextDiscussion(false);
+  bar.querySelector("[data-next-reply]").onclick = () => nextDiscussion(true);
+  bar.querySelector("[data-reading-back]").onclick = backToReading;
+  return bar;
+}
+
+function addDiscussionNavigation(modal) {
+  const head = modal.querySelector(".modal-head");
+  head.insertBefore(discussionNavigation(), head.querySelector("button"));
+}
+
+function nextDiscussionTarget(replies) {
+  const s = cur();
+  if (s?.kind !== "code" || (activeThread && threads.get(activeThread)?.station !== s.id)) return null;
+  const rank = (part, line) => !guided() ? 0 : part < 0 ? Infinity :
+    [line, s.parts[part]?.start].map((at) => stepOf(s, part, at)).find((i) => i >= 0) ?? Infinity;
+  const sel = state.sel?.station === s.id ? state.sel : null;
+  const from = sel ? [rank(sel.part, sel.line), sel.part, sel.line] : [guided() ? state.step : 0, -1, -1];
+  return nextThread(threads, s.id, replies, replies && !activeReply ? "" : activeThread, from, rank);
+}
+
+function updateDiscussionControls() {
+  const asks = [...threads.values()].some((q) => q.station === cur()?.id);
+  const canAsk = asks && !!nextDiscussionTarget(false);
+  const canReply = asks && !!nextDiscussionTarget(true);
+  for (const bar of $$(".discussion-nav")) {
+    bar.classList.toggle("hidden", !asks && !readingOrigin);
+    const back = bar.querySelector("[data-reading-back]");
+    back.classList.toggle("hidden", !readingOrigin);
+    back.disabled = discussionBusy;
+    bar.querySelector("[data-next-ask]").disabled = !canAsk || discussionBusy;
+    bar.querySelector("[data-next-reply]").disabled = !canReply || discussionBusy;
+  }
+}
+
+function syncDiscussionUI() {
+  if (!state.view) return;
+  const path = state.view.path;
+  const unread = new Set(), stops = new Map();
+  for (const q of threads.values()) if (unreadReply(path, q)) {
+    unread.add(q.id);
+    stops.set(q.station, (stops.get(q.station) ?? 0) + 1);
+  }
+  for (const badge of $$("[data-reply-stop]")) {
+    const n = stops.get(badge.dataset.replyStop) ?? 0;
+    badge.classList.toggle("hidden", !n);
+    badge.textContent = n === 1 ? "New reply" : `${n} new replies`;
+  }
+  for (const card of $$("[data-discussion]")) {
+    const id = card.dataset.discussion, q = threads.get(id);
+    if (!q) continue;
+    card.classList.toggle("unread-reply", unread.has(id));
+    let badge = card.querySelector(":scope > .reply-badge");
+    if (unread.has(id) && !badge) {
+      badge = el(`<span class="badge fresh reply-badge">New reply</span>`);
+      card.querySelector(":scope > .ck, :scope > .nk")?.after(badge);
+    } else if (!unread.has(id)) badge?.remove();
+    const action = card.querySelector(":scope > .jump-reply");
+    if (q.reply && !action) {
+      const button = el(`<button class="small jump-reply">Jump to reply</button>`);
+      button.onclick = (e) => {
+        e.stopPropagation();
+        jumpDiscussion(path, id, true);
+      };
+      card.append(button);
+    } else if (!q.reply) action?.remove();
+  }
+  updateDiscussionControls();
+}
+
+function openedReply(q) {
+  const path = state.view.path;
+  if (activeThread === q.id) activeReply = true;
+  if (!unreadReply(path, q)) return updateDiscussionControls();
+  readReply(path, q);
+  for (const alert of $$("#question-alerts .question-alert")) {
+    if (alert.dataset.replyReview === path && alert.dataset.replyId === q.id) alert.remove();
+  }
+  syncDiscussionUI();
+}
+
+export async function openDiscussionAnswers(id = "") {
+  const view = state.view;
+  if (!view) return false;
+  const opened = await openAnswers(id, discussionNavigation(), (id, section) => {
+    if (state.view?.path !== view.path) return;
+    const q = threads.get(id), text = agentReply(section);
+    if (q && text) openedReply({ ...q, reply: { kind: "section", text } });
+  });
+  if (opened) updateDiscussionControls();
+  return opened;
+}
+
+function nextDiscussion(replies) {
+  const q = nextDiscussionTarget(replies);
+  if (q) return jumpDiscussion(state.view.path, q.id, replies);
+}
+
+function beginDiscussionAction() {
+  if (discussionBusy) return false;
+  if (state.compose?.text.trim() || state.compose?.pending || (state.editing && state.editing.text !== state.editing.was) || state.trying || hasAnswerDraft()) {
+    toast("Save or cancel your current edit before jumping.");
+    return false;
+  }
+  discussionBusy = true;
+  updateDiscussionControls();
+  return true;
+}
+
+async function jumpDiscussion(review, id, reply) {
+  if (!beginDiscussionAction()) return false;
+  try {
+    if (!readingOrigin && state.view && !$("#reviewer").classList.contains("hidden")) {
+      queueReadingPosition(0, true);
+      readingOrigin = captureReadingOrigin();
+    }
+    if (state.view?.path !== review && !await openReviewFile(review, false, true)) return false;
+    hooks.showReviewer();
+    closeModal();
+    const view = state.view;
+    if (!threads.has(id)) await refreshDiffQuestions(view);
+    const q = state.view === view && threads.get(id);
+    if (!q) {
+      toast("This discussion could not be opened.", true);
+      return false;
+    }
+    activeThread = id;
+    activeReply = false;
+    const i = view.stations.findIndex((s) => s.id === q.station);
+    if (i >= 0) {
+      const s = view.stations[i];
+      const part = s.parts[q.part];
+      const last = q.kind === "diff" ? questionLastLine(q) : q.at;
+      const step = guided() && part ? stepOf(s, q.part, last) : 0;
+      const before = step < 0 ? stepOf(s, q.part, part.start) : step;
+      await goStation(i, -1, Math.max(0, before));
+      if (part && (!rowAt(q.part, q.at) || !rowAt(q.part, last))) await loadPart(s, q.part, 0, true);
+      if (state.view !== view || cur()?.id !== s.id) {
+        toast("The review changed. Try the jump again.");
+        return false;
+      }
+      if (part && rowAt(q.part, q.at)) {
+        selectRow(s.id, q.part, q.at, false);
+        if (last > q.at) {
+          state.block = { station: s.id, part: q.part, anchor: q.at, from: q.at, to: last };
+          markBlock();
+        }
+      }
+    }
+    if (reply && q.reply?.kind === "section" && await openDiscussionAnswers(id)) return true;
+    const idSelector = `[data-discussion="${CSS.escape(id)}"]`;
+    const card = $(reply && q.reply?.kind === "note" ? `#station ${idSelector}[data-discussion-reply]` : `#station ${idSelector}:not([data-discussion-reply])`);
+    if (card) {
+      focusDiscussion(card, reply && q.reply?.kind === "inline");
+      if (reply) openedReply(q);
+    } else if (q.kind === "diff") {
+      openDiffQuestions(id);
+      if (reply) openedReply(q);
+    } else {
+      showSavedDiscussion(q);
+      if (reply) openedReply(q);
+    }
+    return true;
+  } finally {
+    discussionBusy = false;
+    updateDiscussionControls();
+  }
+}
+
+function discussionFocus() {
+  const card = document.activeElement;
+  return card?.matches("#station [data-discussion]") ? { id: card.dataset.discussion, reply: card.hasAttribute("data-discussion-reply") } : null;
+}
+
+function restoreDiscussionFocus(focus) {
+  if (!focus) return;
+  const replySelector = focus.reply ? "[data-discussion-reply]" : ":not([data-discussion-reply])";
+  $(`#station [data-discussion="${CSS.escape(focus.id)}"]${replySelector}`)?.focus({ preventScroll: true });
+}
+
+function focusDiscussion(card, reply = false) {
+  card.focus({ preventScroll: true });
+  const target = reply && card.querySelector(".diff-question-answer");
+  (target || card).scrollIntoView({ block: target ? "start" : "center" });
+}
+
+function showSavedDiscussion(q) {
+  const card = el(`<div class="saved-discussion" data-discussion="${esc(q.id)}" tabindex="-1">
+    <div class="muted small">${esc(questionWhere(q))}</div><p>${prose(q.body ?? q.text)}</p>
+    ${q.needle ? `<pre class="md-code">${esc(q.needle)}</pre>` : ""}
+    ${q.reply ? `<div class="diff-question-answer">${md(q.reply.text)}</div>` : ""}</div>`);
+  addDiscussionNavigation(openModal(q.kind === "comment" ? "Comment" : "Question", card, "narrow"));
+  syncDiscussionUI();
+  focusDiscussion(card);
+}
+
+async function refreshDiffQuestions(view) {
+  if (!view) return;
+  const request = ++questionFetch;
+  try {
+    const questions = await api("Reviews.DiffQuestions", view.version);
+    if (state.view !== view || request !== questionFetch || JSON.stringify(questions) === JSON.stringify(diffQuestions)) return;
+    const focus = discussionFocus();
+    diffQuestions = questions;
+    indexDiscussions();
+    questionsByRow.clear();
+    for (const q of questions) {
+      if (q.part < 0) continue;
+      const key = questionRowKey(q.station, q.part, questionLastLine(q));
+      if (!questionsByRow.has(key)) questionsByRow.set(key, []);
+      questionsByRow.get(key).push(q);
+    }
+    $("#diff-questions-btn")?.classList.toggle("hidden", !questions.length);
+    const groups = new Map($$("#station .diff-question-row").map((g) => [g.dataset.questionRow, g]));
+    for (const [key, group] of groups) if (!questionsByRow.has(key)) group.remove();
+    for (const [key, qs] of questionsByRow) {
+      const q = qs[0];
+      if (q.station !== cur()?.id) continue;
+      const group = groups.get(key);
+      if (group) {
+        if (JSON.stringify(renderedQuestionGroups.get(group)) !== JSON.stringify(qs)) group.replaceWith(diffQuestionGroup(qs));
+      } else rowAt(q.part, questionLastLine(q))?.after(diffQuestionGroup(qs));
+    }
+    const list = $(".diff-questions-list");
+    if (list?.dataset.review === view.path) renderDiffQuestionList(list, view.path, list.dataset.selected);
+    syncDiscussionUI();
+    restoreDiscussionFocus(focus);
+  } catch (e) {
+    if (state.view === view && request === questionFetch && !errText(e).includes("the review changed")) toast(errText(e), true);
+  }
+}
+
+function diffQuestionGroup(qs) {
+  const q = qs[0];
+  const group = el(`<div class="diff-question-row"></div>`);
+  group.dataset.questionRow = questionRowKey(q.station, q.part, questionLastLine(q));
+  renderedQuestionGroups.set(group, qs);
+  group.append(...qs.map((item) => diffQuestionCard(item)));
+  return group;
+}
+
+function diffQuestionCard(q, review = "", selected = false) {
+  const card = el(`<article class="comment question${review ? " static" : ""}" tabindex="-1">
+    ${review ? `<div class="muted small">${esc(questionWhere(q))}</div>` : ""}
+    <span class="ck">You asked</span><span class="badge">${esc(questionStatus[q.status])}</span>
+    <div>${prose(q.text)}</div>
+    ${q.answer ? `<div class="diff-question-answer">${md(q.answer)}</div>` : ""}
+    ${q.problem ? `<div class="muted small">${esc(q.problem)}</div>` : ""}
+    ${review ? `<details${selected || q.part < 0 ? " open" : ""}><summary>Selected code</summary><pre class="md-code">${esc(q.excerpt)}</pre></details>` : ""}
+    </article>`);
+  if (!review) card.dataset.diffQuestion = q.id;
+  card.dataset.discussion = q.id;
+  if (review && q.answer) {
+    const answer = card.querySelector(".diff-question-answer");
+    answer.tabIndex = 0;
+    const read = () => { if (state.view?.path === review) openedReply(threads.get(q.id) ?? { ...q, reply: { text: q.answer } }); };
+    answer.addEventListener("click", read);
+    answer.addEventListener("focus", read);
+  }
+  if (review && !q.answer && !selected) {
+    const jump = el(`<button class="small">Jump to question</button>`);
+    jump.onclick = () => jumpDiscussion(review, q.id, false);
+    card.append(jump);
+  }
+  if (q.status === "failed" || q.status === "interrupted") {
+    const retry = el(`<button class="small">Retry</button>`);
+    retry.onclick = async () => {
+      if (retry.disabled) return;
+      retry.disabled = true;
+      try {
+        await api("Reviews.RetryQuestion", q.id, state.view.version);
+        await refreshDiffQuestions(state.view);
+      } catch (e) {
+        toast(errText(e), true);
+      } finally {
+        retry.disabled = false;
+      }
+    };
+    card.append(retry);
+  }
+  return card;
+}
+
+function renderDiffQuestionList(list, review, id = "") {
+  list.replaceChildren(...[...diffQuestions].reverse().map((q) => diffQuestionCard(q, review, q.id === id)));
+}
+
+function openDiffQuestions(id = "") {
+  const path = state.view.path;
+  const list = el(`<div class="diff-questions-list"></div>`);
+  list.dataset.review = path;
+  list.dataset.selected = id;
+  renderDiffQuestionList(list, path, id);
+  const modal = openModal("Questions you asked", list, "narrow");
+  addDiscussionNavigation(modal);
+  syncDiscussionUI();
+  if (id) {
+    const selected = list.children[diffQuestions.length - 1 - diffQuestions.findIndex((q) => q.id === id)];
+    selected?.focus();
+    selected?.scrollIntoView({ block: "nearest" });
+  }
+}
+
+Events.On("question:updated", (ev) => {
+  const q = ev.data;
+  if (state.view?.path === q.review) refreshDiffQuestions(state.view);
+  if (q.status === "failed" && q.problem) toast(q.problem, true);
+  if (q.status !== "answered") return;
+  const alert = el(`<div class="question-alert"><span>Answer ready · ${esc(base(q.file))}:${q.line}</span>
+    <button class="small">Jump to reply</button><button class="icon" aria-label="Dismiss answer notification">✕</button></div>`);
+  alert.dataset.replyReview = q.review;
+  alert.dataset.replyId = q.id;
+  const [jump, dismiss] = alert.querySelectorAll("button");
+  jump.onclick = async () => {
+    jump.disabled = true;
+    if (await jumpDiscussion(q.review, q.id, true)) alert.remove();
+    else jump.disabled = false;
+  };
+  dismiss.onclick = () => alert.remove();
+  $("#question-alerts").prepend(alert);
+});
+
 // Selecting lines, commenting and asking
 
 // extend grows a block of lines from the selected one, to try a change to all of them at once.
 function selectRow(station, part, line, compose, extend) {
+  if (!discussionBusy) activeThread = "";
+  const range = state.block;
+  const askRange = range?.station === station && range.part === part && line >= range.from && line <= range.to ? range : null;
   const from = state.sel;
   if (extend && from && from.station === station && from.part === part) {
     const anchor = state.block?.station === station && state.block.part === part ? state.block.anchor : from.line;
@@ -1035,8 +1482,11 @@ function selectRow(station, part, line, compose, extend) {
   state.sel = { station, part, line };
   $$("#station .row.sel, #station .kcur").forEach((r) => r.classList.remove("sel", "kcur"));
   markBlock();
-  setTimeout(renderStatus);
-  if (compose) return openComposer(station, part, line);
+  setTimeout(() => {
+    renderStatus();
+    updateDiscussionControls();
+  });
+  if (compose) return openComposer(station, part, line, { from: askRange?.from, end: askRange?.to });
   document.querySelector(`#station .row[data-part="${part}"][data-line="${line}"]`)?.classList.add("sel");
 }
 
@@ -1060,10 +1510,14 @@ function block() {
 }
 
 async function blockTests(s, part, from, to) {
+  const view = state.view;
   const p = partData(s, part);
   const ids = new Set();
   for (const r of p?.rows ?? []) {
-    if (r.cov === "run" && r.n - 1 >= from && r.n - 1 <= to) for (const ti of await testsAtLine(s.id, part, r.n - 1)) ids.add(ti);
+    if (r.cov !== "run" || r.n - 1 < from || r.n - 1 > to) continue;
+    const lineTests = await testsAtLine(s.id, part, r.n - 1);
+    if (state.view !== view) return [];
+    for (const ti of lineTests) ids.add(ti);
   }
   return [...ids];
 }
@@ -1075,14 +1529,24 @@ function needLine(what) {
 
 function openComposer(station, part, line, opts = {}) {
   const keep = state.compose && state.compose.text ? state.compose : null;
-  if (keep && !(keep.station === station && keep.part === part && keep.line === line)) {
+  if (keep?.pending) return;
+  const reselect = keep?.mode === "ask" && (!keep.anchor || keep.version !== state.view.version) && !opts.answers;
+  if (keep && !reselect && !(keep.station === station && keep.part === part && keep.line === line)) {
     toast("Finish or cancel what you are writing first.");
     return;
   }
+  const s = cur();
+  if (s?.id !== station || !s.parts[part]) return;
+  const p = partData(s, part);
+  const from = opts.from ?? line, end = opts.end ?? line;
+  const anchor = questionSelection(p.viewVersion === state.view.version ? p : s.parts[part], from, end);
+  if ((reselect || opts.mode === "ask") && !anchor) return toast("Wait for the selected code to reload, then choose Ask again.");
   state.sel = { station, part, line };
-  const mode = opts.mode ?? (opts.answers ? "answer" : "comment");
-  state.compose = keep ?? { station, part, line, answers: opts.answers ?? "", mode, label: "", blocking: false, text: "", picking: !!opts.picking && mode === "comment" && !opts.answers };
-  if (!keep) Object.assign(state.compose, { mode, answers: opts.answers ?? "" });
+  const mode = reselect ? "ask" : opts.mode ?? (opts.answers ? "answer" : "comment");
+  if (!keep || reselect) {
+    state.compose = { station, part, line, from, end, anchor, version: state.view.version,
+      mode, answers: opts.answers ?? "", label: "", blocking: false, text: keep?.text ?? "", picking: !!opts.picking && mode === "comment" && !opts.answers };
+  }
   renderKeepScroll();
   const ta = document.querySelector("#station .composer textarea");
   if (state.compose.picking) document.querySelector("#station .composer")?.focus();
@@ -1095,15 +1559,21 @@ function composer(s, p) {
   const labels = reader().labels ?? [];
   const note = cp.answers ? s.notes.find((n) => n.key === cp.answers) : null;
   const ask = cp.mode === "ask";
+  if (cp.version !== state.view.version && cp.anchor &&
+      questionSelection(p.viewVersion === state.view.version ? p : s.parts[cp.part], cp.from, cp.end) === cp.anchor) {
+    cp.version = state.view.version;
+  }
+  const reselect = ask && (!cp.anchor || cp.version !== state.view.version);
+  const lines = cp.from === cp.end ? cp.from + 1 : `${cp.from + 1}–${cp.end + 1}`;
   const head = ask
-    ? `Ask the agent about <code>${esc(p.file)}:${cp.line + 1}</code>`
+    ? `Ask the agent about <code>${esc(p.file)}:${lines}</code>`
     : note
       ? `Answer to: <span class="muted">${esc(oneLine(note.text).slice(0, 90))}${note.text.length > 90 ? "…" : ""}</span>`
       : `Comment on <code>${esc(p.file)}:${cp.line + 1}</code>`;
   const foot = ask
-    ? state.agentLive
-      ? "Sent to the agent right away; its answer appears on this line. Enter sends, Shift+Enter breaks the line, Esc cancels."
-      : "The agent is not running: the question is saved for it (margin questions). Enter saves, Esc cancels."
+    ? reselect ? "The code changed. Select the line or range and choose Ask again to keep this draft."
+      : state.agentLive ? "Enter asks, Shift+Enter adds a line, Esc cancels."
+      : "Start the review agent to ask a question."
     : "Kept as a draft until you send the comments to the agent. Ctrl+Enter saves, Esc cancels.";
   const box = el(`<div class="composer${ask ? " ask" : ""}">
     <div class="cp-head">${head}</div>
@@ -1112,8 +1582,27 @@ function composer(s, p) {
     <div class="cp-foot"><span class="muted small">${foot}</span>
       <span class="spacer"></span><button class="small cp-cancel">Cancel</button><button class="primary small cp-save">${ask ? "Ask" : "Save draft"}</button></div></div>`);
   const ta = box.querySelector("textarea");
+  const submit = box.querySelector(".cp-save");
+  const cancelButton = box.querySelector(".cp-cancel");
+  let switchMode;
+  if (!cp.answers && !cp.picking) {
+    switchMode = el(`<button class="link-btn cp-mode">${ask ? "Write a comment" : "Ask agent"}</button>`);
+    box.querySelector(".cp-head").append(" ", switchMode);
+    switchMode.onclick = () => {
+      if (cp.pending) return;
+      cp.mode = ask ? "comment" : "ask";
+      renderKeepScroll();
+      $("#station .composer textarea")?.focus();
+    };
+  }
+  const controls = () => {
+    ta.disabled = cancelButton.disabled = !!cp.pending;
+    submit.disabled = !!cp.pending || reselect || (ask && !state.agentLive);
+    if (switchMode) switchMode.disabled = !!cp.pending;
+  };
+  controls();
   ta.value = cp.text;
-  const tip = () => (ask ? "what you want to know about this line" : labels.find((l) => l.name === cp.label)?.tip ?? "your comment");
+  const tip = () => (ask ? "What would you like to know?" : labels.find((l) => l.name === cp.label)?.tip ?? "your comment");
   ta.placeholder = tip();
   if (cp.picking) {
     box.tabIndex = 0;
@@ -1161,22 +1650,36 @@ function composer(s, p) {
   }
   ta.oninput = () => (cp.text = ta.value);
   const save = async () => {
+    if (cp.pending || (ask && (!state.agentLive || !cp.anchor || cp.version !== state.view.version))) return;
+    cp.pending = true;
+    controls();
     let ok;
     if (ask) {
-      ok = await act("Ask", { station: cp.station, part: cp.part, line: cp.line, text: ta.value });
-      if (ok) toast(state.agentLive ? "Question sent to the agent." : "Question saved; start the agent to have it answered.");
+      try {
+        await api("Reviews.Ask", { station: cp.station, part: cp.part, line: cp.from, end: cp.end, version: cp.version, text: cp.text });
+        ok = true;
+        refreshDiffQuestions(state.view);
+      } catch (e) {
+        if (state.compose === cp) toast(errText(e), true);
+      }
     } else {
       const def = labels.find((l) => l.name === cp.label)?.blocking ?? false;
       ok = await act("AddComment", { station: cp.station, part: cp.part, line: cp.line, label: cp.label, blocking: cp.label ? def !== cp.blocking : false, text: ta.value, answers: cp.answers || "" });
       const last = reader().comments[reader().comments.length - 1];
       if (ok && last) toast(`${last.id} saved as a draft; S sends every draft to the agent`);
     }
+    cp.pending = false;
+    if (state.compose !== cp) return;
     if (ok) {
       state.compose = null;
       renderKeepScroll();
+    } else {
+      renderKeepScroll();
+      $("#station .composer textarea")?.focus();
     }
   };
   const cancel = () => {
+    if (cp.pending) return;
     state.compose = null;
     renderKeepScroll();
   };
@@ -1190,15 +1693,16 @@ function composer(s, p) {
       cancel();
     }
   };
-  box.querySelector(".cp-save").onclick = save;
-  box.querySelector(".cp-cancel").onclick = cancel;
+  submit.onclick = save;
+  cancelButton.onclick = cancel;
   return box;
 }
 
 function startOnLine(mode) {
   const s = cur();
   if (!state.sel || state.sel.station !== s.id) return needLine(mode === "ask" ? "ask about it" : "comment on it");
-  openComposer(state.sel.station, state.sel.part, state.sel.line, { mode, picking: true });
+  const range = mode === "ask" ? block() : null;
+  openComposer(state.sel.station, state.sel.part, state.sel.line, { mode, from: range?.line, end: range?.end, picking: true });
 }
 
 export async function sendComments() {
@@ -1592,14 +2096,15 @@ function wrapStep(body, s) {
 // Callers and history around a stop
 
 async function lookAround(s) {
+  const around = state.around;
   if (state.around[s.id]) return;
   state.around[s.id] = { loading: true };
   try {
-    state.around[s.id] = await api("Reviews.Around", s.id);
+    around[s.id] = await api("Reviews.Around", s.id);
   } catch (e) {
-    state.around[s.id] = { err: errText(e), symbols: [], history: [] };
+    around[s.id] = { err: errText(e), symbols: [], history: [] };
   }
-  if (cur()?.id === s.id) renderKeepScroll();
+  if (state.around === around && cur()?.id === s.id) renderKeepScroll();
 }
 
 const maxCallers = 5;
@@ -1926,17 +2431,7 @@ function renderRecap(box) {
     ov.append(g);
   }
   if (!any) ov.append(el(`<p class="muted">Nothing open: every problem and question was dismissed.</p>`));
-  const jumpTo = (station, file, line) => () => {
-    const si = state.view.stations.findIndex((s) => s.id === station);
-    if (si < 0) return;
-    const s = state.view.stations[si];
-    const pi = s.parts.findIndex((p) => p.file === file && line - 1 >= p.start && line - 1 <= p.end);
-    goStation(si, -1, pi >= 0 && guided() ? Math.max(stepOf(s, pi, line - 1), 0) : 0);
-    if (pi >= 0) {
-      selectRow(s.id, pi, line - 1, false);
-      document.querySelector(`#station .row[data-part="${pi}"][data-line="${line - 1}"]`)?.scrollIntoView({ block: "center" });
-    }
-  };
+  const jumpTo = (q) => () => jumpDiscussion(state.view.path, q.id, false);
   if (rd.comments.length) {
     const c = el(`<div><h3>Your comments · S sends the drafts, x deletes one</h3></div>`);
     if (rd.drafts) {
@@ -1945,7 +2440,7 @@ function renderRecap(box) {
       c.append(b);
     }
     rd.comments.forEach((q) => {
-      const card = commentCard(q, { static: true, where: true, jump: jumpTo(q.station, q.file, q.line) });
+      const card = commentCard(q, { static: true, where: true, jump: jumpTo(q) });
       card.classList.add("navable");
       card.dataset.comment = q.id;
       c.append(card);
@@ -1954,7 +2449,7 @@ function renderRecap(box) {
   }
   if (rd.questions.length) {
     const c = el(`<div><h3>Questions you asked</h3></div>`);
-    rd.questions.forEach((q) => c.append(questionCard(q, { static: true, where: true, jump: jumpTo(q.station, q.file, q.line) })));
+    rd.questions.forEach((q) => c.append(questionCard(q, { static: true, where: true, jump: jumpTo(q) })));
     ov.append(c);
   }
   const stops = state.view.stations.map((s, i) => [s, i]).filter(([s]) => s.kind === "code");
@@ -2030,10 +2525,14 @@ function renderTests(box) {
 }
 
 async function spotlight(ti) {
+  const view = state.view;
   try {
-    state.spotLines = await api("Reviews.RunsLines", ti);
+    const lines = await api("Reviews.RunsLines", ti, view.version);
+    if (state.view !== view) return;
+    state.spotLines = lines;
   } catch (e) {
-    return toast(errText(e), true);
+    if (state.view === view) toast(errText(e), true);
+    return;
   }
   state.spot = ti;
   const hit = findHit((s, pi, r) => (state.spotLines[partKey(s, pi)] ?? []).includes(r.n - 1) && (r.k === "add" || r.k === "chg")) ??
@@ -2054,15 +2553,18 @@ function endSpot() {
 
 async function openTests() {
   const s = cur();
-  if (!state.sel || state.sel.station !== s.id) return needLine("see the tests that run it");
-  if (!state.view.coverage) return toast("No coverage yet: ask the agent to run margin coverage.");
-  const p = partData(s, state.sel.part);
-  const row = p.rows.find((r) => r.n - 1 === state.sel.line);
-  if (row?.cov !== "run") return toast(`No test runs line ${state.sel.line + 1}.`);
-  const list = [...(await testsAtLine(s.id, state.sel.part, state.sel.line))];
-  const tests = state.view.coverage.tests;
+  const view = state.view, sel = state.sel;
+  if (!sel || sel.station !== s.id) return needLine("see the tests that run it");
+  if (!view.coverage) return toast("No coverage yet: ask the agent to run margin coverage.");
+  const p = partData(s, sel.part);
+  const row = p.rows.find((r) => r.n - 1 === sel.line);
+  if (row?.cov !== "run") return toast(`No test runs line ${sel.line + 1}.`);
+  const ids = await testsAtLine(s.id, sel.part, sel.line);
+  if (state.view !== view || state.sel !== sel || !ids.length) return;
+  const list = [...ids];
+  const tests = view.coverage.tests;
   list.sort((a, b) => tests[a].label.localeCompare(tests[b].label));
-  const line = state.sel.line;
+  const line = sel.line;
   const needle = (row.s ?? []).map((x) => x.t).join("").trim();
   const body = el(`<div class="tests-pop"></div>`);
   const picked = new Set();
@@ -2075,11 +2577,13 @@ async function openTests() {
     const [spot, src] = r.querySelectorAll("button");
     spot.onclick = () => {
       closeModal();
+      if (state.view !== view) return toast("The review changed. Open Tests again.");
       spotlight(ti);
     };
     src.onclick = async () => {
       try {
-        showPeek(await api("Reviews.TestSource", ti));
+        const peek = await api("Reviews.TestSource", ti, view.version);
+        if (state.view === view) showPeek(peek);
       } catch (e) {
         toast(errText(e), true);
       }
@@ -2090,12 +2594,13 @@ async function openTests() {
     <button class="small" data-agent>Ask the agent</button><button class="primary small" data-run>▶ Run ${list.length === 1 ? "it" : "picked, or all"} (r)</button></div>`);
   run.querySelector("[data-run]").onclick = () => {
     closeModal();
-    runTests(picked.size ? [...picked] : list, `${base(p.file)}:${line + 1}`);
+    runTests(picked.size ? [...picked] : list, `${base(p.file)}:${line + 1}`, view);
   };
   run.querySelector("[data-agent]").onclick = async () => {
     const ids = picked.size ? [...picked] : list.slice(0, 1);
     try {
-      await api("Reviews.RunTests", ids, p.file, line + 1, needle);
+      await api("Reviews.RunTests", ids, p.file, line + 1, needle, view.version);
+      if (state.view !== view) return;
       closeModal();
       toast("Sent to the agent.");
     } catch (e) {
@@ -2109,43 +2614,52 @@ async function openTests() {
 // testsAtLine caches which tests run a line, for the hint, the tooltip and the picker.
 const atCache = { view: null, map: new Map() };
 async function testsAtLine(station, part, line) {
-  if (atCache.view !== state.view) {
-    atCache.view = state.view;
+  const view = state.view;
+  if (atCache.view !== view) {
+    atCache.view = view;
     atCache.map = new Map();
   }
   const k = `${station}|${part}|${line}`;
-  if (!atCache.map.has(k)) {
+  const cache = atCache.map;
+  if (!cache.has(k)) {
     try {
-      atCache.map.set(k, await api("Reviews.TestsAt", station, part, line));
+      cache.set(k, await api("Reviews.TestsAt", station, part, line, view.version));
     } catch (e) {
-      toast(errText(e), true);
+      if (state.view === view) toast(errText(e), true);
       return [];
     }
   }
-  return atCache.map.get(k);
+  return state.view === view ? cache.get(k) : [];
 }
 
 async function runFor(s, pi) {
-  if (!state.view.coverage) return toast("No coverage yet: ask the agent to run margin coverage.");
+  const view = state.view;
+  if (!view.coverage) return toast("No coverage yet: ask the agent to run margin coverage.");
   let ids;
   try {
-    ids = await api("Reviews.TestsFor", s.id, pi);
+    ids = await api("Reviews.TestsFor", s.id, pi, view.version);
   } catch (e) {
-    return toast(errText(e), true);
+    if (state.view === view) toast(errText(e), true);
+    return;
   }
+  if (state.view !== view) return;
   const what = pi < 0 ? `stop ${s.title ?? s.id}` : `${base(partData(s, pi).file)} ${partData(s, pi).label ?? ""}`.trim();
-  runTests(ids, what);
+  runTests(ids, what, view);
 }
 
 // runHere runs the tests of the selected line, or of the stop when no line is selected.
 async function runHere() {
   const s = cur();
+  const view = state.view, sel = state.sel;
   if (s?.kind !== "code") return toast("Go to a stop with code first.");
   if (!state.view.coverage) return toast("No coverage yet: ask the agent to run margin coverage.");
   if (!state.sel || state.sel.station !== s.id) return runFor(s, -1);
   const r = partData(s, state.sel.part)?.rows.find((x) => x.n - 1 === state.sel.line);
   if (r?.cov !== "run") return toast(`No test runs line ${state.sel.line + 1}; ▶ Tests runs the whole stop's.`);
-  runTests([...(await testsAtLine(s.id, state.sel.part, state.sel.line))], `${base(partData(s, state.sel.part).file)}:${state.sel.line + 1}`);
+  const ids = await testsAtLine(s.id, sel.part, sel.line);
+  if (state.view === view && state.sel === sel && ids.length) {
+    runTests(ids, `${base(partData(s, sel.part).file)}:${sel.line + 1}`, view);
+  }
 }
 
 // covHint puts the selected line's actions right under it, with the tests that run it, like the
@@ -2196,7 +2710,7 @@ function hintContext() {
   if (!r || (c && c.station === sel.station && c.part === sel.part && c.line === sel.line)) return null;
   const b = block();
   const many = b && b.end > b.line ? b : null;
-  const key = `${s.id}|${sel.part}|${sel.line}|${many ? many.line + "-" + many.end : ""}|${r.cov ?? ""}|${[...results.values()].join()}`;
+  const key = `${state.view.version}|${s.id}|${sel.part}|${sel.line}|${many ? many.line + "-" + many.end : ""}|${r.cov ?? ""}|${[...results.values()].join()}`;
   return { s, sel, rowEl, p, r, many, key };
 }
 
@@ -2251,6 +2765,7 @@ function buildHint(c, ids) {
 
 async function startTry(again, range) {
   const s = cur();
+  const view = state.view;
   const from = again?.station ? again : range ?? block();
   if (s?.kind !== "code" || !from || from.station !== s.id) return needLine("try a change to it");
   if (state.compose?.text) return toast("Finish or cancel what you are writing first.");
@@ -2259,16 +2774,17 @@ async function startTry(again, range) {
   const end = Math.max(from.line, from.end ?? from.line);
   let text;
   try {
-    text = await api("Reviews.LinesText", s.id, from.part, from.line, end);
+    text = await api("Reviews.LinesText", s.id, from.part, from.line, end, view.version);
   } catch (e) {
     return toast(errText(e), true);
   }
   const lineTests = await blockTests(s, from.part, from.line, end);
+  if (state.view !== view || cur() !== s) return;
   state.sel = { station: s.id, part: from.part, line: end };
   state.block = null;
   state.compose = null;
   endTry();
-  state.trying = { station: s.id, part: from.part, line: from.line, end, old: text, text: again?.text ?? text, lineTests, scope: lineTests.length ? "line" : "stop", compare: again?.compare ?? true };
+  state.trying = { view, station: s.id, part: from.part, line: from.line, end, old: text, text: again?.text ?? text, lineTests, scope: lineTests.length ? "line" : "stop", compare: again?.compare ?? true };
   renderKeepScroll();
   focusTry();
 }
@@ -2289,10 +2805,11 @@ async function growTry(dir) {
   if (at < 0) return toast("That is the first line of the file.");
   let t;
   try {
-    t = await api("Reviews.LinesText", s.id, tr.part, at, at);
+    t = await api("Reviews.LinesText", s.id, tr.part, at, at, tr.view.version);
   } catch (e) {
     return toast(errText(e), true);
   }
+  if (state.trying !== tr || state.view !== tr.view) return;
   const edited = tr.text !== tr.old;
   tr.old = dir < 0 ? t + "\n" + tr.old : tr.old + "\n" + t;
   if (!edited) tr.text = tr.old;
@@ -2306,13 +2823,6 @@ async function growTry(dir) {
   focusTry();
 }
 
-// tryPart tries a change to the part's changed lines, first to last.
-function tryPart(s, pi) {
-  const p = partData(s, pi);
-  const ch = (p.rows ?? []).filter((r) => r.n && (r.k === "add" || r.k === "chg")).map((r) => r.n - 1);
-  if (!ch.length) return toast("No changed line in this part to try.");
-  startTry(null, { station: s.id, part: pi, line: Math.min(...ch), end: Math.max(...ch) });
-}
 testHooks.edit = (req) => {
   const i = state.view.stations.findIndex((x) => x.id === req.station);
   if (i < 0) return toast("That stop is gone.");
@@ -2358,17 +2868,18 @@ function tryBox(s, p) {
   };
   const go = async () => {
     if (tr.text === tr.old) return toast("Change something first.");
+    if (state.view !== tr.view) return toast("The review changed. Reopen the editor before running.");
     let tests = [];
     if (tr.scope === "stop") {
       try {
-        tests = await api("Reviews.TestsFor", s.id, -1);
+        tests = await api("Reviews.TestsFor", s.id, -1, tr.view.version);
       } catch (e) {
         return toast(errText(e), true);
       }
       if (!tests.length) return toast("No test runs this stop's changes.");
     }
-    const req = { station: tr.station, part: tr.part, line: tr.line, end: tr.end, text: tr.text, tests, compare: tr.compare };
-    if (await tryChange(req, `${base(p.file)}:${tr.line + 1}${many ? "–" + (tr.end + 1) : ""}`)) cancel();
+    const req = { station: tr.station, part: tr.part, line: tr.line, end: tr.end, old: tr.old, text: tr.text, tests, compare: tr.compare };
+    if (await tryChange(req, `${base(p.file)}:${tr.line + 1}${many ? "–" + (tr.end + 1) : ""}`, tr.view) && state.trying === tr) cancel();
   };
   tr.go = go;
   tr.cancel = cancel;
@@ -2632,6 +3143,8 @@ export function reviewKey(e) {
   if (!state.view) return false;
   const k = e.key;
   const s = cur();
+  if ((k === "Enter" || k === " ") && e.target.closest?.("button, summary")?.closest(".discussion-nav, .jump-reply, .diff-questions-list, .answers")) return false;
+  if (k === "Tab") return false;
   if (document.querySelector(".modal-back")) return modalKey(e);
   const ov = s.kind === "overview" && guided();
   const sel = state.sel && state.sel.station === s.id ? state.sel : null;
@@ -2687,7 +3200,7 @@ export function reviewKey(e) {
     F: cycleFilter,
     d: () => toggle("showGhosts"),
     s: () => toggle("split"),
-    z: () => toggle("unfold"),
+    z: () => guided() ? toast("Folding is available in Whole stop view.") : toggle("unfold"),
     "/": () => document.querySelector("#search")?.focus(),
     Escape: () => {
       if (state.query) return endSearch();
@@ -2718,7 +3231,7 @@ export function reviewKey(e) {
     c: () => startOnLine("comment"),
     S: sendComments,
     P: sendFixes,
-    A: () => openAnswers(),
+    A: () => openDiscussionAnswers(),
     r: () => reload().then(() => toast("reloaded")),
     H: openHelp,
   };
@@ -2744,11 +3257,11 @@ function stepPosition(s, step) {
   return { kind: step.kind, file: part?.file ?? "", side: part?.base ? "base" : "", from: step.from, to: step.to };
 }
 
-function restoreReadingPosition(position) {
+async function restoreReadingPosition(position) {
   if (!position) return false;
   const index = state.view.stations.findIndex((station) => station.id === position.station);
   if (index < 0) {
-    goStation(0);
+    await goStation(0);
     return true;
   }
   const s = state.view.stations[index];
@@ -2758,20 +3271,70 @@ function restoreReadingPosition(position) {
     return key.kind === saved.kind && (!("from" in key) || (key.file === (saved.file ?? "") &&
       key.side === (saved.side ?? "") && key.from === saved.from && key.to === saved.to));
   }) : 0;
-  goStation(index, -1, Math.max(0, step));
+  await goStation(index, -1, Math.max(0, step));
   if (step >= 0) $("#station").scrollTop = position.scroll;
   return true;
+}
+
+function readingPosition(s) {
+  return { station: s.id, step: walking() ? stepPosition(s, s.steps?.[state.step]) : null, scroll: $("#station").scrollTop };
+}
+
+function captureReadingOrigin() {
+  const s = cur();
+  const positions = (s.parts ?? []).map((p, i) => {
+    const key = partKey(s, i);
+    return { file: p.file, base: !!p.base, from: p.start, extra: state.expand[key] ?? 0, whole: !!state.whole[key] };
+  });
+  return { ...readingPosition(s), path: state.view.path, full: reader().full, positions,
+    sel: state.sel?.station === s.id ? { ...state.sel } : null,
+    block: state.block?.station === s.id ? { ...state.block } : null,
+    note: s.notes[state.note]?.key,
+    horizontal: $$("#station .code-scroll").map((x) => x.scrollLeft) };
+}
+
+async function backToReading() {
+  const origin = readingOrigin;
+  if (!origin || !beginDiscussionAction()) return;
+  try {
+    if (state.view?.path !== origin.path && !await openReviewFile(origin.path, false, true)) return;
+    closeModal();
+    hooks.showReviewer();
+    activeThread = "";
+    if (reader().full !== origin.full) await act("SetFull", origin.full);
+    const s = state.view.stations.find((station) => station.id === origin.station);
+    const matches = (i) => {
+      const p = s?.parts[i], saved = origin.positions[i];
+      return p && saved && p.file === saved.file && !!p.base === saved.base && p.start === saved.from;
+    };
+    s?.parts.forEach((_, i) => {
+      const key = partKey(s, i);
+      delete state.parts[key];
+      state.expand[key] = matches(i) ? origin.positions[i].extra : 0;
+      state.whole[key] = matches(i) && origin.positions[i].whole;
+    });
+    await restoreReadingPosition(origin);
+    state.sel = origin.sel && matches(origin.sel.part) && rowAt(origin.sel.part, origin.sel.line) ? origin.sel : null;
+    state.block = state.sel && origin.block && matches(origin.block.part) ? origin.block : null;
+    state.note = origin.note ? s?.notes.findIndex((note) => note.key === origin.note) ?? -1 : -1;
+    renderKeepScroll();
+    $("#station").scrollTop = origin.scroll;
+    $$("#station .code-scroll").forEach((x, i) => { x.scrollLeft = origin.horizontal[i] ?? 0; });
+    renderStatus();
+    readingOrigin = null;
+    queueReadingPosition(0, true);
+  } finally {
+    discussionBusy = false;
+    updateDiscussionControls();
+  }
 }
 
 let readingTimer, pendingPosition, savingPosition;
 function queueReadingPosition(delay = 0, remember = false) {
   const opened = state.opened, station = cur();
-  if (!opened || opened.restoringPosition || state.view?.path !== opened.path || !station) return;
-  const position = {
-    station: station.id,
-    step: walking() ? stepPosition(station, station.steps?.[state.step]) : null,
-    scroll: Math.round($("#station").scrollTop),
-  };
+  if (!opened || opened.restoringPosition || state.view?.path !== opened.path || !station || readingOrigin) return;
+  const position = readingPosition(station);
+  position.scroll = Math.round(position.scroll);
   const key = JSON.stringify(position);
   if (!remember && key === opened.savedPosition && pendingPosition?.opened !== opened) return;
   const rememberReview = remember || (pendingPosition?.opened === opened && pendingPosition.remember);

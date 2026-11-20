@@ -6,18 +6,29 @@ import { api, state, esc, el, toast, errText, md, openModal, closeModal } from "
 
 let panel = null;
 
-export async function openAnswers(focus = "") {
+export async function openAnswers(focus, navigation, onRead) {
+  const review = state.opened;
   let v;
   try {
     v = await api("Reviews.Answers");
   } catch (e) {
-    return toast(errText(e), true);
+    toast(errText(e), true);
+    return false;
   }
-  panel = { v, focus, editing: false, replying: "" };
+  if (review !== state.opened || (focus && !v.sections[focus])) return false;
+  panel = { v, focus, onRead, editing: false, replying: "" };
   const body = el(`<div class="answers"></div>`);
   const m = openModal("Answers to your comments", body, "wide");
+  if (navigation) m.querySelector(".modal-head").insertBefore(navigation, m.querySelector(".modal-head > button"));
   m.onkey = answersKey;
   render();
+  if (focus) onRead(focus, v.sections[focus]);
+  return true;
+}
+
+export function hasAnswerDraft() {
+  const textarea = document.querySelector(".answers textarea");
+  return textarea && (panel.editing ? textarea.value !== panel.v.text : !!textarea.value.trim());
 }
 
 function render() {
@@ -67,7 +78,10 @@ function render() {
   let at = 0;
   for (const [id, start] of order) {
     if (start > at) doc.append(el(`<div>${md(v.text.slice(at, start))}</div>`));
-    const sec = el(`<section class="ans-sec" data-id="${esc(id)}">${md(v.sections[id])}</section>`);
+    const sec = el(`<section class="ans-sec" tabindex="0" data-id="${esc(id)}">${md(v.sections[id])}</section>`);
+    const read = () => panel.onRead(id, v.sections[id]);
+    sec.addEventListener("click", read);
+    sec.addEventListener("focus", read);
     const comment = state.view?.reader?.comments.find((c) => c.id === id);
     const bar = el(`<div class="ans-bar">${comment ? `<span class="badge">${comment.resolved ? "resolved" : "open"}</span>` : ""}<span class="spacer"></span></div>`);
     const reply = el(`<button class="small">Reply</button>`);
@@ -87,7 +101,10 @@ function render() {
   const target = panel.focus && box.querySelector(`.ans-sec[data-id="${CSS.escape(panel.focus)}"]`);
   if (target) {
     target.classList.add("focus");
-    requestAnimationFrame(() => target.scrollIntoView({ block: "start" }));
+    requestAnimationFrame(() => {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: "start" });
+    });
     panel.focus = "";
   }
 }
@@ -157,8 +174,11 @@ function answersKey(e) {
 // is editing or replying.
 Events.On("review:changed", async () => {
   if (!panel || !document.querySelector(".modal .answers") || panel.editing || panel.replying) return;
+  const opened = state.opened, current = panel;
   try {
-    panel.v = await api("Reviews.Answers");
+    const v = await api("Reviews.Answers");
+    if (state.opened !== opened || panel !== current || panel.editing || panel.replying) return;
+    panel.v = v;
     render();
   } catch {}
 });

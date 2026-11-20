@@ -55,11 +55,11 @@ type testRuns struct {
 }
 
 func (r *Reviews) TestSetup() (TestSetup, error) {
-	rv, err := review.Load(r.current())
+	d, err := r.document(0)
 	if err != nil {
 		return TestSetup{}, err
 	}
-	dir := rv.RepoDir()
+	dir := d.Review.RepoDir()
 	main := tryout.MainWorktree(dir)
 	s := TestSetup{Dir: dir, Main: dir, Repo: filepath.Base(dir), Places: testrun.Placeholders}
 	if main != "" {
@@ -68,9 +68,7 @@ func (r *Reviews) TestSetup() (TestSetup, error) {
 	if t, ok := config.Load().TestCommandFor(dir, main); ok {
 		s.Command, s.Match, s.Found = t.Command, t.Repo, true
 	}
-	if d, err := r.build(r.current()); err == nil {
-		s.Suggest = tryout.Suggest(d)
-	}
+	s.Suggest = tryout.Suggest(d)
 	r.tests.mu.Lock()
 	s.Running = r.tests.running
 	r.tests.mu.Unlock()
@@ -87,8 +85,8 @@ func (r *Reviews) SaveTestCommand(repo, command string) (TestSetup, error) {
 
 // TestsFor lists the tests that run a part's changed lines (any of its lines when none changed);
 // part -1 means every part of the stop.
-func (r *Reviews) TestsFor(station string, part int) ([]int, error) {
-	d, err := r.build(r.current())
+func (r *Reviews) TestsFor(station string, part, version int) ([]int, error) {
+	d, err := r.document(version)
 	if err != nil {
 		return nil, err
 	}
@@ -123,30 +121,24 @@ func (r *Reviews) TestsFor(station string, part int) ([]int, error) {
 	return collect(false), nil
 }
 
-func (r *Reviews) planTests(tests []int) (*doc.Doc, string, []testrun.Job, error) {
-	d, err := r.build(r.current())
-	if err != nil {
-		return nil, "", nil, err
-	}
-	dir := d.Review.RepoDir()
-	jobs, err := tryout.Jobs(d, tests)
-	return d, dir, jobs, err
-}
-
 // PlanTests shows the commands RunTestsHere would run.
-func (r *Reviews) PlanTests(tests []int) (TestRun, error) {
-	_, dir, jobs, err := r.planTests(tests)
-	return TestRun{Dir: dir, Jobs: jobs}, err
+func (r *Reviews) PlanTests(tests []int, version int) (TestRun, error) {
+	d, err := r.document(version)
+	if err != nil {
+		return TestRun{}, err
+	}
+	jobs, err := tryout.Jobs(d, tests)
+	return TestRun{Dir: d.Repo, Jobs: jobs}, err
 }
 
 // RunTestsHere runs the tests with the repository's test command and streams the output as
 // tests:* events. Starting a run stops the one before it.
-func (r *Reviews) RunTestsHere(tests []int) (TestRun, error) {
-	_, dir, jobs, err := r.planTests(tests)
+func (r *Reviews) RunTestsHere(tests []int, version int) (TestRun, error) {
+	plan, err := r.PlanTests(tests, version)
 	if err != nil {
 		return TestRun{}, err
 	}
-	return r.start(tryout.Plan{Dir: dir, Jobs: jobs}), nil
+	return r.start(tryout.Plan{Dir: plan.Dir, Jobs: plan.Jobs}), nil
 }
 
 // TryRequest is a change to one line of a stop, and the tests to run against it.
@@ -156,6 +148,7 @@ type TryRequest struct {
 	Line    int    `json:"line"` // 0-based, as the view counts
 	// End is the block's last line, 0-based; below Line means the one line.
 	End  int    `json:"end"`
+	Old  string `json:"old"`
 	Text string `json:"text"`
 	// Tests are coverage indices; none means the tests that run the lines.
 	Tests   []int `json:"tests"`
@@ -164,8 +157,8 @@ type TryRequest struct {
 
 // LinesText is lines from to to (0-based, inclusive) as the file has them, tabs and all, to start
 // an edit from.
-func (r *Reviews) LinesText(station string, part, from, to int) (string, error) {
-	_, p, err := r.part(station, part, from)
+func (r *Reviews) LinesText(station string, part, from, to, version int) (string, error) {
+	_, p, err := r.part(station, part, from, version)
 	if err != nil {
 		return "", err
 	}
@@ -175,8 +168,8 @@ func (r *Reviews) LinesText(station string, part, from, to int) (string, error) 
 	return strings.Join(p.Lines[from:to+1], "\n"), nil
 }
 
-func (r *Reviews) part(station string, part, line int) (*doc.Doc, *doc.Part, error) {
-	d, err := r.build(r.current())
+func (r *Reviews) part(station string, part, line, version int) (*doc.Doc, *doc.Part, error) {
+	d, err := r.document(version)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -198,8 +191,8 @@ func (r *Reviews) part(station string, part, line int) (*doc.Doc, *doc.Part, err
 
 // TryChange writes the edited line to the working tree, runs the tests against it (first without
 // it when Compare), and puts the line back when they end.
-func (r *Reviews) TryChange(req TryRequest) (TestRun, error) {
-	d, p, err := r.part(req.Station, req.Part, req.Line)
+func (r *Reviews) TryChange(req TryRequest, version int) (TestRun, error) {
+	d, p, err := r.part(req.Station, req.Part, req.Line, version)
 	if err != nil {
 		return TestRun{}, err
 	}
@@ -222,21 +215,24 @@ func (r *Reviews) TryChange(req TryRequest) (TestRun, error) {
 	if len(tests) == 0 {
 		return TestRun{}, errors.New("no test runs these lines, so none would see the change")
 	}
-	_, dir, jobs, err := r.planTests(tests)
-	if err != nil {
-		return TestRun{}, err
+	if req.Old != strings.Join(p.Lines[req.Line:end+1], "\n") {
+		return TestRun{}, errors.New("these lines changed; reopen the editor before running")
 	}
-	edits := []tryout.Edit{{File: p.Spec.File, Line: req.Line + 1, Old: strings.Join(p.Lines[req.Line:end+1], "\n"), New: req.Text}}
+	edits := []tryout.Edit{{File: p.Spec.File, Line: req.Line + 1, Old: req.Old, New: req.Text}}
 	if edits[0].New == edits[0].Old {
 		return TestRun{}, errors.New("nothing changed")
 	}
-	if err := tryout.Check(dir, edits); err != nil {
+	if err := tryout.Check(d.Repo, edits); err != nil {
+		return TestRun{}, err
+	}
+	jobs, err := tryout.Jobs(d, tests)
+	if err != nil {
 		return TestRun{}, err
 	}
 	r.tests.mu.Lock()
 	r.tests.last = edits
 	r.tests.mu.Unlock()
-	run := r.start(tryout.Plan{Dir: dir, Jobs: jobs, Edits: edits, Compare: req.Compare})
+	run := r.start(tryout.Plan{Dir: d.Repo, Jobs: jobs, Edits: edits, Compare: req.Compare})
 	run.Change = tryout.Describe(edits)
 	return run, nil
 }

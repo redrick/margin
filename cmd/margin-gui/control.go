@@ -95,6 +95,9 @@ func (r *Reviews) handle(path string, req control.Request) control.Response {
 		}
 		return control.OK(tui.Questions(rv, st, req.Arg == "all"))
 	case "where", "goto":
+		if req.Cmd == "goto" && req.Reply {
+			return control.OK(nil)
+		}
 		return r.whereAfter(path, req.Cmd, req.Arg)
 	}
 	return control.Fail(fmt.Errorf("unknown command %q", req.Cmd))

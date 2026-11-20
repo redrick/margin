@@ -8,22 +8,8 @@ export const results = new Map();
 export const testHooks = { changed() {}, edit() {} };
 
 let run = null;
+let preparing = null;
 const maxLines = 5000;
-
-async function ready(retry) {
-  let setup;
-  try {
-    setup = await api("Reviews.TestSetup");
-  } catch (e) {
-    toast(errText(e), true);
-    return false;
-  }
-  if (!setup.found) {
-    openTestSetup(setup, retry);
-    return false;
-  }
-  return true;
-}
 
 function begin(r, extra) {
   const jobs = (list) => list.map((j) => ({ ...j, status: "wait", code: 0 }));
@@ -35,31 +21,61 @@ function begin(r, extra) {
   testHooks.changed();
 }
 
-export async function runTests(ids, what) {
+export function runTests(ids, what, view = state.view) {
   if (!ids.length) return toast("No test runs these lines.");
-  if (!(await ready(() => runTests(ids, what)))) return;
-  try {
-    begin(await api("Reviews.RunTestsHere", ids), { what, ids });
-  } catch (e) {
-    toast(errText(e), true);
-  }
+  return startTest("RunTestsHere", ids, { what, ids }, view);
 }
 
 // tryChange runs the tests of a line against an edit of it; margin puts the line back after.
-export async function tryChange(req, what) {
-  if (!(await ready(() => tryChange(req, what)))) return false;
+export function tryChange(req, what, view = state.view) {
+  return startTest("TryChange", req, { what, req }, view);
+}
+
+async function startTest(method, args, extra, view) {
+  if (state.view !== view) {
+    toast("The review changed. Select the tests again.");
+    return false;
+  }
+  const opened = state.opened;
+  if (preparing === opened) return false;
+  preparing = opened;
+  const pending = "Preparing tests…";
+  toast(pending);
   try {
-    begin(await api("Reviews.TryChange", req), { what, req });
+    const setup = await api("Reviews.TestSetup");
+    if (state.view !== view || state.opened !== opened) return false;
+    if (!setup.found) {
+      openTestSetup(setup, () => startTest(method, args, extra, view));
+      return false;
+    }
+    const result = await api("Reviews." + method, args, view.version);
+    if (state.opened !== opened) return false;
+    begin(result, { ...extra, view });
     return true;
   } catch (e) {
-    toast(errText(e), true);
+    if (state.opened === opened) toast(errText(e), true);
     return false;
+  } finally {
+    if (preparing === opened) {
+      preparing = null;
+      if ($("#toast").textContent === pending) $("#toast").classList.add("hidden");
+    }
   }
 }
 
 export function rerun() {
-  if (run?.req) tryChange(run.req, run.what);
-  else if (run) runTests(run.ids, run.what);
+  if (!run) return;
+  const tests = state.view.coverage?.tests ?? [], previous = run.view.coverage?.tests ?? [];
+  const ids = run.req ? run.req.tests : run.ids;
+  const changed = (i) => {
+    const a = tests[i], b = previous[i];
+    return !a || !b || a.name !== b.name || a.group !== b.group || a.file !== b.file;
+  };
+  if (run.view.path !== state.view.path || (ids.length ? ids.some(changed) : tests.length !== previous.length || previous.some((_, i) => changed(i)))) {
+    return toast("The coverage changed. Select the tests again.");
+  }
+  if (run.req) tryChange(run.req, run.what);
+  else runTests(run.ids, run.what);
 }
 
 export function stopTests() {

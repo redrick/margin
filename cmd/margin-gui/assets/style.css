@@ -490,6 +490,9 @@ button.crumb:hover { color: var(--accent); }
   box-shadow: 0 8px 30px rgba(0, 0, 0, .4);
 }
 .toast.err { border-color: var(--del-mark); }
+#question-alerts { position: fixed; right: 16px; bottom: 58px; z-index: 45; max-width: min(520px, 90vw); max-height: 30vh; overflow: auto; }
+.question-alert { display: flex; align-items: center; gap: 8px; background: var(--bg-3); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin-top: 6px; }
+.question-alert span { overflow-wrap: anywhere; }
 .spinner { color: var(--fg-dim); padding: 16px; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 5px; border: 2px solid transparent; background-clip: padding-box; }
@@ -674,6 +677,15 @@ pre.flow { font: 12.5px/1.5 var(--mono); color: var(--flow); background: var(--b
 .loose .note, .note.static, .comment.static { position: static; margin-left: 0; }
 .comment.question { border-color: var(--question); border-left-color: var(--question); background: var(--q-bg); }
 .comment.question .ck { color: var(--question); }
+.diff-question-answer { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 4px; }
+.diff-question-answer > :first-child { margin-top: 4px; }
+.comment.question > button, .comment.question > details { margin-top: 6px; }
+.discussion-nav { display: inline-flex; align-items: center; gap: 4px; }
+.modal-head .discussion-nav { margin-right: 8px; }
+.reply-badge { margin-left: 6px; }
+.unread-reply { border-left-color: var(--accent) !important; }
+[data-discussion]:focus, .saved-discussion:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.jump-reply { margin: 6px 0 0 4px; }
 h4.sub { margin: 14px 0 4px; font-size: 13px; }
 
 .modal-back { position: fixed; inset: 0; background: rgba(0, 0, 0, .55); display: grid; place-items: center; z-index: 40; }

@@ -528,7 +528,7 @@ func cmdAnswer(cmd string, args []string) error {
 		verb = "resolved"
 	}
 	fmt.Printf("%s %s: station %s note %d\n", q.ID, verb, q.Station, idx+1)
-	return notifyViewer(sock, !*noGoto, q.Station, idx)
+	return notifyViewer(sock, !*noGoto, true, q.Station, idx)
 }
 
 // advice lists what makes a review harder to follow than it needs to be. It never fails the lint:

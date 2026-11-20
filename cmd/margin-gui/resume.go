@@ -70,6 +70,10 @@ func resumeIdentity(path string) string {
 }
 
 func readResumeJSON(path string, value any) error {
+	return readGUIStateJSON(path, value, 64<<10)
+}
+
+func readGUIStateJSON(path string, value any, limit int64) error {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return err
@@ -82,12 +86,11 @@ func readResumeJSON(path string, value any) error {
 		return err
 	}
 	defer f.Close()
-	const limit = 64 << 10
 	data, err := io.ReadAll(io.LimitReader(f, limit+1))
 	if err != nil {
 		return err
 	}
-	if len(data) > limit {
+	if int64(len(data)) > limit {
 		return errors.New("saved review state is too large")
 	}
 	return json.Unmarshal(data, value)
