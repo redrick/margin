@@ -22,21 +22,38 @@ prompt and can run shell commands.
 
 Download `margin-gui` for your system from the
 [releases](https://github.com/redrick/margin/releases), or build it with Go 1.21 or newer (Go fetches
-the toolchain it needs by itself). Building needs a C compiler and, on Linux, the GTK 4 and
-WebKitGTK 6 development packages:
+the toolchain it needs by itself). Building needs a C compiler, and on Linux you pick the toolkit
+with a build tag. A Linux build without `-tags gtk3` or `-tags gtk4` stops with
+`undefined: margin_gui_on_linux_needs_tags_gtk3_or_gtk4`.
+
+GTK 3 with WebKitGTK 4.1 is the one to use, and the one the Linux release binary is built with:
+
+```sh
+# Debian, Ubuntu:  sudo apt install build-essential libgtk-3-dev libwebkit2gtk-4.1-dev
+# Fedora:          sudo dnf install gcc gtk3-devel webkit2gtk4.1-devel
+# Arch:            sudo pacman -S base-devel gtk3 webkit2gtk-4.1
+go install -tags gtk3 github.com/redrick/margin/cmd/margin-gui@latest
+```
+
+GTK 4 with WebKitGTK 6 builds too, but avoid it on X11:
 
 ```sh
 # Debian, Ubuntu 24.04+:  sudo apt install build-essential libgtk-4-dev libwebkitgtk-6.0-dev
 # Fedora:                 sudo dnf install gcc gtk4-devel webkitgtk6.0-devel
 # Arch:                   sudo pacman -S base-devel gtk4 webkitgtk-6.0
-# macOS:                  xcode-select --install
-go install github.com/redrick/margin/cmd/margin-gui@latest
+go install -tags gtk4 github.com/redrick/margin/cmd/margin-gui@latest
 ```
 
-Systems that only have the older WebKitGTK 4.1 (GTK 3) build it with `-tags gtk3`:
+Under X11 the GTK 4 build handles pointer input one event at a time. A TrackPoint sends a steady
+stream of small scroll events, and probably so do touchpads and high-resolution wheels. On a busy
+machine the window falls behind them: scrolling stutters, and the window can stop responding for
+several seconds until it catches up. The GTK 3 build scrolls smoothly under the same load.
+
+On macOS no tag is needed:
 
 ```sh
-go install -tags gtk3 github.com/redrick/margin/cmd/margin-gui@latest
+xcode-select --install
+go install github.com/redrick/margin/cmd/margin-gui@latest
 ```
 
 Then add it to your desktop's applications, so it starts from the launcher or the Dock like any
@@ -343,9 +360,13 @@ What differs is how you get around:
 From a checkout:
 
 ```sh
-go build -o margin-gui ./cmd/margin-gui              # GTK 4 / WebKitGTK 6
-go build -tags gtk3 -o margin-gui ./cmd/margin-gui   # WebKitGTK 4.1
+go build -tags gtk3 -o margin-gui ./cmd/margin-gui   # Linux: GTK 3 / WebKitGTK 4.1
+go build -tags gtk4 -o margin-gui ./cmd/margin-gui   # Linux: GTK 4 / WebKitGTK 6
+go build -o margin-gui ./cmd/margin-gui              # macOS
 ```
+
+On Linux, `go vet ./...` and `go test ./...` need the tag too (`GOFLAGS=-tags=gtk3`), and so does
+your editor: for gopls, set `"build.buildFlags": ["-tags=gtk3"]`.
 
 The window is plain HTML, CSS and JavaScript in [`cmd/margin-gui/assets`](../cmd/margin-gui/assets),
 embedded in the binary, with [xterm.js](https://xtermjs.org) for the agent's terminal and

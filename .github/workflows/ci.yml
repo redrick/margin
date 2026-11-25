@@ -11,6 +11,8 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-24.04
+    env:
+      GOFLAGS: -tags=gtk4
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

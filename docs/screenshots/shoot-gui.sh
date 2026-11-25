@@ -13,7 +13,7 @@ mkdir -p "$out" "$work/home/.config/margin"
 echo "theme: ${MARGIN_SHOOT_THEME:-dark}" >"$work/home/.config/margin/config.yaml"
 
 chrome=$(command -v chromium || command -v google-chrome-stable || command -v google-chrome || command -v chromium-browser)
-tags=shoot
+tags="shoot gtk4"
 pkg-config --exists webkitgtk-6.0 2>/dev/null || tags="shoot gtk3"
 go test -c -tags "$tags" -o "$work/shoot.test" ./cmd/margin-gui
 go build -o "$work/margin" ./cmd/margin-tui

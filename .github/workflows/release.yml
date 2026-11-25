@@ -48,10 +48,10 @@ jobs:
           go-version-file: go.mod
       - name: Install WebKitGTK
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
       - name: Build
         run: |
-          go build -trimpath -ldflags "-s -w" -o margin-gui ./cmd/margin-gui
+          go build -tags gtk3 -trimpath -ldflags "-s -w" -o margin-gui ./cmd/margin-gui
           tar czf margin-gui_${GITHUB_REF_NAME}_${{ matrix.name }}.tar.gz margin-gui LICENSE
       - uses: actions/upload-artifact@v4
         with:

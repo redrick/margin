@@ -20,7 +20,7 @@ you work, or use both: a review started in one goes on in the other.
 | Start a review | `margin-tui pick` lists your repositories, worktrees, branches, commits and pull requests; or `margin-tui`, `margin-tui feature-x`, `margin-tui --pr 123` in a repository | pick a repository, worktree and branch, commit or pull request in the sidebar, or ctrl+k |
 | Using it | keys; the mouse picks lines, blocks, links and stops | buttons, and the same keys |
 | Needs | git, tmux, an agent CLI | git, an agent CLI, a WebKit webview (built into macOS; WebKitGTK on Linux) |
-| Install | `go install github.com/redrick/margin/cmd/margin-tui@latest` | `go install github.com/redrick/margin/cmd/margin-gui@latest`, then `margin-gui --install` |
+| Install | `go install github.com/redrick/margin/cmd/margin-tui@latest` | `go install -tags gtk3 github.com/redrick/margin/cmd/margin-gui@latest` (no tag on macOS), then `margin-gui --install` |
 | Read the manual | [docs/tui.md](docs/tui.md) | [docs/gui.md](docs/gui.md) |
 
 > Status: early, but the whole loop works.
@@ -31,15 +31,16 @@ Download a binary for your system from the [releases](https://github.com/redrick
 or build with Go 1.21 or newer (Go fetches the toolchain the module needs by itself):
 
 ```sh
-go install github.com/redrick/margin/cmd/margin-tui@latest     # the terminal viewer
-go install github.com/redrick/margin/cmd/margin-gui@latest     # the desktop app
-margin-gui --install                                           # put the desktop app in your launcher
+go install github.com/redrick/margin/cmd/margin-tui@latest              # the terminal viewer
+go install -tags gtk3 github.com/redrick/margin/cmd/margin-gui@latest   # the desktop app (no tag on macOS)
+margin-gui --install                                                    # put the desktop app in your launcher
 ```
 
 `go install` puts the binaries in `$(go env GOPATH)/bin`; make sure that directory is on your `PATH`.
-margin-gui needs a C compiler and, on Linux, the GTK 4 and WebKitGTK 6 development packages to
-build; [docs/gui.md](docs/gui.md#install) lists them per distribution, and the `-tags gtk3` build
-for systems with only WebKitGTK 4.1.
+margin-gui needs a C compiler and, on Linux, the GTK 3 and WebKitGTK 4.1 development packages to
+build; [docs/gui.md](docs/gui.md#install) lists them per distribution. On Linux the build needs a
+toolkit tag: `-tags gtk3`, or `-tags gtk4` for GTK 4 and WebKitGTK 6, which can stall for seconds
+while scrolling on X11 under load.
 
 Each binary is complete on its own. Neither needs the other, nor a separate `margin` command: the
 agent they start gets a `margin` link to the binary that started it.
@@ -148,10 +149,10 @@ skills/margin      the agent skill, embedded in both binaries
 ```
 
 ```sh
-go test ./...                  # needs the margin-gui build dependencies, see docs/gui.md
-go test ./internal/...         # everything but the desktop app
+GOFLAGS=-tags=gtk3 go test ./...   # needs the margin-gui build dependencies, see docs/gui.md
+go test ./internal/...              # everything but the desktop app
 go build ./cmd/margin-tui
-go build ./cmd/margin-gui      # -tags gtk3 with WebKitGTK 4.1; GOFLAGS=-tags=gtk3 for go test/vet too
+go build -tags gtk3 ./cmd/margin-gui   # Linux: -tags gtk3 or -tags gtk4; no tag on macOS
 ```
 
 One test builds and runs a small Go module to check the coverage script end to end (`-short` skips
