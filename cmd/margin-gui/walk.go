@@ -3,12 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
-	"strings"
 
 	"github.com/redrick/margin/internal/anchor"
 	"github.com/redrick/margin/internal/around"
+	"github.com/redrick/margin/internal/cli"
 	"github.com/redrick/margin/internal/doc"
 	"github.com/redrick/margin/internal/render"
 	"github.com/redrick/margin/internal/review"
@@ -16,6 +14,7 @@ import (
 	"github.com/redrick/margin/internal/state"
 	"github.com/redrick/margin/internal/text"
 	"github.com/redrick/margin/internal/tui"
+	"github.com/redrick/margin/internal/verdict"
 )
 
 type LineInput struct {
@@ -23,34 +22,6 @@ type LineInput struct {
 	Part    int    `json:"part"`
 	Line    int    `json:"line"`
 	Text    string `json:"text"`
-}
-
-// Ask saves a question about a line and sends it to the agent straight away, like a in the terminal
-// viewer; without a running agent it stays saved for `margin questions`.
-func (r *Reviews) Ask(in LineInput) (*ReaderUpdate, error) {
-	body := text.Sanitize(strings.TrimSpace(in.Text))
-	if body == "" {
-		return nil, errors.New("the question is empty")
-	}
-	var q state.Question
-	v, err := r.change(func(d *doc.Doc, st *state.State) error {
-		_, s := d.Station(in.Station)
-		if s == nil || in.Part < 0 || in.Part >= len(s.Parts) || in.Line < 0 || in.Line >= len(s.Parts[in.Part].Lines) {
-			return errors.New("that line is no longer in the review")
-		}
-		q = lineQuestion(s, s.Parts[in.Part], in.Line, st.NextQuestionID(), body)
-		st.Questions = append(st.Questions, q)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	if path := r.current(); r.agents.Running(path) {
-		if err := r.agents.Send(path, tui.AgentMessage(q)); err != nil {
-			return nil, err
-		}
-	}
-	return v, nil
 }
 
 // ReadNotes marks the notes a walk step showed as read, the way space does in the terminal viewer.
@@ -100,8 +71,45 @@ func (r *Reviews) SetBlind(blind bool) (*ReaderUpdate, error) {
 	})
 }
 
-func (r *Reviews) Reveal(station string) (*ReaderUpdate, error) {
-	return r.change(func(_ *doc.Doc, st *state.State) error {
+// SetNoteVisibility saves the GUI's note-card preference for the open review.
+func (r *Reviews) SetNoteVisibility(path, mode string) (*ReaderUpdate, error) {
+	if !validNoteVisibility(mode) {
+		return nil, errors.New("unknown note visibility")
+	}
+	r.stateMu.Lock()
+	defer r.stateMu.Unlock()
+	d, err := r.document(0)
+	if err != nil {
+		return nil, err
+	}
+	if d.Review.Path != path {
+		return nil, errors.New("the open review changed")
+	}
+	st, err := state.Load(review.StatePath(path))
+	if err != nil {
+		return nil, err
+	}
+	if err := updateReviewResume(path, func(saved *reviewResume) bool {
+		if saved.NoteVisibility == mode {
+			return false
+		}
+		saved.NoteVisibility = mode
+		return true
+	}); err != nil {
+		return nil, err
+	}
+	update := r.readerUpdate(d, st)
+	return &update, nil
+}
+
+func (r *Reviews) Reveal(path, station string) (*ReaderUpdate, error) {
+	return r.change(func(d *doc.Doc, st *state.State) error {
+		if d.Review.Path != path {
+			return errors.New("the open review changed")
+		}
+		if _, stop := d.Station(station); stop == nil || stop.Kind != doc.Code {
+			return errors.New("this stop is no longer in the review")
+		}
 		st.Revealed[station] = true
 		return nil
 	})
@@ -321,18 +329,19 @@ func (r *Reviews) RunTests(tests []int, file string, line int, needle string, ve
 
 // Export renders the reader's comments, flagged notes and calls with `margin export`, to post by hand.
 func (r *Reviews) Export(format string) (string, error) {
-	if format != "md" && format != "github" {
-		return "", fmt.Errorf("unknown format %q", format)
+	r.mu.Lock()
+	d, walk := r.loaded, r.walk
+	r.mu.Unlock()
+	if d == nil {
+		return "", errors.New("open a review first")
 	}
-	exe, err := os.Executable()
+	st, err := state.Load(review.StatePath(d.Review.Path))
 	if err != nil {
 		return "", err
 	}
-	cmd := exec.Command(exe, "export", "--review", r.current(), "--format", format)
-	cmd.Env = append(os.Environ(), "MARGIN_CLI=1")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("margin export: %v: %s", err, strings.TrimSpace(string(out)))
+	authored := d
+	if walk.mode == fileWalk {
+		authored = walk.alternate
 	}
-	return string(out), nil
+	return cli.FormatExport(format, authored, st, verdict.Recommend(d, st, walk.alternate))
 }

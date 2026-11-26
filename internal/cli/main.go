@@ -512,17 +512,13 @@ func cmdAnswer(cmd string, args []string) error {
 	}
 	d := doc.Build(r, files)
 	files.Close()
-	_, station := d.Station(q.Station)
-	if station == nil {
-		return fmt.Errorf("station %s no longer exists", q.Station)
-	}
-	hits := station.Hits(q.File, q.Needle)
-	if len(hits) == 0 {
-		return fmt.Errorf("line %q (%s:%d) is no longer in station %s; add the note with margin note", q.Needle, q.File, q.Line, q.Station)
+	station, nth := replyAnchor(d, q)
+	if station == "" {
+		return fmt.Errorf("cannot find an unambiguous line for %q (%s:%d) in an authored stop; add the note with margin note", q.Needle, q.File, q.Line)
 	}
 
-	note := review.Note{At: q.Needle, Nth: nthFor(hits, q.Line-1), File: q.File, Q: q.Text, QID: q.ID, Text: answer}
-	idx, err := review.AppendNote(path, q.Station, note)
+	note := review.Note{At: q.Needle, Nth: nth, File: q.File, Q: q.Text, QID: q.ID, Text: answer}
+	idx, err := review.AppendNote(path, station, note)
 	if err != nil {
 		return err
 	}
@@ -530,8 +526,54 @@ func cmdAnswer(cmd string, args []string) error {
 	if q.IsComment() {
 		verb = "resolved"
 	}
-	fmt.Printf("%s %s: station %s note %d\n", q.ID, verb, q.Station, idx+1)
-	return notifyViewer(sock, !*noGoto, q.Station, idx)
+	fmt.Printf("%s %s: station %s note %d\n", q.ID, verb, station, idx+1)
+	return notifyViewer(sock, !*noGoto, true, station, idx)
+}
+
+// replyAnchor locates a reader's line even when the authored walkthrough has regrouped it.
+func replyAnchor(d *doc.Doc, q state.Question) (string, int) {
+	type match struct {
+		station string
+		nth     int
+		line    int
+	}
+	var exact, moved match
+	ambiguous := false
+	for _, stop := range d.Stations {
+		if stop.Kind != doc.Code || stop.Auto {
+			continue
+		}
+		hits := stop.Hits(q.File, q.Needle)
+		for i, hit := range hits {
+			if stop.Parts[hit.Part].Base != (q.Side == review.SideBase) {
+				continue
+			}
+			nth := 0
+			if len(hits) > 1 {
+				nth = i + 1
+			}
+			m := match{station: stop.ID, nth: nth, line: hit.Line}
+			if hit.Line == q.Line-1 {
+				if stop.ID == q.Station {
+					return m.station, m.nth
+				}
+				if exact.station == "" {
+					exact = m
+				}
+			} else if moved.station == "" {
+				moved = m
+			} else if moved.line != hit.Line {
+				ambiguous = true
+			}
+		}
+	}
+	if exact.station != "" {
+		return exact.station, exact.nth
+	}
+	if !ambiguous {
+		return moved.station, moved.nth
+	}
+	return "", 0
 }
 
 // advice lists what makes a review harder to follow than it needs to be. It never fails the lint:

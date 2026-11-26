@@ -115,7 +115,7 @@ shot coverage 1462 532 "full=1&do=g:report,u"
 shot around 1472 700 "full=1&do=g:reserve,s:around this stop"
 shot spotlight 1472 700 "full=1&do=g:tests,j,j,j,Enter,g:reserve:2,s:// Reserve takes"
 shot guide-recap 1462 700 "full=0&do=g:store,1,g:reserve,1,g:recap"
-shot try-edit 1472 700 "full=1&do=g:reserve,s:// Reserve takes,l:if qty <= 0,J,J,i,z:1500,f,<,l,x"
+shot try-edit 1472 700 "full=1&do=g:reserve,s:// Reserve takes,l:if qty <= 0,J,J,i,z:1500,vim,f,<,l,x"
 
 # The GitHub shots: an invented pull request (see shoot_github_test.go) with one comment of yours
 # already posted, one picked for the review, and threads others started.

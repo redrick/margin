@@ -204,9 +204,11 @@ func (r *Reviews) ToggleForGitHub(id string) (*ReaderUpdate, error) {
 // PlanGitHubReview shows the review the reader is about to send: the picked comments, where each
 // lands, and the decision margin suggests from their verdicts.
 func (r *Reviews) PlanGitHubReview() (*GitHubPlan, error) {
-	d, err := r.document(0)
-	if err != nil {
-		return nil, err
+	r.mu.Lock()
+	d, walk := r.loaded, r.walk
+	r.mu.Unlock()
+	if d == nil {
+		return nil, errors.New("open a review first")
 	}
 	pr, err := r.pullRequest(d, true)
 	if err != nil {
@@ -217,7 +219,7 @@ func (r *Reviews) PlanGitHubReview() (*GitHubPlan, error) {
 		return nil, err
 	}
 	plan := &GitHubPlan{PR: prView(d, pr), Comments: placements(pr, st), Suggest: github.EventComment}
-	switch verdict.Recommend(d, st).Decision {
+	switch verdict.Recommend(d, st, walk.alternate).Decision {
 	case verdict.Approve:
 		plan.Suggest = github.EventApprove
 	case verdict.RequestChanges:

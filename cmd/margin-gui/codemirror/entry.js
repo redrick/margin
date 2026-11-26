@@ -97,7 +97,7 @@ export function createEditor(parent, opts) {
   const state = EditorState.create({
     doc: opts.doc ?? "",
     extensions: [
-      opts.vim !== false ? vim({ status: true }) : [],
+      opts.vim ? vim({ status: true }) : [],
       first.of(numbers(opts.firstLine ?? 1)),
       highlightSpecialChars(),
       history(),
@@ -112,8 +112,7 @@ export function createEditor(parent, opts) {
       lang ?? [],
       keymap.of([
         { key: "Mod-Enter", run: runKey },
-        { key: "Mod-s", run: runKey },
-        ...(opts.vim === false ? [{ key: "Escape", run: () => (opts.onCancel?.(), true) }] : []),
+        opts.vim ? { key: "Mod-s", run: runKey } : { key: "Escape", run: () => (opts.onCancel?.(), true) },
         indentWithTab,
         ...defaultKeymap,
         ...historyKeymap,

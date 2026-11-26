@@ -21,6 +21,7 @@ var errAgentInUse = errors.New("this review's agent is already open in another M
 
 type ReadingPosition struct {
 	Station string       `json:"station"`
+	Mode    walkMode     `json:"mode,omitempty"`
 	Step    *ReadingStep `json:"step,omitempty"`
 	Scroll  int          `json:"scroll"`
 }
@@ -34,18 +35,42 @@ type ReadingStep struct {
 }
 
 type savedAgent struct {
-	Command string `json:"command"`
-	Repo    string `json:"repo"`
-	ID      string `json:"session_id,omitempty"`
-	Run     string `json:"run"`
-	Auto    bool   `json:"resume_on_launch,omitempty"`
-	Failed  bool   `json:"resume_failed,omitempty"`
+	Command       string `json:"command"`
+	Repo          string `json:"repo"`
+	ID            string `json:"session_id,omitempty"`
+	Run           string `json:"run"`
+	PreparingWalk bool   `json:"preparing_walk,omitempty"`
+	Auto          bool   `json:"resume_on_launch,omitempty"`
+	Failed        bool   `json:"resume_failed,omitempty"`
 }
 
 type reviewResume struct {
-	Version  int              `json:"version"`
-	Position *ReadingPosition `json:"position,omitempty"`
-	Agent    *savedAgent      `json:"agent,omitempty"`
+	Version         int                           `json:"version"`
+	Position        *ReadingPosition              `json:"position,omitempty"`
+	Agent           *savedAgent                   `json:"agent,omitempty"`
+	WalkChoice      bool                          `json:"walk_choice,omitempty"`
+	WalkMode        walkMode                      `json:"walk_mode,omitempty"`
+	WalkPositions   map[walkMode]*ReadingPosition `json:"walk_positions,omitempty"`
+	WalkPreparation string                        `json:"walk_preparation,omitempty"`
+	NoteVisibility  string                        `json:"note_visibility,omitempty"`
+}
+
+func validNoteVisibility(mode string) bool {
+	switch mode {
+	case "risky", "all", "hide":
+		return true
+	}
+	return false
+}
+
+func (saved reviewResume) noteVisibility(blind bool) string {
+	if validNoteVisibility(saved.NoteVisibility) {
+		return saved.NoteVisibility
+	}
+	if blind {
+		return "hide"
+	}
+	return "all"
 }
 
 type lastReview struct {
@@ -63,13 +88,23 @@ func resumePath(path string) string {
 }
 
 func resumeIdentity(path string) string {
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+	resolved, err := filepath.EvalSymlinks(path)
+	if err == nil {
 		return resolved
+	}
+	// Keep the lease key stable as missing review directories and the file are created.
+	parent := filepath.Dir(path)
+	if parent != path && errors.Is(err, os.ErrNotExist) {
+		return filepath.Join(resumeIdentity(parent), filepath.Base(path))
 	}
 	return filepath.Clean(path)
 }
 
 func readResumeJSON(path string, value any) error {
+	return readGUIStateJSON(path, value, 64<<10)
+}
+
+func readGUIStateJSON(path string, value any, limit int64) error {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return err
@@ -82,12 +117,11 @@ func readResumeJSON(path string, value any) error {
 		return err
 	}
 	defer f.Close()
-	const limit = 64 << 10
 	data, err := io.ReadAll(io.LimitReader(f, limit+1))
 	if err != nil {
 		return err
 	}
-	if len(data) > limit {
+	if int64(len(data)) > limit {
 		return errors.New("saved review state is too large")
 	}
 	return json.Unmarshal(data, value)
@@ -191,8 +225,10 @@ func startLeasedAgent(path string, launch func(*os.File) error) error {
 
 func clearReviewResume(path string) error {
 	return lockResume(func() error {
-		if err := os.Remove(resumePath(path)); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return err
+		for _, file := range []string{resumePath(path), walkReadyPath(path)} {
+			if err := os.Remove(file); err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return err
+			}
 		}
 		return nil
 	})
@@ -219,19 +255,49 @@ func forgetLastReview(path string) error {
 	})
 }
 
+func (saved reviewResume) positionFor(walk walkthrough) *ReadingPosition {
+	if walk.mode == "" {
+		return saved.Position
+	}
+	if p := saved.WalkPositions[walk.mode]; p != nil {
+		return p
+	}
+	// The old position belongs to the layout that existed before either view was used.
+	if saved.Position == nil || len(saved.WalkPositions) > 0 {
+		return nil
+	}
+	position := *saved.Position
+	position.Mode = walk.mode
+	if walk.mode == fileWalk {
+		if id := walk.legacyIDs[position.Station]; id != "" {
+			position.Station = id
+		}
+	}
+	return &position
+}
+
 func (r *Reviews) ReadingPosition(path string) *ReadingPosition {
-	return readReviewResume(path).Position
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return readReviewResume(path).positionFor(r.walk)
 }
 
 func (r *Reviews) SaveReadingPosition(path string, position ReadingPosition, remember bool) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.path != path || position.Station == "" {
+	if r.path != path || position.Station == "" || position.Mode != r.walk.mode {
 		return nil
 	}
 	return lockResume(func() error {
 		saved := readReviewResume(path)
-		saved.Position = &position
+		if position.Mode == "" {
+			saved.Position = &position
+		} else {
+			if saved.WalkPositions == nil {
+				saved.WalkPositions = make(map[walkMode]*ReadingPosition)
+			}
+			saved.WalkPositions[position.Mode] = &position
+		}
 		if err := writeResumeJSON(resumePath(path), saved); err != nil {
 			return err
 		}

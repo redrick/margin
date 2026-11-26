@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/redrick/margin/internal/doc"
+	"github.com/redrick/margin/internal/gitx"
 	"github.com/redrick/margin/internal/review"
 	"github.com/redrick/margin/internal/source"
 	"github.com/redrick/margin/internal/state"
@@ -47,5 +48,17 @@ func TestRecommend(t *testing.T) {
 	st.Questions = append(st.Questions, state.Question{ID: "c2", Kind: state.KindComment, Text: "issue (blocking): races"})
 	if o := Recommend(d, st); o.Decision != RequestChanges || o.Blockers[0] != "1 blocking comment is not resolved" {
 		t.Fatalf("a blocking comment: %+v", o)
+	}
+}
+
+func TestSavedFileVerdictBlocksAuthoredReview(t *testing.T) {
+	d := &doc.Doc{
+		Stations:     []*doc.Station{{Kind: doc.Code, ID: "grouped"}},
+		ChangedFiles: []gitx.Change{{Path: "route.txt"}},
+	}
+	st := &state.State{Verdicts: map[string]string{"grouped": Good, doc.FileStopID("route.txt"): Changes}}
+	out := Recommend(d, st)
+	if out.Decision != RequestChanges || !strings.Contains(strings.Join(out.Blockers, "\n"), "route.txt") {
+		t.Fatalf("authored recommendation ignored the file verdict: %+v", out)
 	}
 }

@@ -156,19 +156,22 @@ func (t *Target) branch(name, baseRef string) error {
 	if t.Base, err = gitx.MergeBase(t.Repo, baseTip, tip); err != nil {
 		return fmt.Errorf("%s and %s share no history", name, baseRef)
 	}
-	if t.Base == tip {
-		return fmt.Errorf("branch %s has no commits beyond %s; pass --base", name, baseRef)
-	}
 	t.Head = tip
 	where := "not checked out, read-only"
 	if cur, err := gitx.Run(t.Repo, "symbolic-ref", "--quiet", "HEAD"); err == nil && strings.TrimSpace(string(cur)) == "refs/heads/"+name {
 		t.Head, where = "", "checked out, includes uncommitted changes"
 	}
+	t.Changes, err = gitx.Changes(t.Repo, t.Base, t.Head, false)
+	if err != nil {
+		return err
+	}
+	if t.Base == tip && len(t.Changes) == 0 {
+		return fmt.Errorf("branch %s has no commits beyond %s; pass --base", name, baseRef)
+	}
 	t.Title = "Branch " + name
 	t.Kicker = fmt.Sprintf("%s · %s vs %s (merge-base %s) · %s", filepath.Base(t.Repo), name, baseRef, gitx.Short(t.Base), where)
 	t.commitMessages(t.Base, tip)
-	t.Changes, err = gitx.Changes(t.Repo, t.Base, t.Head, false)
-	return err
+	return nil
 }
 
 func (t *Target) commit(ref, baseRef string) error {

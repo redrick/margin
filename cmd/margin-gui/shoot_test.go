@@ -146,8 +146,8 @@ export const Call = {
 // review (a file to open), side=hide, full=1|0 (whole stops or the guided walk), and do, a comma
 // separated list of actions: g:TARGET is a margin goto, s:TEXT scrolls to the first text in the stop
 // that starts with TEXT, l:TEXT clicks the first code line that starts with TEXT, k:TEXT clicks the first
-// visible button whose text starts with TEXT, z:MS waits, t:TEXT
-// types into the focused field, and anything else is a key ("Space", "comma"). Then it sets the title to "ready".
+// visible button whose text starts with TEXT, z:MS waits, t:TEXT types into the focused field, vim
+// enables Vim in the editor, and anything else is a key ("Space", "comma"). Then it sets the title to "ready".
 const shootScript = `
 import { Events } from "/wails/runtime.js";
 import { state } from "./core.js";
@@ -182,6 +182,9 @@ for (const a of (q.get("do") ?? "").split(",").filter(Boolean)) {
     const el = document.activeElement;
     el.value = a.slice(2);
     el.dispatchEvent(new Event("input", { bubbles: true }));
+  } else if (a === "vim") {
+    const option = document.querySelector(".try-inline [data-vim]");
+    if (option && !option.checked) option.click();
   } else {
     key(a === "comma" ? "," : a === "Space" ? " " : a);
   }

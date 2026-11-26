@@ -2,14 +2,62 @@ package target
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/redrick/margin/internal/config"
+	"github.com/redrick/margin/internal/gitx"
 	"github.com/redrick/margin/internal/review"
 )
+
+func TestResolveBranchWithOnlyUncommittedChanges(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	dir := t.TempDir()
+	git := func(args ...string) {
+		t.Helper()
+		if _, err := gitx.Run(dir, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git("init", "-q", "-b", "main")
+	git("-c", "user.name=Test", "-c", "user.email=test@example.com", "-c", "commit.gpgSign=false", "commit", "-q", "--allow-empty", "-m", "Initial commit")
+	git("branch", "other")
+	git("switch", "-c", "feature")
+
+	for _, test := range []struct {
+		name, branch       string
+		dirty, wantChanges bool
+	}{
+		{name: "clean checkout", branch: "feature"},
+		{name: "dirty checkout", branch: "feature", dirty: true, wantChanges: true},
+		{name: "branch absent from the dirty worktree", branch: "other", dirty: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.dirty {
+				if err := os.WriteFile(filepath.Join(dir, "draft.go"), []byte("package draft\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := Resolve(dir, test.branch, Options{})
+			if !test.wantChanges {
+				if err == nil || !strings.Contains(err.Error(), "has no commits beyond main") {
+					t.Fatalf("Resolve(%s) = %v, %v, want no commits error", test.branch, got, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want := []Change{{Status: 'A', Path: "draft.go"}}; got.Mode != Branch || got.Head != "" || !reflect.DeepEqual(got.Changes, want) {
+				t.Fatalf("got %+v, want a live branch review with changes %v", got, want)
+			}
+		})
+	}
+}
 
 func TestParseNameStatus(t *testing.T) {
 	out := []byte("M\x00a.go\x00R100\x00old/x.go\x00new/x.go\x00D\x00gone.py\x00A\x00b c.txt\x00")

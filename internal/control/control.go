@@ -15,8 +15,9 @@ import (
 )
 
 type Request struct {
-	Cmd string `json:"cmd"`
-	Arg string `json:"arg,omitempty"`
+	Cmd   string `json:"cmd"`
+	Arg   string `json:"arg,omitempty"`
+	Reply bool   `json:"reply,omitempty"`
 }
 
 type Response struct {

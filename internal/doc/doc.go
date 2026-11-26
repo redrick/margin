@@ -33,14 +33,15 @@ const (
 )
 
 type Doc struct {
-	Review   *review.Review
-	Repo     string
-	HasBase  bool
-	BaseDesc string
-	HeadDesc string
-	Stations []*Station
-	Problems []Problem
-	Coverage *Coverage
+	Review       *review.Review
+	Repo         string
+	HasBase      bool
+	BaseDesc     string
+	HeadDesc     string
+	Stations     []*Station
+	Problems     []Problem
+	Coverage     *Coverage
+	ChangedFiles []gitx.Change // Changed files included by the repository’s ignore rules.
 	// Ignored lists changed files .margin/ignore keeps out of the tour; Unshown lists changed files
 	// that cannot be shown as text.
 	Ignored []gitx.Change
@@ -506,6 +507,9 @@ func Counts(parts []*Part) (added, changed, removed int) {
 	}
 	return
 }
+
+// FileStopID identifies the generated stop for a path. Authored stop IDs cannot contain a colon.
+func FileStopID(path string) string { return "file:" + path }
 
 func Summary(d *Doc) string {
 	parts, notes := 0, 0

@@ -32,6 +32,7 @@ func repo(t *testing.T, dir string) {
 }
 
 func TestFoldersAndTargets(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	root := t.TempDir()

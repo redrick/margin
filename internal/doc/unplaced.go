@@ -52,10 +52,12 @@ func (d *Doc) addUnplaced(b builder, ign *ignore.Matcher) {
 	var files []string
 	regions := 0
 	for _, c := range changes {
-		switch {
-		case ign.Match(c.Path):
+		if ign.Match(c.Path) {
 			d.Ignored = append(d.Ignored, c)
 			continue
+		}
+		d.ChangedFiles = append(d.ChangedFiles, c)
+		switch {
 		case skip.Match(c.Path):
 			continue
 		case c.Status == 'D':

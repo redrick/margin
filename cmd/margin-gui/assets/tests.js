@@ -27,11 +27,12 @@ export function runTests(ids, what, view = state.view) {
 }
 
 // tryChange runs the tests of a line against an edit of it; margin puts the line back after.
-export function tryChange(req, what, view = state.view) {
-  return startTest("TryChange", req, { what, req }, view);
+export function tryChange(req, what, view = state.view, active) {
+  return startTest("TryChange", req, { what, req }, view, active);
 }
 
-async function startTest(method, args, extra, view) {
+async function startTest(method, args, extra, view, active = () => true) {
+  if (!active()) return false;
   if (state.view !== view) {
     toast("The review changed. Select the tests again.");
     return false;
@@ -43,9 +44,9 @@ async function startTest(method, args, extra, view) {
   toast(pending);
   try {
     const setup = await api("Reviews.TestSetup");
-    if (state.view !== view || state.opened !== opened) return false;
+    if (!active() || state.view !== view || state.opened !== opened) return false;
     if (!setup.found) {
-      openTestSetup(setup, () => startTest(method, args, extra, view));
+      openTestSetup(setup, () => startTest(method, args, extra, view, active));
       return false;
     }
     const result = await api("Reviews." + method, args, view.version);

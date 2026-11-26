@@ -1,8 +1,9 @@
 # margin
 
 **Yet another code review tool.** Yes. The one that makes sure you actually read the change, shows
-which tests run each line, and lets you break a line in place, with vim keys, to see whether any of
-them notice. See [the project page](https://antas.cz/margin/).
+which tests run each line, and lets you edit a line in place to see whether any of them notice.
+The GUI defaults to standard editing and offers Vim keybindings in Settings.
+See [the project page](https://antas.cz/margin/).
 
 margin reviews git changes with a coding agent beside you. The agent reads the change first, lays
 out a route through it in reading order and writes a note on every change: what it does, why it is

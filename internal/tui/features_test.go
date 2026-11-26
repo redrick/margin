@@ -522,3 +522,18 @@ func TestEditDraftComment(t *testing.T) {
 		t.Fatalf("a sent comment must not open for editing: %q %q", m.editing, m.status)
 	}
 }
+
+func TestFixSavedFileVerdictInAuthoredReview(t *testing.T) {
+	m := newModel(t)
+	file := "inventory/stock.go"
+	id := doc.FileStopID(file)
+	m.state.Verdicts[id] = verdict.Changes
+	fixes := AddFixes(m.doc, m.state)
+	if len(fixes) != 1 || fixes[0].Fix != "stop:"+id || fixes[0].Station != id ||
+		fixes[0].File != file || fixes[0].Line == 0 || fixes[0].Needle == "" {
+		t.Fatalf("file verdict did not produce an anchored fix request: %+v", fixes)
+	}
+	if left := ToFix(m.doc, m.state); len(left) != 0 {
+		t.Fatalf("the same file fix would be sent again: %+v", left)
+	}
+}

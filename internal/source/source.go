@@ -27,13 +27,14 @@ type Files struct {
 	BaseDesc string
 	HeadDesc string
 
-	root    *os.Root
-	head    string
-	staged  bool
-	baseSHA string
-	base    reader
-	current map[string]File
-	baseC   map[string]File
+	root     *os.Root
+	head     string
+	staged   bool
+	baseSHA  string
+	base     reader
+	current  map[string]File
+	baseC    map[string]File
+	snapshot *Snapshot
 }
 
 type reader interface {
@@ -118,6 +119,9 @@ func (f *Files) Current(path string) (File, error) {
 	if f.head != "" || f.staged {
 		c, err = gitReader{repo: f.Repo, sha: f.head}.read(path)
 	} else {
+		if f.snapshot != nil {
+			f.snapshot.track(f.snapshot.current, f.root.Stat, filepath.FromSlash(path))
+		}
 		c, err = readRoot(f.root, path)
 	}
 	if err != nil {
@@ -133,6 +137,9 @@ func (f *Files) Base(path string) (File, error) {
 	}
 	if c, ok := f.baseC[path]; ok {
 		return c, nil
+	}
+	if base, ok := f.base.(dirReader); ok && f.snapshot != nil {
+		f.snapshot.track(f.snapshot.base, base.root.Stat, filepath.FromSlash(path))
 	}
 	c, err := f.base.read(path)
 	if err != nil {

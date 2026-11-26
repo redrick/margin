@@ -15,12 +15,14 @@ import (
 )
 
 type AgentResumeStatus struct {
-	Name    string `json:"name,omitempty"`
-	Saved   bool   `json:"saved"`
-	Exact   bool   `json:"exact"`
-	Auto    bool   `json:"auto"`
-	CanLink bool   `json:"canLink"`
-	Failed  bool   `json:"failed"`
+	WalkAttempted bool   `json:"walkAttempted,omitempty"`
+	WalkPreparing bool   `json:"walkPreparing,omitempty"`
+	Name          string `json:"name,omitempty"`
+	Saved         bool   `json:"saved"`
+	Exact         bool   `json:"exact"`
+	Auto          bool   `json:"auto"`
+	CanLink       bool   `json:"canLink"`
+	Failed        bool   `json:"failed"`
 }
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
@@ -92,16 +94,17 @@ func newClaudeID() string {
 }
 
 func (a *Agents) ResumeStatus(path, repo string) AgentResumeStatus {
-	saved := readReviewResume(path).Agent
+	record := readReviewResume(path)
+	saved := record.Agent
 	if saved == nil || saved.Repo != resumeIdentity(repo) || strings.TrimSpace(saved.Command) == "" {
-		return AgentResumeStatus{CanLink: agentPreset(config.Load().Agent) != ""}
+		return AgentResumeStatus{CanLink: agentPreset(config.Load().Agent) != "", WalkAttempted: record.WalkPreparation != ""}
 	}
 	name := filepath.Base(strings.Fields(saved.Command)[0])
 	provider := agentPreset(saved.Command)
 	exact := validSessionID(provider, saved.ID)
 	return AgentResumeStatus{
 		Name: name, Saved: true, Exact: exact, Auto: saved.Auto && exact && !saved.Failed,
-		CanLink: provider != "", Failed: saved.Failed,
+		CanLink: provider != "", Failed: saved.Failed, WalkAttempted: record.WalkPreparation != "", WalkPreparing: saved.PreparingWalk,
 	}
 }
 
@@ -178,7 +181,7 @@ func (a *Agents) restore(path, repo string, automatic, continued bool, cols, row
 			return errors.New("no saved agent for this review")
 		}
 		if continued {
-			return a.launchNew(lease, path, repo, saved.Command, false, true, cols, rows)
+			return a.launchNew(lease, rv, repo, saved.Command, false, true, cols, rows)
 		}
 		args, err := nativeResumeArgs(*saved)
 		if err != nil {

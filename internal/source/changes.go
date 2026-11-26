@@ -13,6 +13,17 @@ import (
 // Changed lists the files that differ between the base and the current side. A review without a
 // base has nothing to compare, so it lists nothing.
 func (f *Files) Changed() ([]gitx.Change, error) {
+	if s := f.snapshot; s != nil {
+		if !s.listed {
+			s.changes, s.changesErr = f.changed()
+			s.listed = true
+		}
+		return s.changes, s.changesErr
+	}
+	return f.changed()
+}
+
+func (f *Files) changed() ([]gitx.Change, error) {
 	switch d := f.base.(type) {
 	case gitReader:
 		return gitx.Changes(f.Repo, f.baseSHA, f.head, f.staged)

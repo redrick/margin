@@ -34,6 +34,13 @@ const usage = `margin-gui — review git changes with an agent beside you, in a 
 func main() {
 	// Called as `margin` (the link the agent runs) or with MARGIN_CLI=1, it is the command line.
 	if filepath.Base(os.Args[0]) == "margin" || os.Getenv("MARGIN_CLI") == "1" {
+		if len(os.Args) > 1 && os.Args[1] == "walkthrough-ready" {
+			if err := markWalkthroughReady(os.Args[2:]); err != nil {
+				fmt.Fprintln(os.Stderr, "margin:", err)
+				os.Exit(1)
+			}
+			return
+		}
 		os.Exit(cli.Run(os.Args[1:]))
 	}
 	if len(os.Args) == 2 && (os.Args[1] == "--install" || os.Args[1] == "--uninstall") {

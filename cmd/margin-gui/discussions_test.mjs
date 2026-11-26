@@ -1,0 +1,97 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { agentReply, discussionThreads, localResolution, nextThread, questionReply, questionSelection, readReply, setLocalResolution, unreadReply } from "./assets/discussions.js";
+
+test("next ask stays in its stop and advances through multiple threads on a line", () => {
+  const drafts = [
+    { id: "c1", station: "one", part: 0, at: 2, draft: true },
+    { id: "c2", station: "one", part: 0, at: 2, draft: true },
+    { id: "c3", station: "other", part: 0, at: 3 },
+  ];
+  const questions = [{ id: "q", station: "one", part: 1, at: 0, answer: "The answer" }];
+  const view = { stations: [{ notes: [] }], reader: { comments: drafts, questions: [] } };
+  const threads = discussionThreads(view, questions, {});
+  const next = (from = "", reply = false, cursor = [0, 0, 2]) => nextThread(threads, "one", reply, from, cursor, (part) => part)?.id;
+  assert.equal(next(), "c1");
+  assert.equal(next("c1"), "c2");
+  assert.equal(next("c2"), "q");
+  assert.equal(next("q"), "c1");
+  assert.equal(next("", false, [1, 1, 0]), "q");
+  assert.equal(next("c1", true), "q");
+  assert.equal(next("q", true), undefined);
+});
+
+test("unread state belongs to the review and to this version of the reply", async () => {
+  const storage = new Map();
+  globalThis.localStorage = { getItem: (key) => storage.get(key), setItem: (key, value) => storage.set(key, value) };
+  const thread = { id: "c1", asked: "today", reply: { text: "First reply" } };
+  assert.equal(unreadReply("one", thread), true);
+  readReply("one", thread);
+  assert.equal(unreadReply("one", thread), false);
+  assert.equal(unreadReply("other", thread), true);
+  const reopened = await import("./assets/discussions.js?reopened");
+  assert.equal(reopened.unreadReply("one", thread), false);
+  assert.equal(reopened.unreadReply("one", { ...thread, reply: { text: "Updated reply" } }), true);
+});
+
+test("local resolution survives reopening and belongs to the original discussion", async () => {
+  const storage = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => storage.get(key),
+    setItem: (key, value) => storage.set(key, value),
+    removeItem: (key) => storage.delete(key),
+  };
+  const comment = { id: "c1", asked: "today", resolved: false };
+  setLocalResolution("one", comment, true);
+  assert.equal(localResolution("one", comment), true);
+  assert.equal(comment.resolved, false);
+  assert.equal(localResolution("other", comment), undefined);
+  assert.equal(localResolution("one", { ...comment, asked: "tomorrow" }), undefined);
+  const reopened = await import("./assets/discussions.js?resolution-restored");
+  assert.equal(reopened.localResolution("one", comment), true);
+  const agentResolved = { ...comment, resolved: true };
+  reopened.setLocalResolution("one", agentResolved, false);
+  assert.equal(reopened.localResolution("one", agentResolved), false);
+  assert.equal(agentResolved.resolved, true);
+  const openedAgain = await import("./assets/discussions.js?resolution-reopened");
+  assert.equal(openedAgain.localResolution("one", agentResolved), false);
+  openedAgain.setLocalResolution("one", agentResolved, undefined);
+  assert.equal(openedAgain.localResolution("one", agentResolved), undefined);
+  assert.equal(storage.size, 0);
+});
+
+test("a thread keeps one navigation entry and tracks each saved reply", () => {
+  const question = { id: "root", station: "one", part: 0, at: 2, answer: "Same answer", followUps: [
+    { id: "first", answer: "Same answer" }, { id: "latest", answer: "Newer answer" },
+  ] };
+  const view = { stations: [{ notes: [] }], reader: { comments: [], questions: [] } };
+  const threads = discussionThreads(view, [question], {});
+  assert.deepEqual([...threads.keys()], ["root"]);
+  const thread = threads.get("root");
+  const path = "threads-fixture";
+  assert.equal(questionReply(path, thread).id, "latest");
+  readReply(path, questionReply(path, thread, "root"));
+  assert.equal(unreadReply(path, questionReply(path, thread, "first")), true);
+  readReply(path, questionReply(path, thread, "latest"));
+  assert.equal(questionReply(path, thread).id, "first");
+  readReply(path, questionReply(path, thread, "first"));
+  assert.equal(unreadReply(path, thread), false);
+  assert.equal(questionReply(path, thread).id, "latest");
+});
+
+test("a reader follow-up does not create or update an agent reply", () => {
+  const reader = "**Reply from the reader:** Question\n> More context\n";
+  assert.equal(agentReply(`## c1\n\n${reader}`), "");
+  assert.equal(agentReply(`## c1\n> Original comment\n\nThe agent replied.\n\n${reader}\n`), "The agent replied.");
+  assert.equal(agentReply(`## c1\n> Original comment\n\nThe agent replied.\n\n${reader}\nA follow-up answer.\n`), "The agent replied.\n\nA follow-up answer.");
+});
+
+test("question drafts can follow a reload of the same code and side", () => {
+  const part = { file: "code.go", rows: [{ n: 3, s: [{ t: "before()", c: "red" }] }, { n: 4, s: [] }] };
+  const before = questionSelection(part, 2, 3);
+  assert.ok(before);
+  assert.equal(questionSelection({ ...part, rows: [{ n: 3, s: [{ t: "before", c: "blue" }, { t: "()" }] }, { n: 4 }] }, 2, 3), before);
+  assert.notEqual(questionSelection({ ...part, base: true }, 2, 3), before);
+  assert.notEqual(questionSelection({ ...part, rows: [{ n: 3, s: [{ t: "after()" }] }, { n: 4 }] }, 2, 3), before);
+  assert.equal(questionSelection(part, 2, 4), null);
+});

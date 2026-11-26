@@ -4,6 +4,8 @@ package verdict
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/redrick/margin/internal/doc"
 	"github.com/redrick/margin/internal/state"
@@ -39,13 +41,15 @@ type Outcome struct {
 
 // Recommend weighs the reader's own marks only: the agent's notes count once the reader flagged
 // them, never on their own.
-func Recommend(d *doc.Doc, st *state.State) Outcome {
+func Recommend(d *doc.Doc, st *state.State, alternate ...*doc.Doc) Outcome {
 	var o Outcome
 	var changes, unsure, open []string
+	active := map[string]bool{}
 	for _, s := range d.Stations {
 		if s.Kind != doc.Code {
 			continue
 		}
+		active[s.ID] = true
 		switch st.Verdicts[s.ID] {
 		case Changes:
 			changes = append(changes, s.ID)
@@ -57,6 +61,26 @@ func Recommend(d *doc.Doc, st *state.State) Outcome {
 		}
 	}
 	resolved := d.AnsweredQuestions()
+	for _, layout := range alternate {
+		if layout == nil {
+			continue
+		}
+		maps.Copy(resolved, layout.AnsweredQuestions())
+		for _, stop := range layout.Stations {
+			if stop.Kind == doc.Code && !active[stop.ID] && st.Verdicts[stop.ID] == Changes {
+				o.Blockers = append(o.Blockers, fmt.Sprintf("you marked %s as needing changes in the other walkthrough", stop.Title))
+			}
+			active[stop.ID] = true
+		}
+	}
+	// Saved file verdicts also apply when a viewer or export only has the authored layout.
+	for _, file := range d.ChangedFiles {
+		id := doc.FileStopID(file.Path)
+		if !active[id] && st.Verdicts[id] == Changes {
+			o.Blockers = append(o.Blockers, fmt.Sprintf("you marked %s as needing changes in the file walkthrough", file.Path))
+		}
+	}
+	slices.Sort(o.Blockers)
 	blocking, other := 0, 0
 	for _, q := range st.Questions {
 		if !q.IsComment() || resolved[q.ID] {
@@ -69,8 +93,16 @@ func Recommend(d *doc.Doc, st *state.State) Outcome {
 		}
 	}
 	flagged, undecided, calls := 0, 0, 0
-	for _, s := range d.Stations {
-		for _, n := range s.Notes {
+	seenNotes := map[string]bool{}
+	for _, layout := range append([]*doc.Doc{d}, alternate...) {
+		if layout == nil {
+			continue
+		}
+		for _, n := range layout.CodeNotes() {
+			if seenNotes[n.Key] {
+				continue
+			}
+			seenNotes[n.Key] = true
 			switch {
 			case st.Dismissed[n.Key]:
 			case n.Level() == doc.KindDecide && !st.Reviewed[n.Key]:

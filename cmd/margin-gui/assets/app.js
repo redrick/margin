@@ -1,7 +1,7 @@
 import { Events } from "/wails/runtime.js";
 import { api, $, state, hooks, toast, errText, tail, openModal, closeModal, applyTheme, setThemeMode, followsSystem } from "./core.js";
-import { openReview, openReviewFile, reviewKey, renderReview, sendComments, sendFixes } from "./review.js";
-import { loadWorkspace, loadRecent, renderSide, addFolder, selectWorktree, homeKey, backToReview, syncSideButtons, openSwitcher, switcherOpen, openSettings, navState } from "./nav.js";
+import { openReview, openReviewFile, reviewKey, renderReview, renderWalkthrough, sendComments, sendFixes } from "./review.js";
+import { loadWorkspace, loadRecent, renderSide, addFolder, selectWorktree, refreshWorktree, homeKey, backToReview, syncSideButtons, openSwitcher, switcherOpen, openSettings, navState } from "./nav.js";
 
 // Agent terminal
 
@@ -75,7 +75,9 @@ async function refreshAgent(opened) {
   ]);
   if (state.opened !== opened || request !== agentStatusRequest) return null;
   opened.agent = saved ?? {};
+  opened.walkAgentLive = live;
   setAgentLive(live);
+  renderWalkthrough();
   $("#agent-btn").disabled = !!(opened.launching || opened.linking);
   return live;
 }
@@ -122,6 +124,9 @@ async function startAgent(opened, action, automatic = false) {
   if (opened.launching) return;
   const button = $("#agent-btn");
   opened.launching = true;
+  opened.launchingWalkthrough = action === "Start" || action === "Resume" && opened.agent?.walkPreparing;
+  opened.walkFailure = false;
+  renderWalkthrough();
   button.disabled = true;
   // A launch changes the process status while the terminal may still receive earlier events.
   ++agentStatusRequest;
@@ -138,12 +143,17 @@ async function startAgent(opened, action, automatic = false) {
     if (await refreshAgent(opened) && !automatic) term.focus();
   } catch (e) {
     if (state.opened === opened) {
+      opened.walkFailure = true;
       await refreshAgent(opened).catch(() => {});
       toast(errText(e), true);
     }
   } finally {
     opened.launching = false;
-    if (state.opened === opened) button.disabled = false;
+    opened.launchingWalkthrough = false;
+    if (state.opened === opened) {
+      button.disabled = false;
+      renderWalkthrough();
+    }
   }
 }
 
@@ -227,6 +237,7 @@ function togglePicker() {
 
 function showReviewer(loading = false) {
   if (loading) {
+    $("#walkthrough").classList.add("hidden");
     $("#agent-btn").disabled = true;
     $("#agent-link").classList.add("hidden");
   }
@@ -254,7 +265,6 @@ async function crumbBack() {
   if (!o) return;
   const w = state.worktree;
   if (w && (w.path === o.repo || w.repo?.worktrees?.some((x) => x.path === o.repo))) {
-    $("#workspace").classList.remove("focus");
     return selectWorktree(w, w.repo);
   }
   const nav = navState();
@@ -295,7 +305,7 @@ async function pickReviewFile() {
 
 document.addEventListener("keydown", (e) => {
   if (switcherOpen()) return;
-  if (document.activeElement?.closest?.(".cm-editor")) return;
+  const inEditor = document.activeElement?.closest?.(".cm-editor");
   const inTerm = document.activeElement?.closest?.("#terminal");
   const inInput = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName) && !inTerm;
   if (inTerm) {
@@ -305,7 +315,7 @@ document.addEventListener("keydown", (e) => {
     }
     return;
   }
-  if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "p")) {
+  if (!inEditor && (e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "p")) {
     e.preventDefault();
     return openSwitcher();
   }
@@ -313,7 +323,8 @@ document.addEventListener("keydown", (e) => {
     e.preventDefault();
     return openSettings();
   }
-  if (inInput) return;
+  if (inEditor || inInput) return;
+  if ((e.key === "Enter" || e.key === " ") && e.target.closest?.("button, summary")) return;
   if (!e.ctrlKey && !e.metaKey && !e.altKey) {
     if (e.key === "\\") {
       e.preventDefault();
@@ -344,7 +355,7 @@ $("#show-side").onclick = togglePicker;
 $("#toggle-picker").onclick = togglePicker;
 $("#crumb").onclick = crumbBack;
 $("#back-review").onclick = backToReview;
-$("#wt-refresh").onclick = () => state.worktree && selectWorktree(state.worktree, state.worktree.repo);
+$("#wt-refresh").onclick = refreshWorktree;
 $("#agent-btn").onclick = toggleAgent;
 $("#agent-link").onclick = linkAgent;
 $("#send-btn").onclick = sendComments;

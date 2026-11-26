@@ -81,23 +81,22 @@ The **sidebar** holds everything you work on:
 - **Reviews in progress** lists the reviews you opened lately, with how many stops you judged, the
   drafts you have not sent and a green dot while an agent runs for them. Click one to go on.
 - **Repositories** lists the folders you added with ＋. A folder can be a repository or hold several
-  (found up to two levels deep). Each repository shows its worktrees with their branch, and a
-  yellow `●` with the number of changed files where there is uncommitted work. The filter box
-  narrows the list by repository, branch or path.
+  (found up to two levels deep). A yellow `●` counts changed files across the repository's
+  worktrees. The filter box narrows the list by repository, branch or path.
 
-Click a worktree to see **what there is to review in it**:
+Click a repository to open its picker in the main pane on the main worktree. Use the **Worktree**
+selector to switch checkouts, or pick another repository in the sidebar. The picker shows:
 
-- **Uncommitted changes** and **staged changes**, with the number of files.
-- **This branch** against the main branch, with how many commits it is ahead and behind.
-- **Reviews of this repository** that already exist, to pick up again.
+- **Pull requests** first when the GitHub CLI `gh` is installed. A pull request whose head commit
+  is missing locally offers *Fetch and review*, which runs `git fetch origin pull/N/head` and
+  opens it.
 - **Branches**, newest first, each with how far it is ahead and behind the main branch, the worktree
   it is checked out in, and whether a review of it is in progress. Tick *remote branches* to see
   those too.
 - **Commits** on the current branch.
-- **Pull requests**, when the GitHub CLI `gh` is installed: the open pull requests of the
-  repository. A pull request whose head commit is not in your repository yet offers *Fetch and
-  review*, which runs `git fetch origin pull/N/head` and opens it. This fetch is the only git
-  command margin ever runs that changes your repository, and only when you click it.
+- **Uncommitted changes**, **Staged changes**, and **This branch** appear above the tabs when the
+  selected worktree has local changes. For a clean worktree, the review cards appear below the tabs.
+  Existing reviews appear below the picker.
 
 Press **ctrl+k** anywhere to **go to** anything by typing a few letters of it: a review, a
 repository or worktree, a branch of the worktree you are in, a pull request, or a command
@@ -112,11 +111,23 @@ can switch between reviews without stopping one.
 A review reads the same way as in the terminal viewer; [margin-tui](tui.md) describes it in detail,
 with pictures. In short:
 
+- **More.** As the review pane narrows, the toolbar moves controls into **More** in order of
+  priority. Open it to see the controls and their selected values. Press `/` to focus Search
+  wherever it appears.
 - **Orient → Walk → Decide.** The overview says what the change is for and what it does, shows the
   route through the stops with their risk and size, and asks whether the change makes sense done
-  this way (`y`, `n`, `?`). Each stop is then walked one step at a time: its brief, code to know
-  first, each change with the agent's notes, housekeeping, and the wrap-up where you give your
-  verdict (`1` good, `2` needs changes, `3` not sure). `w` shows whole stops instead.
+  this way (`y`, `n`, `?`). A stop groups related changes. **Step by step** takes you through the
+  brief, background code, changes with notes, and verdict (`1` good, `2` needs changes, `3` not sure).
+  **Full group** shows that group of changes on one page. Switch display with `w`.
+- **Notes.** **Risky** shows note cards and badges from high-risk stops. **All** shows every card
+  that matches the filter. **Hide** lets you reveal the cards for one stop with **Reveal notes**
+  (`v`). Guided questions and decisions stay available. Press `n` to cycle note visibility.
+- **Filter notes.** **All notes** includes every kind of agent note. **Issues, questions & decisions**
+  includes reported issues, questions, and decisions for you to make. **Issues with evidence**
+  includes only issues that cite evidence. Choose a focus area to see notes tagged with that topic.
+  Specific filters dim files, stops and steps without matching notes. You can still open any of
+  them to read the code. The filter stays selected when you switch grouping or display. Press `F`
+  to cycle through the filters.
 - **Your side.** Comment on a line with `c` (pick a kind: issue, suggestion, question, nitpick,
   praise, thought; `!` makes it blocking). Comments are drafts until `S` sends them all to the
   agent; until then *Edit* on a draft (or `e`) rewords it. Ask the agent about a line with `a`. Mark notes read, agree with a problem (`?`), dismiss
@@ -124,8 +135,9 @@ with pictures. In short:
   problem or giving a stop "needs changes" only marks it; **Ask to fix** (`P`) in the top bar or
   the recap hands them to the agent (a stop with your comments on it as the brief), and each comes
   back as a comment it resolves.
-- **Seeing more.** Search (`/`), note filters (`F`), folding (`z`), removed lines (`d`), side by side
-  (`s`), more context (`+` `-`) or the whole file (`f`), blind mode, callers and history around a
+- **Seeing more.** Read the diff **Inline** or in **Split** columns (`s`). Search (`/`),
+  folding (`z`), more context (`+` `-`) or the
+  whole file (`f`), callers and history around a
   stop, per-test coverage with the tests that run a line (`t`), a spotlight on one test, untested
   changes (`u`), the Tests stop, copying a note or a stop (`y` `Y`), and export for posting.
 - **Clickable, keys optional.** Clicking a line puts a bar under it: *Comment* (`c`), *Ask* (`a`),
@@ -142,9 +154,36 @@ with pictures. In short:
 The page reloads by itself whenever the agent changes the review, so notes appear as it writes them;
 new ones are marked and `N` jumps to them.
 
+Choose **Ask agent** in the gutter composer, or select a line with the mouse and press `a`.
+Shift-click extends the selection. Margin sends the selected code to a separate session using the
+connected Codex, Claude Code, Gemini CLI, or OpenCode agent. Two questions can run at once. Each
+reply appears below its selection and has a **Jump to reply** notification. The **Questions**
+toolbar button opens previous replies and lets you retry failed or interrupted questions. The GUI
+saves them locally as JSON and ends outstanding sessions when you quit.
+
+Choose **Reply** on a question to ask a follow-up in the same thread. Margin sends the saved code
+selection and earlier exchanges as context. The full thread is available after restart and can be
+continued from **Questions** even if its original lines have moved.
+
+**Next ask** cycles through your comments and questions in the current stop. **Next reply** cycles
+through agent replies, including replies to comments. New replies are marked on their threads and
+stops until you open them. **Back to reading** returns to your original position after any number
+of jumps.
+
 A note that mentions another as `stop:n` (`resolve:2`: the second note of stop *resolve*, the address
 `margin goto` takes) shows it as a link: click it, or press `L` on the selected note, to jump there,
 and `ctrl+o` to come back. The note it points at lists it under *Referenced by*.
+
+## Grouping changes
+
+**Group changes by** is available for pull requests and local reviews with a comparison base.
+**File by file** opens immediately so you can review each changed file. **Guided walk** shows
+groups of related changes that the agent has put together. Its button shows a spinner while the
+agent prepares those groups. You can switch to it when it is ready.
+
+Margin remembers your reading position in each grouping. Agent notes with a matching line appear
+in both. The **Display** switch lets you read **Step by step** or see the **Full file diff** or
+**Full group** on one page. Your display choice carries across groupings.
 
 ## The agent
 
@@ -168,12 +207,12 @@ default. The agent keeps its conversation history in its own storage. Notes, ver
 coverage stay with the review files.
 
 The agent talks to the window with `margin` commands: `margin note` adds a note, `margin goto` shows
-you a line, `margin where` tells it what you are looking at, `margin answer` and `margin resolve`
-answer your questions and comments, `margin coverage` records which tests run which lines. These
+you a line, `margin where` tells it what you are looking at, `margin answer` answers terminal review
+questions, `margin resolve` answers comments, and `margin coverage` records which tests run which lines. These
 commands are this same binary: margin-gui puts a `margin` link to itself first on the agent's
 `PATH`, so you need no other margin installed. `MARGIN_CLI=1 margin-gui <command>` runs one by hand.
 
-Untick *send messages with Enter* to have your questions, comments and test runs only typed into
+Untick *send messages with Enter* to have your comments and test runs only typed into
 the agent's prompt, so you can add to them before pressing Enter yourself.
 
 If the same review is also open in margin-tui, the window says so: the agent's `margin goto` and
@@ -214,10 +253,11 @@ checked out there, they run against whatever is.
 ## Trying a change
 
 When a note claims a line matters, or a line looks wrong to you, check whether the tests would
-notice. Click the line and then *✎ Try a change* in the bar under it, or press `i`: the line turns
-into an editor right where it stands, with the file's colours and line numbers, and vim keys (`i`
-to insert, `esc` back to normal, `cw`, `dd`, `u`, visual mode and the rest). `:w` or `Ctrl+Enter`
-runs, `:q` cancels; untick *vim* in the editor's bar for plain editing, where `Esc` cancels.
+notice. Click the line and then *✎ Try a change* in the bar under it, or press `i` to open an editor
+with the file's colours and line numbers. In Standard mode, type to edit, press `Cmd+Enter` on macOS
+or `Ctrl+Enter` elsewhere to run, and press `Esc` to cancel. You can also click *Run* or *Cancel*.
+Enable *Vim* in the editor's bar or in Settings to use Vim keys. In Vim mode, `i` enters insert mode,
+`:w` runs, and `:q` cancels. The GUI remembers the mode you choose.
 
 For a block, shift+click its last line (or `J` `K` from the first), or use *✎ try a change* on a
 part's header to take every changed line of it. *+ above* and *+ below* take more lines in, and
@@ -284,8 +324,8 @@ fix requests are not posted; *Export* still gives everything as text to paste yo
 
 ## Settings
 
-The gear in the sidebar (or **ctrl+,**) opens the settings. margin-gui and margin-tui share them,
-in `~/.config/margin/config.yaml`.
+The gear in the sidebar (or **ctrl+,**) opens the settings. margin-gui remembers its Editor
+keybindings locally. Both apps read the shared settings file at `~/.config/margin/config.yaml`.
 
 - **Where reviews are kept.** *In the repository* (the default) keeps them in `.margin/reviews/`,
   which ignores itself in git and is shared by all worktrees of the repository. *A private folder*
@@ -302,6 +342,8 @@ in `~/.config/margin/config.yaml`.
 - **Appearance.** *System* (the default) follows the desktop's light or dark setting and switches
   along with it; *Light* and *Dark* stay put. Light uses a Catppuccin Latte palette for the GUI,
   including the review, try editor and agent terminal.
+- **Editor keybindings.** Standard is the default. Choose Vim to use Vim motions and commands in
+  *Try a change*. Save applies the mode to an open editor and remembers it for later launches.
 - **Agent skill.** Installs margin's skill for Claude Code or Codex, so an agent you start yourself
   knows margin too and can run a margin review when you ask for one.
 
@@ -322,7 +364,7 @@ Changed settings apply to reviews and agents started afterwards.
 | `T` `i` `o` | run the selected line's tests, try a change to it, show or hide the test output (margin-tui has them too) |
 | `j` `k` `enter` | on a worktree page: move through what to review and open it |
 | `/` | on a worktree page: filter the branches, commits or pull requests |
-| `1` `2` `3` | on a worktree page: branches, commits, pull requests |
+| `1` `2` `3` | on a worktree page: select tabs in order (pull requests, branches, commits when `gh` is available) |
 | `r` | on a worktree page: read git again; in a review: reload |
 | `esc` | on a worktree page: back to the open review |
 
@@ -339,20 +381,20 @@ What differs is how you get around:
   pane beside the review; `margin-tui split` and the tmux layouts have no counterpart here.
 - **Settings and export.** margin-gui has a settings window (`ctrl+,`) and an export window.
   margin-tui has `margin-tui config` and `margin-tui export`; they write the same settings file and
-  the same Markdown.
+  the same Markdown. Editor keybindings apply to margin-gui.
 - **Light or dark.** margin-gui follows the desktop, or the theme picked in its settings. margin-tui
   follows the terminal: it asks for the background colour at start and matches it.
 - **Clicks and keys.** Every key in margin-gui also has a button. In margin-tui clicks only choose
   where you are (a line, a block, a link, a note, a stop); every action is a key.
 - **Layout.** margin-gui always shows the list of stops (margin-tui: `tab`) and shows notes in full
   under their line (margin-tui: a column beside the code).
-- **Trying a change.** Both edit in place with vim keys. In margin-gui the options are in the editor's
-  bar, and the vim keys can be switched off. In margin-tui they are commands: `:w!` runs the stop's
+- **Trying a change.** margin-gui edits in place with Standard or Vim keybindings and puts the run
+  options in the editor's bar. margin-tui uses Vim keys. `:w!` runs the stop's
   tests, `:w nocompare` skips the run without your edit, and `:above` and `:below` take more lines
   in. margin-tui can also send the lines to `$EDITOR` with `E`.
 - **Answers to your comments.** margin-gui shows the note formatted, with a reply box under each
   answer. margin-tui shows it as text in an overlay, `r` replies, and `e` edits it in `$EDITOR`.
-- **Switches.** Blind mode is a toolbar switch instead of the `--blind` flag, and *send messages with
+- **Switches.** Use **Hide** in the Notes toolbar control to reveal note cards one stop at a time, and *send messages with
   Enter* replaces `--no-submit`.
 
 ## Building
@@ -370,9 +412,10 @@ your editor: for gopls, set `"build.buildFlags": ["-tags=gtk3"]`.
 
 The window is plain HTML, CSS and JavaScript in [`cmd/margin-gui/assets`](../cmd/margin-gui/assets),
 embedded in the binary, with [xterm.js](https://xtermjs.org) for the agent's terminal and
-[CodeMirror](https://codemirror.net) with its vim mode for trying a change. Both are checked in, so
-building needs no npm. To rebuild the editor bundle, run `npm ci && npm run build` in
-[`cmd/margin-gui/codemirror`](../cmd/margin-gui/codemirror). The Go side is a few [Wails v3](https://v3.wails.io) services over margin's own
+[CodeMirror](https://codemirror.net) with optional Vim keybindings for trying a change. Both are
+checked in, so building needs no npm. To rebuild the editor bundle, run `npm install && npm run build`
+in [`cmd/margin-gui/codemirror`](../cmd/margin-gui/codemirror). `npm test` checks GUI preferences and
+discussion navigation. The Go side is a few [Wails v3](https://v3.wails.io) services over margin's own
 packages, so the review logic is the same code margin-tui runs.
 
 `docs/screenshots/shoot-gui.sh` regenerates the window's screenshots on the project page. It runs

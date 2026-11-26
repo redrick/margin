@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -17,26 +18,28 @@ import (
 
 // ReaderView is what the reader decided so far, kept in the same state file the terminal viewer uses.
 type ReaderView struct {
-	Verdicts  map[string]string `json:"verdicts"`
-	Orient    string            `json:"orient"`
-	Design    string            `json:"design"`
-	Reviewed  []string          `json:"reviewed"`
-	Flagged   []string          `json:"flagged"`
-	Dismissed []string          `json:"dismissed"`
-	Comments  []CommentView     `json:"comments"`
-	Drafts    int               `json:"drafts"`
-	ToFix     int               `json:"toFix"`
-	Outcome   OutcomeView       `json:"outcome"`
-	Labels    []LabelView       `json:"labels"`
-	Questions []QuestionView    `json:"questions"`
-	Full      bool              `json:"full"`
-	Blind     bool              `json:"blind"`
-	Revealed  []string          `json:"revealed"`
-	Visited   []string          `json:"visited"`
-	Seen      map[string]string `json:"seen"`
+	Verdicts       map[string]string `json:"verdicts"`
+	Orient         string            `json:"orient"`
+	Design         string            `json:"design"`
+	Reviewed       []string          `json:"reviewed"`
+	Flagged        []string          `json:"flagged"`
+	Dismissed      []string          `json:"dismissed"`
+	Comments       []CommentView     `json:"comments"`
+	Drafts         int               `json:"drafts"`
+	ToFix          int               `json:"toFix"`
+	Outcome        OutcomeView       `json:"outcome"`
+	Labels         []LabelView       `json:"labels"`
+	Questions      []QuestionView    `json:"questions"`
+	Full           bool              `json:"full"`
+	Blind          bool              `json:"blind"`
+	NoteVisibility string            `json:"noteVisibility"`
+	Revealed       []string          `json:"revealed"`
+	Visited        []string          `json:"visited"`
+	Seen           map[string]string `json:"seen"`
 }
 
 type ReaderUpdate struct {
+	Mode     walkMode   `json:"mode,omitempty"`
 	Path     string     `json:"path"`
 	Reader   ReaderView `json:"reader"`
 	Counts   tui.Counts `json:"counts"`
@@ -45,11 +48,13 @@ type ReaderUpdate struct {
 
 type QuestionView struct {
 	state.Question
+	DiscussionLocation
 	Answered bool `json:"answered"`
 }
 
 type CommentView struct {
 	state.Question
+	DiscussionLocation
 	Label    string `json:"label"`
 	Blocking bool   `json:"blocking"`
 	Resolved bool   `json:"resolved"`
@@ -82,25 +87,32 @@ type CommentInput struct {
 	Answers string `json:"answers"`
 }
 
-func readerOf(d *doc.Doc, st *state.State) ReaderView {
+func readerOf(d *doc.Doc, st *state.State, walk walkthrough) ReaderView {
 	rv := ReaderView{Verdicts: st.Verdicts, Orient: st.Orient, Design: st.Design,
 		Reviewed: keys(st.Reviewed), Flagged: keys(st.Flagged), Dismissed: keys(st.Dismissed), Comments: []CommentView{},
 		Questions: []QuestionView{}, Full: st.Full, Blind: st.Blind, Revealed: keys(st.Revealed), Visited: keys(st.Visited), Seen: st.Seen}
 	resolved := d.AnsweredQuestions()
+	if walk.alternate != nil {
+		maps.Copy(resolved, walk.alternate.AnsweredQuestions())
+	}
 	for _, q := range st.Questions {
+		location := locateDiscussionLine(d, q)
+		if location.station != "" {
+			q.Station = location.station
+		}
 		if !q.IsComment() {
-			rv.Questions = append(rv.Questions, QuestionView{Question: q, Answered: resolved[q.ID]})
+			rv.Questions = append(rv.Questions, QuestionView{Question: q, DiscussionLocation: location, Answered: resolved[q.ID]})
 			continue
 		}
 		name, blocking := state.CommentLabel(q.Text)
 		_, body := state.CommentBody(q.Text)
-		rv.Comments = append(rv.Comments, CommentView{Question: q, Label: name, Blocking: blocking, Resolved: resolved[q.ID], Body: body})
+		rv.Comments = append(rv.Comments, CommentView{Question: q, DiscussionLocation: location, Label: name, Blocking: blocking, Resolved: resolved[q.ID], Body: body})
 		if q.Draft {
 			rv.Drafts++
 		}
 	}
-	rv.ToFix = len(tui.ToFix(d, st))
-	o := verdict.Recommend(d, st)
+	rv.ToFix = len(tui.ToFix(d, st, walk.alternate))
+	o := verdict.Recommend(d, st, walk.alternate)
 	rv.Outcome = OutcomeView{Decision: o.Decision, Blockers: o.Blockers, Left: o.Left, Notes: o.Notes}
 	for _, l := range state.Labels {
 		rv.Labels = append(rv.Labels, LabelView{Name: l.Name, Key: l.Key, Blocking: l.Blocking, Tip: l.Tip})
@@ -124,7 +136,10 @@ func (r *Reviews) SetVerdict(station, v string) (*ReaderUpdate, error) {
 	if !slices.Contains([]string{verdict.Good, verdict.Changes, verdict.Unsure}, v) {
 		return nil, fmt.Errorf("unknown verdict %q", v)
 	}
-	return r.change(func(_ *doc.Doc, st *state.State) error {
+	return r.change(func(d *doc.Doc, st *state.State) error {
+		if _, stop := d.Station(station); stop == nil || stop.Kind != doc.Code {
+			return errors.New("this stop is no longer in the walkthrough")
+		}
 		if st.Verdicts[station] == v {
 			delete(st.Verdicts, station)
 		} else {
@@ -300,7 +315,7 @@ func (r *Reviews) SendFixes() (*ReaderUpdate, error) {
 	var msg string
 	var ids []string
 	v, err := r.change(func(d *doc.Doc, st *state.State) error {
-		qs := tui.AddFixes(d, st)
+		qs := tui.AddFixes(d, st, r.walk.alternate)
 		if len(qs) == 0 {
 			return errors.New("nothing to fix yet: agree (?) with a problem, or give a stop the verdict needs changes")
 		}
@@ -353,5 +368,7 @@ func (r *Reviews) change(fn func(*doc.Doc, *state.State) error) (*ReaderUpdate, 
 // readerUpdate is called with stateMu held so replies can be applied in order.
 func (r *Reviews) readerUpdate(d *doc.Doc, st *state.State) ReaderUpdate {
 	r.readerRevision++
-	return ReaderUpdate{Path: d.Review.Path, Reader: readerOf(d, st), Counts: tui.CountsOf(d, st), Revision: r.readerRevision}
+	reader := readerOf(d, st, r.walk)
+	reader.NoteVisibility = readReviewResume(d.Review.Path).noteVisibility(st.Blind)
+	return ReaderUpdate{Path: d.Review.Path, Mode: r.walk.mode, Reader: reader, Counts: tui.CountsOf(d, st), Revision: r.readerRevision}
 }

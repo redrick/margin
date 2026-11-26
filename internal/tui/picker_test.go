@@ -28,13 +28,14 @@ func gitIn(t *testing.T, dir string, args ...string) {
 // uncommitted file, and puts the folder on the picker's list.
 func pickerRepos(t *testing.T) string {
 	t.Helper()
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	t.Setenv("GH_CONFIG_DIR", t.TempDir())
 	bin := t.TempDir()
 	os.Symlink(must(exec.LookPath("git")), filepath.Join(bin, "git"))
 	t.Setenv("PATH", bin)
-	root := t.TempDir()
+	root := must(filepath.EvalSymlinks(t.TempDir()))
 	for _, name := range []string{"alpha", "beta"} {
 		dir := filepath.Join(root, name)
 		os.MkdirAll(dir, 0o755)
@@ -167,7 +168,7 @@ func TestPickerMouse(t *testing.T) {
 
 func TestPickerHereAndFolders(t *testing.T) {
 	root := pickerRepos(t)
-	other := filepath.Join(t.TempDir(), "gamma")
+	other := filepath.Join(must(filepath.EvalSymlinks(t.TempDir())), "gamma")
 	os.MkdirAll(other, 0o755)
 	gitIn(t, other, "init", "-q", "-b", "main")
 	os.WriteFile(filepath.Join(other, "a.txt"), []byte("a\n"), 0o644)

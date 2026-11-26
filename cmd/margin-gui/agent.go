@@ -21,6 +21,7 @@ import (
 	"github.com/redrick/margin/internal/cli"
 	"github.com/redrick/margin/internal/config"
 	"github.com/redrick/margin/internal/control"
+	"github.com/redrick/margin/internal/review"
 )
 
 // scrollback is how much agent output is kept to replay when the review is shown again.
@@ -46,6 +47,7 @@ func (a *Agents) SetSubmit(submit bool) {
 
 type session struct {
 	cmd          *exec.Cmd
+	command      string
 	pty          *os.File
 	lease        *os.File
 	exited       chan struct{}
@@ -73,10 +75,11 @@ func (a *Agents) Start(reviewPath, repo string, created bool, cols, rows int) (s
 		return s.replay(), nil
 	}
 	return "", startLeasedAgent(reviewPath, func(lease *os.File) error {
-		if _, err := loadAgentReview(reviewPath, repo); err != nil {
+		rv, err := loadAgentReview(reviewPath, repo)
+		if err != nil {
 			return err
 		}
-		return a.launchNew(lease, reviewPath, repo, config.Load().Agent, created, false, cols, rows)
+		return a.launchNew(lease, rv, repo, config.Load().Agent, created, false, cols, rows)
 	})
 }
 
@@ -86,8 +89,13 @@ func (s *session) replay() string {
 	return base64.StdEncoding.EncodeToString(s.buf)
 }
 
-func (a *Agents) launchNew(lease *os.File, path, repo, command string, created, continued bool, cols, rows int) error {
-	saved := savedAgent{Command: command, Repo: resumeIdentity(repo), Run: rand.Text(), Auto: true}
+func (a *Agents) launchNew(lease *os.File, rv *review.Review, repo, command string, created, continued bool, cols, rows int) error {
+	path := rv.Path
+	preparation, err := beginWalkPreparation(rv)
+	if err != nil {
+		return err
+	}
+	saved := savedAgent{Command: command, Repo: resumeIdentity(repo), Run: rand.Text(), Auto: true, PreparingWalk: !continued && preparation != ""}
 	var registration *control.Server
 	var endpoint string
 	provider := agentPreset(command)
@@ -98,7 +106,7 @@ func (a *Agents) launchNew(lease *os.File, path, repo, command string, created, 
 			log.Printf("registering the Codex conversation: %v", err)
 		}
 	}
-	argv := (config.Config{Agent: command}).AgentArgv(kickoff(path, created, continued, endpoint))
+	argv := (config.Config{Agent: command}).AgentArgv(kickoff(path, created, continued, endpoint, preparation))
 	if provider == "claude" {
 		saved.ID = newClaudeID()
 		argv = append([]string{argv[0], "--session-id", saved.ID}, argv[1:]...)
@@ -128,7 +136,7 @@ func (a *Agents) launch(lease *os.File, path, repo string, argv []string, saved 
 		return err
 	}
 	s := &session{
-		cmd: cmd, pty: f, lease: lease, run: saved.Run, resuming: resuming,
+		cmd: cmd, command: saved.Command, pty: f, lease: lease, run: saved.Run, resuming: resuming,
 		exited: make(chan struct{}), registration: registration,
 	}
 	if err := updateReviewResume(path, func(record *reviewResume) bool {
@@ -352,7 +360,7 @@ func (a *Agents) pump(reviewPath string, s *session) {
 	}
 }
 
-func kickoff(reviewPath string, created, continued bool, endpoint string) string {
+func kickoff(reviewPath string, created, continued bool, endpoint, preparation string) string {
 	command := "margin"
 	if endpoint != "" {
 		// A reused Codex app server can supply its own PATH to shell commands.
@@ -364,16 +372,24 @@ func kickoff(reviewPath string, created, continued bool, endpoint string) string
 	if endpoint != "" {
 		brief += " --gui-agent " + quoteAgentArg(endpoint)
 	}
+	var prompt string
 	if continued {
-		return "Continue the saved Margin review at " + reviewPath + ". Run `" + brief + " --continue` for the saved context. " +
+		prompt = "Continue the saved Margin review at " + reviewPath + ". Run `" + brief + " --continue` for the saved context. " +
 			"Wait for the reader's next instruction before reviewing again, running tests or editing files."
+	} else {
+		if created || preparation != "" {
+			brief += " --new"
+		}
+		prompt = "Code review with margin. The person reads the review in the margin desktop app beside you. Review file: " + reviewPath + "\n" +
+			"Start the review: run `" + brief + "` and follow its instructions."
 	}
-	if created {
-		brief += " --new"
+	if preparation != "" {
+		prompt += "\nThe reader can review by file while you prepare the functional walkthrough. " +
+			"After step 0, save the complete grouping and run `" + command + " walkthrough-ready --review " + quoteAgentArg(reviewPath) +
+			" --preparation " + quoteAgentArg(preparation) + "` before writing notes or measuring coverage. " +
+			"If it reports a problem with the grouping, fix it and run the command again. Keep any existing reader feedback."
 	}
-	return "Code review with margin. The person reads the review in the margin desktop app beside you, " +
-		"which reloads whenever the review file changes. Review file: " + reviewPath + "\n" +
-		"Start the review: run `" + brief + "` and follow its instructions."
+	return prompt
 }
 
 func quoteAgentArg(arg string) string {

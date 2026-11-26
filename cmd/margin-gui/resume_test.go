@@ -77,6 +77,35 @@ func TestReadingPositionSurvivesRestart(t *testing.T) {
 	}
 }
 
+func TestReviewCreationKeepsItsAgentLease(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	dir := t.TempDir()
+	base := t.TempDir()
+	alias := filepath.Join(dir, "alias")
+	if err := os.Symlink(base, alias); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(alias, ".margin", "reviews", "new.review.yaml")
+	lease, err := leaseAgent(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lease.Close()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("version: 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	other, err := leaseAgent(filepath.Join(base, ".margin", "reviews", "new.review.yaml"))
+	if other != nil {
+		other.Close()
+	}
+	if !errors.Is(err, errAgentInUse) {
+		t.Fatalf("acquiring agent lease after creation = %v, want %v", err, errAgentInUse)
+	}
+}
+
 func TestClaudeResumeUsesSavedAgentAndStopDisablesAutomaticResume(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())

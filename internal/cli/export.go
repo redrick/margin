@@ -52,13 +52,28 @@ func cmdExport(args []string) error {
 	d := doc.Build(r, files)
 	files.Close()
 
-	remarks, calls := collect(d, st)
-	o := verdict.Recommend(d, st)
-	if *format == "github" {
-		return exportGitHub(o, remarks, calls)
+	output, err := FormatExport(*format, d, st, verdict.Recommend(d, st))
+	if err != nil {
+		return err
 	}
-	fmt.Print(exportMarkdown(d, o, remarks, calls))
-	return nil
+	if *format == "github" {
+		fmt.Fprintln(os.Stderr, "margin does not post this. To post it yourself: gh api repos/OWNER/REPO/pulls/N/reviews --input FILE")
+	}
+	_, err = fmt.Print(output)
+	return err
+}
+
+// FormatExport renders the reader's review using the caller's recommendation.
+func FormatExport(format string, d *doc.Doc, st *state.State, outcome verdict.Outcome) (string, error) {
+	remarks, calls := collect(d, st)
+	switch format {
+	case "md":
+		return exportMarkdown(d, outcome, remarks, calls), nil
+	case "github":
+		return exportGitHub(outcome, remarks, calls)
+	default:
+		return "", fmt.Errorf("unknown format %q", format)
+	}
 }
 
 func collect(d *doc.Doc, st *state.State) (remarks []remark, calls []string) {
@@ -161,9 +176,9 @@ func sideLabel(side string) string {
 	return ""
 }
 
-// exportGitHub prints the body of a pull request review for the GitHub API. The reader posts it,
+// exportGitHub formats the body of a pull request review for the GitHub API. The reader posts it,
 // for example with gh api repos/OWNER/REPO/pulls/N/reviews --input FILE.
-func exportGitHub(o verdict.Outcome, remarks []remark, calls []string) error {
+func exportGitHub(o verdict.Outcome, remarks []remark, calls []string) (string, error) {
 	type comment struct {
 		Path string `json:"path"`
 		Line int    `json:"line"`
@@ -199,11 +214,9 @@ func exportGitHub(o verdict.Outcome, remarks []remark, calls []string) error {
 	}
 	data, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
-		return err
+		return "", err
 	}
-	fmt.Println(string(data))
-	fmt.Fprintln(os.Stderr, "margin does not post this. To post it yourself: gh api repos/OWNER/REPO/pulls/N/reviews --input FILE")
-	return nil
+	return string(data) + "\n", nil
 }
 
 func outcomeLine(o verdict.Outcome) string {

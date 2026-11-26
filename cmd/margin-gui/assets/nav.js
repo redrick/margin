@@ -1,12 +1,13 @@
 import { api, $, $$, state, hooks, esc, el, toast, errText, tail, plural, fuzzy, openModal, closeModal, applyTheme, setThemeMode } from "./core.js";
-import { openReview, openReviewFile } from "./review.js";
-import { openAnswers } from "./answers.js";
+import { openReview, openReviewFile, openDiscussionAnswers, renderKeepScroll } from "./review.js";
+import { editorMode, setEditorMode } from "./editor-mode.js";
 
-// Navigation: the sidebar holds the reviews in progress and the repositories with their worktrees;
-// the worktree page lists what there is to review in one worktree; ctrl+k jumps anywhere.
+// The sidebar lists repositories and reviews. The picker lists what there is to review in a worktree.
 
 const home = (p) => String(p ?? "").replace(/^\/home\/[^/]+|^\/Users\/[^/]+/, "~");
-const nav = { folders: [], recent: [], live: new Set(), status: {}, expanded: new Set(), tab: "branches", remote: false, prs: null, prErr: "", cursor: -1 };
+const nav = { folders: [], recent: [], live: new Set(), status: {}, tab: "branches", remote: false, prs: null, prErr: "", loadingPRs: false, cursor: -1 };
+const reviewTabs = [["prs", "Pull requests"], ["branches", "Branches"], ["commits", "Commits"]];
+const tabsFor = (targets) => targets.gh ? reviewTabs : reviewTabs.slice(1);
 
 // Sidebar
 
@@ -78,7 +79,6 @@ export function renderSide() {
   const q = $("#repo-filter").value.trim().toLowerCase();
   const box = $("#repos");
   box.innerHTML = "";
-  const many = nav.folders.length > 1 || nav.folders.some((f) => (f.repos ?? []).length > 1);
   for (const f of nav.folders) {
     const repos = (f.repos ?? []).filter((r) => !q || r.name.toLowerCase().includes(q) || r.worktrees.some((w) => wtLabel(w).toLowerCase().includes(q) || w.path.toLowerCase().includes(q)));
     if (q && !repos.length) continue;
@@ -95,28 +95,19 @@ export function renderSide() {
     }
     if (f.err) box.append(el(`<div class="side-err">${esc(f.err)}</div>`));
     for (const r of repos) {
-      const open = !!q || nav.expanded.has(r.path) || !many || r.worktrees.some((w) => w.path === state.worktree?.path);
       const dirty = r.worktrees.reduce((n, w) => n + (nav.status[w.path] ?? 0), 0);
       const multi = r.worktrees.length > 1;
-      const head = el(`<div class="repo-name${!multi && state.worktree?.path === r.worktrees[0].path ? " on" : ""}" title="${esc(r.path)}">
-        <span class="chev">${multi ? (open ? "▾" : "▸") : ""}</span><span class="rn">${esc(r.name)}</span>
+      const selected = r.worktrees.some((w) => state.worktree?.path === w.path);
+      const head = el(`<button type="button" class="repo-name${selected ? " on" : ""}" title="${esc(r.path)}" aria-current="${selected}">
+        <span class="rn">${esc(r.name)}</span>
         ${!multi ? `<span class="branch-tag">${esc(wtLabel(r.worktrees[0]))}</span>` : ""}
-        <span class="count">${multi ? r.worktrees.length + " worktrees" : ""}${dirty ? ` <span class="dirty" title="changed files">●${dirty}</span>` : ""}</span></div>`);
+        <span class="count">${multi ? r.worktrees.length + " worktrees" : ""}${dirty ? ` <span class="dirty" title="changed files">●${dirty}</span>` : ""}</span></button>`);
       head.onclick = () => {
-        if (!multi) return selectWorktree(r.worktrees[0], r);
-        nav.expanded.has(r.path) ? nav.expanded.delete(r.path) : nav.expanded.add(r.path);
-        renderSide();
+        const w = r.worktrees.find((w) => w.main) ?? r.worktrees[0];
+        selectWorktree(w, r);
+        $("#wt-title").focus();
       };
       box.append(head);
-      if (!multi || !open) continue;
-      for (const w of r.worktrees) {
-        const n = nav.status[w.path] ?? 0;
-        const item = el(`<div class="wt${state.worktree?.path === w.path ? " on" : ""}" title="${esc(w.path)}">
-          <span class="branch">${esc(wtLabel(w))}${w.main ? "" : ' <span class="badge">worktree</span>'}${n ? ` <span class="dirty" title="changed files">●${n}</span>` : ""}</span>
-          <span class="where">${esc(home(w.path))}</span></div>`);
-        item.onclick = () => selectWorktree(w, r);
-        box.append(item);
-      }
     }
   }
 }
@@ -156,46 +147,58 @@ export function showHome() {
   syncSideButtons();
 }
 
-export async function selectWorktree(w, repo) {
-  if (state.worktree?.path !== w.path) {
-    nav.prs = null;
-    nav.prErr = "";
-    nav.cursor = -1;
-    $$("#wt-body .filter").forEach((f) => (f.value = ""));
-  }
-  state.worktree = { ...w, repo: repo ?? w.repo };
+export async function selectWorktree(w, repo = w.repo, { tab = "prs", filter = "" } = {}) {
+  const selection = { ...w, repo };
+  state.worktree = selection;
+  state.targets = null;
+  Object.assign(nav, { tab, prs: null, prErr: "", loadingPRs: false, cursor: -1 });
   renderSide();
   showHome();
-  $("#wt-crumbs").textContent = `${state.worktree.repo?.name ?? ""}${w.main ? "" : " · worktree"} · ${home(w.path)}`;
-  $("#wt-title").textContent = wtLabel(w);
+  $("#wt-crumbs").textContent = `${wtLabel(w)} · ${home(w.path)}`;
+  $("#wt-title").textContent = repo?.name ?? wtLabel(w);
+  const worktrees = repo?.worktrees ?? [];
+  const picker = $("#worktree-select");
+  $("#worktree-picker").classList.toggle("hidden", worktrees.length < 2);
+  picker.replaceChildren(...worktrees.map((item) =>
+    new Option(`${wtLabel(item)} · ${home(item.path)}`, item.path, false, item.path === w.path)));
+  picker.onchange = () => {
+    const next = worktrees.find((item) => item.path === picker.value);
+    if (next) selectWorktree(next, repo, { tab: nav.tab });
+  };
   $("#wt-body").innerHTML = `<div class="spinner">Reading git…</div>`;
-  await loadTargets();
-}
-
-async function loadTargets() {
-  const dir = state.worktree?.path;
-  if (!dir) return;
+  let targets;
   try {
-    state.targets = await api("Workspace.Targets", dir);
+    targets = await api("Workspace.Targets", w.path);
   } catch (e) {
-    $("#wt-body").innerHTML = `<div class="spinner error">${esc(errText(e))}</div>`;
+    if (state.worktree === selection) $("#wt-body").innerHTML = `<div class="spinner error">${esc(errText(e))}</div>`;
     return;
   }
-  if (state.worktree?.path !== dir) return;
-  renderHome();
+  if (state.worktree !== selection) return;
+  state.targets = targets;
+  const tabs = tabsFor(targets);
+  nav.tab = tabs.some(([id]) => id === tab) ? tab : tabs[0][0];
+  renderHome(filter);
   if (nav.tab === "prs") loadPRs();
 }
 
+export function refreshWorktree() {
+  const w = state.worktree;
+  if (w) return selectWorktree(w, w.repo, { tab: nav.tab, filter: $("#wt-body .pick-filter")?.value ?? "" });
+}
+
 async function loadPRs() {
-  const dir = state.worktree?.path;
-  if (!dir || nav.prs) return;
+  const selection = state.worktree;
+  if (!selection || nav.prs || nav.loadingPRs) return;
+  nav.loadingPRs = true;
+  let prs = [], error = "";
   try {
-    nav.prs = (await api("Workspace.PullRequests", dir)) ?? [];
+    prs = (await api("Workspace.PullRequests", selection.path)) ?? [];
   } catch (e) {
-    nav.prErr = errText(e);
-    nav.prs = [];
+    error = errText(e);
   }
-  if (state.worktree?.path === dir) renderHome();
+  if (state.worktree !== selection) return;
+  Object.assign(nav, { prs, prErr: error, loadingPRs: false });
+  if (nav.tab === "prs") renderHome();
 }
 
 function reviewPill(r) {
@@ -203,11 +206,10 @@ function reviewPill(r) {
   return `<span class="pill-rv" title="${esc(r.path)}">in progress · ${esc(progress(r))}</span>`;
 }
 
-export function renderHome() {
+export function renderHome(keepFilter = $("#wt-body .pick-filter")?.value ?? "") {
   const t = state.targets;
   const body = $("#wt-body");
   if (!t || !body) return;
-  const keepFilter = body.querySelector(".pick-filter")?.value ?? "";
   const hadFocus = document.activeElement?.classList.contains("pick-filter");
   body.innerHTML = "";
   const dir = t.dir;
@@ -225,7 +227,7 @@ export function renderHome() {
   const baseName = (t.base ?? "").replace(/^origin\//, "");
   if (t.branch && t.branch !== baseName) {
     const ab = curBranch && t.base ? `${curBranch.ahead} ahead, ${curBranch.behind} behind ${esc(t.base)}` : `against ${esc(t.base || "the main branch")}`;
-    card(`This branch · ${t.branch}`, ab, curBranch?.review, curBranch && t.base && !curBranch.ahead, () => openReview(dir, t.branch));
+    card(`This branch · ${t.branch}`, ab, curBranch?.review, curBranch && t.base && !curBranch.ahead && !t.dirty, () => openReview(dir, t.branch));
   }
   body.append(cards);
 
@@ -241,13 +243,12 @@ export function renderHome() {
     body.append(sec);
   }
 
-  const pick = el(`<section class="wt-sec"><div class="tabs-row"><div class="tabs"></div><span class="spacer"></span>
+  const pick = el(`<section class="wt-sec review-picker"><div class="tabs-row"><div class="tabs"></div><span class="spacer"></span>
     <label class="small muted remote${nav.tab === "branches" ? "" : " hidden"}"><input type="checkbox"${nav.remote ? " checked" : ""}> remote branches</label></div>
     <input class="filter pick-filter" placeholder="Filter (/)"><div class="pick-list"></div></section>`);
-  const tabs = [["branches", `Branches`, "1"], ["commits", "Commits", "2"]];
-  if (t.gh) tabs.push(["prs", "Pull requests", "3"]);
-  for (const [id, label, key] of tabs) {
-    const b = el(`<button class="${nav.tab === id ? "on" : ""}" title="${key}">${label}</button>`);
+  for (const [index, [id, label]] of tabsFor(t).entries()) {
+    const current = nav.tab === id;
+    const b = el(`<button class="${current ? "on" : ""}" aria-pressed="${current}" title="${index + 1}">${label}</button>`);
     b.onclick = () => setTab(id);
     pick.querySelector(".tabs").append(b);
   }
@@ -265,7 +266,8 @@ export function renderHome() {
       if (e.key !== "Escape") moveHome(1, true);
     }
   };
-  body.append(pick);
+  if (t.dirty) cards.after(pick);
+  else body.prepend(pick);
   renderList(pick.querySelector(".pick-list"), keepFilter.toLowerCase());
   if (hadFocus) filter.focus();
   markCursor();
@@ -304,8 +306,9 @@ function renderList(list, q) {
   if (!nav.prs) return list.append(el(`<div class="spinner">Asking gh for open pull requests…</div>`));
   if (nav.prErr) return list.append(el(`<div class="spinner error">${esc(nav.prErr)}</div>`));
   if (!nav.prs.length) return list.append(el(`<div class="spinner">No open pull requests.</div>`));
-  for (const p of nav.prs) {
-    if (q && fuzzy(q, `#${p.number} ${p.title} ${p.author} ${p.branch}`) < 0) continue;
+  const prs = nav.prs.filter((p) => !q || fuzzy(q, `#${p.number} ${p.title} ${p.author} ${p.branch}`) >= 0);
+  if (!prs.length) return list.append(el(`<div class="spinner">No pull requests match.</div>`));
+  for (const p of prs) {
     const r = row(`<div class="l1"><span class="sha">#${p.number}</span><span class="name">${esc(p.title)}</span>${p.draft ? '<span class="badge">draft</span>' : ""}<span class="when">${esc(p.updated)}</span></div>
       <div class="sub">${esc(p.author)} · ${esc(p.branch)} → ${esc(p.base)}${p.fetched ? "" : " · head not fetched yet"}</div>`,
       p.fetched ? () => openReview(dir, "--pr " + p.number) : null);
@@ -315,10 +318,11 @@ function renderList(list, q) {
         e.stopPropagation();
         f.disabled = true;
         f.textContent = "Fetching…";
+        const selection = state.worktree;
         try {
           await api("Workspace.FetchPR", dir, p.number);
+          if (state.worktree !== selection || $("#home-pane").classList.contains("hidden")) return;
           await openReview(dir, "--pr " + p.number);
-          nav.prs = null;
         } catch (err) {
           toast(errText(err), true);
           f.disabled = false;
@@ -363,6 +367,13 @@ export function homeKey(e) {
   if ($("#home-pane").classList.contains("hidden")) return false;
   const k = e.key;
   if (e.ctrlKey || e.metaKey || e.altKey) return false;
+  if ((k === "Enter" || k === " ") && e.target.closest?.("button")) return false;
+  if (/^[123]$/.test(k)) {
+    const tab = state.targets && tabsFor(state.targets)[Number(k) - 1];
+    if (!tab) return false;
+    setTab(tab[0]);
+    return true;
+  }
   const fn = {
     j: () => moveHome(1),
     ArrowDown: () => moveHome(1),
@@ -371,10 +382,7 @@ export function homeKey(e) {
     g: () => ((nav.cursor = 0), markCursor()),
     Enter: () => homeItems()[nav.cursor]?.click(),
     "/": () => $("#wt-body .pick-filter")?.focus(),
-    r: () => loadTargets(),
-    1: () => setTab("branches"),
-    2: () => setTab("commits"),
-    3: () => state.targets?.gh && setTab("prs"),
+    r: refreshWorktree,
     Escape: () => state.opened && backToReview(),
   }[k];
   if (!fn) return false;
@@ -420,7 +428,7 @@ function candidates() {
     if (!nav.recent.some((x) => x.path === r.path)) add("review:" + r.path, "review", r.title, r.kicker, () => openReviewFile(r.path));
   }
   for (const w of worktrees()) add("wt:" + w.path, "worktree", `${w.repo.name} › ${wtLabel(w)}`, home(w.path), () => selectWorktree(w, w.repo));
-  const t = state.targets;
+  const t = state.targets?.dir === state.worktree?.path ? state.targets : null;
   if (t) {
     const wt = state.worktree;
     if (t.dirty) add("changes:" + t.dir, "review", `Uncommitted changes in ${wt?.repo?.name ?? tail(t.dir, 1)}`, `${t.dirty} files · ${home(t.dir)}`, () => openReview(t.dir, ""));
@@ -433,7 +441,7 @@ function candidates() {
   add("cmd:settings", "command", "Settings", "where reviews are kept, which agent runs, the agent skill", openSettings);
   add("cmd:add", "command", "Add a repository…", "a repository or a folder of repositories", addFolder);
   add("cmd:file", "command", "Open a review file…", "any .review.yaml", hooks.pickReviewFile);
-  if (state.opened) add("cmd:answers", "command", "Answers to your comments", "the comments note of the open review", () => openAnswers());
+  if (state.opened) add("cmd:answers", "command", "Answers to your comments", "the comments note of the open review", () => openDiscussionAnswers());
   if (state.opened && !$("#home-pane").classList.contains("hidden")) add("cmd:back", "command", "Back to the review", state.view?.title ?? "", backToReview);
   return items;
 }
@@ -534,6 +542,12 @@ export async function openSettings() {
         .join("")}</div>
       <p class="muted small">System follows the desktop's light or dark setting.</p>
     </section>
+    <section><h4 id="editor-keybindings-label">Editor keybindings</h4>
+      <div role="group" aria-labelledby="editor-keybindings-label">
+        <label class="opt"><input type="radio" name="editor-mode" value="standard"${editorMode() === "standard" ? " checked" : ""}><span>Standard</span></label>
+        <label class="opt"><input type="radio" name="editor-mode" value="vim"${editorMode() === "vim" ? " checked" : ""}><span>Vim</span></label>
+      </div>
+    </section>
     <section><h4>Where reviews are kept</h4>
       <label class="opt"><input type="radio" name="where" value="repo"${where === "repo" ? " checked" : ""}><span><b>In the repository</b> · <code>.margin/reviews/</code>, which git ignores. Every worktree of the repository shares it.</span></label>
       <label class="opt"><input type="radio" name="where" value="state"${where === "state" ? " checked" : ""}><span><b>A private folder</b> · <code>~/.local/state/margin</code>, outside every repository.</span></label>
@@ -610,9 +624,11 @@ export async function openSettings() {
     applyTheme(r.value);
   }));
   body.querySelector('[data-act="cancel"]').onclick = closeModal;
-  body.querySelector('[data-act="save"]').onclick = async () => {
+  const save = body.querySelector('[data-act="save"]');
+  save.onclick = async () => {
     const w = body.querySelector('input[name="where"]:checked').value;
     const a = body.querySelector('input[name="agent"]:checked')?.value;
+    const mode = body.querySelector('input[name="editor-mode"]:checked').value;
     const cfg = {
       reviews: w === "dir" ? body.querySelector("#set-dir").value.trim() : w === "repo" ? "" : "state",
       agent: a ? (a === "claude" ? "" : a) : body.querySelector("#set-agent").value.trim(),
@@ -620,19 +636,34 @@ export async function openSettings() {
       tests,
       theme: body.querySelector('input[name="theme"]:checked').value,
     };
+    save.disabled = true;
     try {
       await api("Settings.Save", cfg);
+      if (!m.isConnected) return;
       await setThemeMode(cfg.theme);
+      if (!m.isConnected) return;
+      const changed = mode !== editorMode();
+      const persisted = !changed || setEditorMode(mode);
       closeModal();
-      toast("Settings saved. New reviews and agents use them; open reviews stay where they are.");
-      if (state.worktree) loadTargets();
+      if (changed && state.trying) renderKeepScroll();
+      toast(persisted ? "Settings saved. New reviews and agents use them; open reviews stay where they are." : "Settings saved. The editor keybindings apply now, but could not be remembered for next launch.");
+      if (!$("#home-pane").classList.contains("hidden")) refreshWorktree();
     } catch (e) {
-      toast(errText(e), true);
+      if (m.isConnected) toast(errText(e), true);
+    } finally {
+      save.disabled = false;
     }
   };
   const m = openModal("Settings", body, "narrow");
   m.onclosed = () => applyTheme();
-  m.onkey = (e) => (e.key === "Escape" ? (closeModal(), true) : true);
+  m.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeModal();
+    }
+  });
+  m.querySelector("button").focus();
 }
 
 // Welcome, when the workspace is empty
@@ -646,7 +677,7 @@ async function renderWelcome() {
     add.querySelector("button").onclick = addFolder;
     body.append(add);
   } else {
-    body.append(el(`<p class="hint">Pick a repository or worktree on the left, or press <kbd>ctrl k</kbd> to go anywhere.</p>`));
+    body.append(el(`<p class="hint">Pick a repository on the left, or press <kbd>ctrl k</kbd> to go anywhere.</p>`));
     const list = el(`<div class="start-list"></div>`);
     for (const r of nav.recent.slice(0, 4)) {
       const b = el(`<div class="pick-row"><div class="l1"><span class="name">${esc(r.title)}</span><span class="when">${esc(r.updated)}</span></div><div class="sub">continue · ${esc(progress(r))}</div></div>`);

@@ -22,7 +22,7 @@ type FixItem struct {
 func stopFixKey(id string) string { return "stop:" + id }
 
 // ToFix lists what the reader wants fixed and has not sent yet, in review order.
-func ToFix(d *doc.Doc, st *state.State) []FixItem {
+func ToFix(d *doc.Doc, st *state.State, alternate ...*doc.Doc) []FixItem {
 	if d == nil || st == nil {
 		return nil
 	}
@@ -33,27 +33,62 @@ func ToFix(d *doc.Doc, st *state.State) []FixItem {
 		}
 	}
 	var out []FixItem
-	for _, s := range d.Stations {
-		if s.Kind != doc.Code {
+	for _, layout := range append([]*doc.Doc{d}, alternate...) {
+		if layout == nil {
 			continue
 		}
-		if st.Verdicts[s.ID] == verdict.Changes && !sent[stopFixKey(s.ID)] {
-			out = append(out, FixItem{Key: stopFixKey(s.ID), Station: s})
-		}
-		for _, n := range s.Notes {
-			if n.Level() == doc.KindIssue && !n.Unbacked() && st.Flagged[n.Key] && !st.Dismissed[n.Key] && !sent[n.Key] {
-				out = append(out, FixItem{Key: n.Key, Station: s, Note: n})
+		for _, s := range layout.Stations {
+			if s.Kind != doc.Code {
+				continue
+			}
+			key := stopFixKey(s.ID)
+			if st.Verdicts[s.ID] == verdict.Changes && !sent[key] {
+				out = append(out, FixItem{Key: key, Station: s})
+				sent[key] = true
+			}
+			for _, n := range s.Notes {
+				if n.Level() == doc.KindIssue && !n.Unbacked() && st.Flagged[n.Key] && !st.Dismissed[n.Key] && !sent[n.Key] {
+					out = append(out, FixItem{Key: n.Key, Station: s, Note: n})
+					sent[n.Key] = true
+				}
 			}
 		}
+	}
+	// The terminal viewer has the authored layout only. Recover saved file verdicts from its
+	// list of changed files, and use an authored part as the anchor if one shows the file.
+	for _, file := range d.ChangedFiles {
+		id := doc.FileStopID(file.Path)
+		key := stopFixKey(id)
+		if st.Verdicts[id] != verdict.Changes || sent[key] {
+			continue
+		}
+		stop := &doc.Station{ID: id, Kind: doc.Code, Title: file.Path}
+		if part := fileFixPart(d, file.Path, file.OldPath); part != nil {
+			stop.Parts = []*doc.Part{part}
+		}
+		out = append(out, FixItem{Key: key, Station: stop})
+		sent[key] = true
 	}
 	return out
 }
 
+func fileFixPart(d *doc.Doc, path, oldPath string) *doc.Part {
+	for _, stop := range d.Stations {
+		for _, part := range stop.Parts {
+			if part.Err == nil && !part.Spec.Background &&
+				(part.Spec.File == path || part.Base && part.Spec.File == oldPath) {
+				return part
+			}
+		}
+	}
+	return nil
+}
+
 // AddFixes records each item of ToFix as a sent comment (cN) that asks for the fix, so the agent
 // resolves it like any comment, and returns them for FixMessage.
-func AddFixes(d *doc.Doc, st *state.State) []state.Question {
+func AddFixes(d *doc.Doc, st *state.State, alternate ...*doc.Doc) []state.Question {
 	var out []state.Question
-	for _, it := range ToFix(d, st) {
+	for _, it := range ToFix(d, st, alternate...) {
 		q := state.Question{ID: st.NextCommentID(), Kind: state.KindComment, Fix: it.Key, Station: it.Station.ID,
 			Asked: time.Now().UTC().Truncate(time.Second)}
 		if n := it.Note; n != nil {
@@ -70,6 +105,9 @@ func AddFixes(d *doc.Doc, st *state.State) []state.Question {
 			}
 		} else {
 			q.Text = stopFixText(it.Station, st)
+			if doc.FileStopID(it.Station.Title) == it.Station.ID {
+				q.File = it.Station.Title
+			}
 			// The request sits on the stop's first non-blank line, so margin resolve finds it.
 			if len(it.Station.Parts) > 0 {
 				p := it.Station.Parts[0]

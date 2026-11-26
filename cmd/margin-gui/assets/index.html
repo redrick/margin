@@ -51,8 +51,9 @@
         <button id="show-side" class="icon hidden" title="Show the sidebar ( \ )">☰</button>
         <div class="titles">
           <div id="wt-crumbs" class="kicker"></div>
-          <div id="wt-title" class="r-title"></div>
+          <div id="wt-title" class="r-title" tabindex="-1"></div>
         </div>
+        <label id="worktree-picker" class="small muted hidden">Worktree <select id="worktree-select"></select></label>
         <button id="back-review" class="small hidden" title="Back to the open review">Back to the review ⏎</button>
         <button id="wt-refresh" class="icon" title="Read git again (r)">↻</button>
       </header>
@@ -75,7 +76,48 @@
         <button id="agent-link" class="small hidden">Link saved conversation</button>
         <button id="agent-btn" class="primary small">Start agent</button>
       </header>
-      <div id="toolbar"></div>
+      <div id="toolbar">
+        <div id="walkthrough" class="toolbar-field hidden" data-overflow="grouping">
+          <span id="walkthrough-label" class="toolbar-label">Group changes by</span>
+          <div class="segments" role="group" aria-labelledby="walkthrough-label">
+            <button id="walkthrough-file" type="button" aria-pressed="false" title="Browse the diff one changed file at a time">File by file</button>
+            <button id="walkthrough-agent" type="button" aria-pressed="false" aria-describedby="walkthrough-status"><span id="walkthrough-progress" class="walkthrough-spinner hidden" aria-hidden="true"></span>Guided walk</button>
+          </div>
+          <span id="walkthrough-status" role="status"></span>
+        </div>
+        <div class="toolbar-field" data-overflow="display">
+          <span id="display-label" class="toolbar-label">Display</span>
+          <div id="reading-mode" class="segments" role="group" aria-labelledby="display-label">
+            <button type="button" data-full="false" aria-pressed="false" title="Read one part of the current file or group at a time (w)">Step by step</button>
+            <button id="reading-full" type="button" data-full="true" aria-pressed="false">Full group</button>
+          </div>
+        </div>
+        <div class="toolbar-field comparison-option" data-overflow="layout">
+          <span id="diff-layout-label" class="toolbar-label">Diff layout</span>
+          <div id="diff-layout" class="segments" role="group" aria-labelledby="diff-layout-label">
+            <button type="button" data-split="false" aria-pressed="true" title="Read the diff in one column (s)">Inline</button>
+            <button type="button" data-split="true" aria-pressed="false" title="See old text on the left and new text on the right (s)">Split</button>
+          </div>
+        </div>
+        <div class="toolbar-field" data-overflow="notes">
+          <span id="notes-visibility-label" class="toolbar-label">Notes</span>
+          <div id="notes-visibility" class="segments" role="group" aria-labelledby="notes-visibility-label">
+            <button type="button" data-note-visibility="risky" aria-pressed="false" title="Show note cards and badges from high-risk stops (n)">Risky</button>
+            <button type="button" data-note-visibility="all" aria-pressed="true" title="Show every note card and badge that matches the note filter (n)">All</button>
+            <button type="button" data-note-visibility="hide" aria-pressed="false" title="Hide note cards and badges until you reveal them on the current stop (v)">Hide</button>
+          </div>
+        </div>
+        <label class="toolbar-field note-filter-field" data-overflow="filter">
+          <span class="toolbar-label">Filter notes</span>
+          <span class="note-filter-control">
+            <select id="note-filter" title="Choose which agent notes to show (F)"></select>
+          </span>
+        </label>
+        <input id="search" class="search" placeholder="Search /" aria-label="Search review" data-overflow="search">
+        <div id="toolbar-actions"></div>
+        <button id="toolbar-more" class="tb" type="button" aria-expanded="false" aria-controls="toolbar-overflow">More</button>
+        <div id="toolbar-overflow" role="group" aria-label="More review controls" inert></div>
+      </div>
       <div id="review-body">
         <nav id="stations"></nav>
         <article id="station"></article>
@@ -106,6 +148,8 @@
 </div>
 
 <div id="toast" class="toast hidden"></div>
+<div id="walkthrough-feedback" class="toast" role="status"></div>
+<div id="question-alerts" aria-live="polite"></div>
 
 <script type="module" src="app.js"></script>
 </body>

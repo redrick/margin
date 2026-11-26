@@ -31,6 +31,7 @@ type ctlServer struct {
 // Position is where the reader is in the page: the stop, the selected note and line, the code in view
 // and the spotlit test. Lines are 0-based, -1 for none.
 type Position struct {
+	Version int           `json:"version"`
 	Station int           `json:"station"`
 	Note    int           `json:"note"`
 	Part    int           `json:"part"`
@@ -95,6 +96,9 @@ func (r *Reviews) handle(path string, req control.Request) control.Response {
 		}
 		return control.OK(tui.Questions(rv, st, req.Arg == "all"))
 	case "where", "goto":
+		if req.Cmd == "goto" && req.Reply {
+			return control.OK(nil)
+		}
 		return r.whereAfter(path, req.Cmd, req.Arg)
 	}
 	return control.Fail(fmt.Errorf("unknown command %q", req.Cmd))
@@ -131,9 +135,12 @@ func (r *Reviews) whereAfter(path, cmd, arg string) control.Response {
 	if pos.Err != "" {
 		return control.Fail(errors.New(pos.Err))
 	}
-	d, err := r.build(path)
+	d, err := r.document(pos.Version)
 	if err != nil {
 		return control.Fail(err)
+	}
+	if d.Review.Path != path {
+		return control.Fail(errors.New("this review is no longer open in the window"))
 	}
 	st, err := state.Load(review.StatePath(path))
 	if err != nil {

@@ -1,7 +1,8 @@
 {
   "private": true,
-  "description": "Builds ../assets/vendor/codemirror.js: npm ci && npm run build",
+  "description": "Builds ../assets/vendor/codemirror.js: npm install && npm run build",
   "scripts": {
+    "test": "node --test ../theme_test.cjs ../editor_mode_test.mjs ../discussions_test.mjs",
     "build": "esbuild entry.js --bundle --format=esm --minify --legal-comments=none --outfile=../assets/vendor/codemirror.js"
   },
   "dependencies": {
