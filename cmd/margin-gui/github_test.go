@@ -150,7 +150,7 @@ func TestGitHubPosting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v, ok := pull.Mine["c2"]; !ok || v.Reactions[0].Content != "HEART" || !v.CanResolve || v.ID != "T9" {
+	if v, ok := pull.Mine["c2"]; !ok || v.Reactions[0].Content != "HEART" || !v.CanResolve || v.ID != "T9" || v.Comment != "c2" {
 		t.Fatalf("mine %+v", pull.Mine)
 	}
 	if len(pull.Threads) != 2 || pull.Threads[0].Station != "reserve" || pull.Threads[0].Line != p.Range.End+1 ||
