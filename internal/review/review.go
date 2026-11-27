@@ -333,6 +333,15 @@ func StatePath(reviewPath string) string {
 	return strings.TrimSuffix(reviewPath, filepath.Ext(reviewPath)) + ".state.yaml"
 }
 
+// GitHubPath is the note, beside the review file, where the agent says where the pull request's
+// review threads stand.
+func GitHubPath(reviewPath string) string {
+	if base, ok := strings.CutSuffix(reviewPath, ".review.yaml"); ok {
+		return base + ".github.md"
+	}
+	return strings.TrimSuffix(reviewPath, filepath.Ext(reviewPath)) + ".github.md"
+}
+
 // CommentsPath is the note, beside the review file, where the agent answers the reader's comments.
 func CommentsPath(reviewPath string) string {
 	if base, ok := strings.CutSuffix(reviewPath, ".review.yaml"); ok {

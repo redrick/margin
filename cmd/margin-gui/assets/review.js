@@ -100,6 +100,7 @@ async function loadReview(dir, arg, fresh, file, restore, browsing) {
     state.gh = null;
     state.ghErr = "";
     state.ghPull = null;
+    document.getElementById("gh-back")?.remove();
     Object.assign(state, { station: 0, note: -1, step: 0, sel: null, compose: null, editing: null, block: null, parts: {}, expand: {}, whole: {}, around: {}, known: null,
       query: "", spot: -1, spotLines: null, filter: "All notes" });
     state.fresh = new Set();
@@ -311,6 +312,7 @@ async function selectWalkthrough(mode, event) {
       activeThread = "";
       readingOrigin = null;
       state.ghPull = null;
+      document.getElementById("gh-back")?.remove();
       Object.assign(state, { station: 0, note: -1, step: 0, sel: null, compose: null, editing: null, block: null,
         parts: {}, around: {}, known: null, fresh: new Set(), spot: -1, spotLines: null });
     }
@@ -740,7 +742,7 @@ function renderToolbar() {
   tb.append(discussionNav);
   if (state.gh) {
     const open = ghOpen().length;
-    btn(`GitHub${open ? " · " + open + " open" : ""}`, `Everything said on PR #${state.gh.number}: threads on the code and the conversation`, false, openGitHubPanel, "github");
+    btn(`GitHub${open ? " · " + open + " open" : ""}`, `Everything said on PR #${state.gh.number}: threads on the code and the conversation (B)`, false, () => openGitHubPanel(true), "github");
     btn("↻", "Pull comments, replies, reactions and resolved state from GitHub again", false, pullGitHub, "github").setAttribute("aria-label", "Refresh GitHub");
   }
   btn("Export", "Your comments, flagged problems and calls, to post yourself", false, openExport, "export");
@@ -3749,6 +3751,7 @@ async function loadThreads(opened = state.opened, quiet = true) {
     if (state.opened !== opened || state.view?.mode !== mode || request !== threadsRequest) return;
     state.ghPull = pull;
     if (state.view) {
+      ghPanelState();
       rerenderKeepScroll();
       if (document.querySelector(".modal.gh-panel")) openGitHubPanel();
     }
@@ -3819,6 +3822,8 @@ function githubThread(c) {
   const rr = reactionsRow(t.reactions);
   if (rr) out.push(rr);
   if (t.replies.length) out.push(repliesBox(t.replies));
+  const check = ghCheckBox(t, true);
+  if (check) out.push(check);
   return out;
 }
 
@@ -3838,6 +3843,8 @@ function resolveButton(t, what, key, comment) {
         setLocalResolution(state.view.path, comment, undefined);
       }
       expandedDisclosures.delete(key);
+      ghUI.keep.add(t.id);
+      ghUI.focus = t.id;
       if (state.view?.mode !== mode || request !== threadsRequest) {
         loadThreads(opened);
       } else {
@@ -3879,6 +3886,8 @@ function threadCard(t, opts = {}) {
   const rr = reactionsRow(first.reactions);
   if (rr) card.append(rr);
   if (t.comments.length > 1) card.append(repliesBox(t.comments.slice(1)));
+  const check = ghCheckBox(t, true);
+  if (check) card.append(check);
   const actions = el(`<div class="note-actions"></div>`);
   const open = el(`<button class="na" title="Open the thread on GitHub">Open on GitHub ↗</button>`);
   open.onclick = (e) => {
@@ -3935,11 +3944,338 @@ function jumpToLine(station, file, line, base) {
   }
 }
 
-// openGitHubPanel lists everything said on the pull request: threads on the code (open first, then
-// those no stop shows, then resolved) and the conversation.
-function openGitHubPanel() {
+// The GitHub panel lists every review thread on the pull request, the reader's own included, with
+// what the agent found about each beside it. Its filters, scroll and the thread last worked on
+// survive leaving it for the code, so the reader can go back to exactly where they were (B).
+const ghUI = { path: "", author: "", show: "open", agent: "", q: "", scroll: 0, focus: "", keep: new Set(), checks: {}, asking: false, extra: "" };
+
+function ghPanelState() {
+  if (ghUI.path !== state.view?.path) {
+    Object.assign(ghUI, { path: state.view?.path ?? "", author: "", show: "open", agent: "", q: "", scroll: 0, focus: "", keep: new Set(), checks: {}, extra: "" });
+    $("#gh-back")?.remove();
+    loadChecks();
+  }
+  return ghUI;
+}
+
+async function loadChecks() {
+  const path = state.view?.path;
+  if (!path) return;
+  try {
+    const checks = await api("Reviews.GitHubChecks");
+    if (state.view?.path !== path) return;
+    ghUI.checks = checks ?? {};
+    if (document.querySelector(".modal.gh-panel")) openGitHubPanel();
+    else if (state.view) rerenderKeepScroll();
+  } catch {}
+}
+
+Events.On("review:github", () => loadChecks());
+
+const ghStarter = (t) => t.comments[0]?.author || "ghost";
+const ghWhere = (t) => t.path + (t.prLine ? ":" + t.prLine : t.originalLine ? ":" + t.originalLine + " (was)" : "");
+const ghCheckOf = (t) => ghUI.checks?.[t.id];
+const ghStatusLabel = { done: "done", partly: "partly done", "not done": "not done", unclear: "unclear", pending: "agent checking…" };
+
+function ghThreadsAll() {
   const pull = state.ghPull;
-  const body = el(`<div class="gh-confirm"></div>`);
+  if (!pull) return [];
+  const all = [...Object.values(pull.mine ?? {}), ...pull.threads];
+  const line = (t) => t.prLine || t.line || 0;
+  return all.sort((a, b) => a.path.localeCompare(b.path) || line(a) - line(b) || (a.comments[0]?.created ?? "").localeCompare(b.comments[0]?.created ?? ""));
+}
+
+function ghMatches(t, ui) {
+  if (ui.author && ghStarter(t).toLowerCase() !== ui.author.toLowerCase()) return false;
+  if (!ui.keep.has(t.id)) {
+    if (ui.show === "open" && t.resolved) return false;
+    if (ui.show === "resolved" && !t.resolved) return false;
+  }
+  if (ui.agent) {
+    const st = ghCheckOf(t)?.status ?? "";
+    if (ui.agent === "unchecked" && st) return false;
+    if (ui.agent === "work" && !["not done", "partly", "unclear"].includes(st)) return false;
+    if (ui.agent === "done" && st !== "done") return false;
+  }
+  if (ui.q) {
+    const hay = [t.path, ...t.comments.map((c) => c.author + " " + c.body), ghCheckOf(t)?.text ?? ""].join("\n").toLowerCase();
+    if (!hay.includes(ui.q.toLowerCase())) return false;
+  }
+  return true;
+}
+
+// ghStopFor finds the stop and line that show file:line (1-based, the new side), if any does.
+function ghStopFor(file, line) {
+  for (const s of state.view?.stations ?? []) {
+    for (const p of s.parts ?? []) {
+      if (p.file === file && !p.base && line - 1 >= p.start && line - 1 <= p.end) return s.id;
+    }
+  }
+  return "";
+}
+
+// ghLeave closes the panel for the code, remembering where the reader was, and offers the way back.
+function ghLeave(thread) {
+  const scroller = document.querySelector(".modal.gh-panel .gh-panel-body");
+  if (scroller) ghUI.scroll = scroller.scrollTop;
+  if (thread) ghUI.focus = thread;
+  closeModal();
+  ghBackButton();
+}
+
+function ghBackButton() {
+  if ($("#gh-back") || !state.gh) return;
+  const b = el(`<button id="gh-back" class="gh-back" title="Back to the GitHub comments, where you left them (B)">← Back to GitHub comments · B</button>`);
+  b.onclick = () => openGitHubPanel();
+  document.body.append(b);
+}
+
+// ghGoTo shows file:line: on its stop when one shows it, else in a peek that returns to the panel.
+function ghGoTo(file, line, thread) {
+  const station = ghStopFor(file, line);
+  if (station) {
+    ghLeave(thread);
+    return jumpToLine(station, file, line, false);
+  }
+  if (thread) ghUI.focus = thread;
+  const scroller = document.querySelector(".modal.gh-panel .gh-panel-body");
+  if (scroller) ghUI.scroll = scroller.scrollTop;
+  openPeek(file, Math.max(line - 1, 0), () => openGitHubPanel());
+}
+
+function ghGoToThread(t) {
+  if (t.station) {
+    ghLeave(t.id);
+    return jumpToLine(t.station, t.path, t.line, t.side === "base");
+  }
+  ghGoTo(t.path, t.prLine || t.originalLine || 1, t.id);
+}
+
+const refRe = /((?:[\w@.-]+\/)*[\w@.-]+\.[A-Za-z0-9]{1,8}):(\d+)(?:[-–](\d+))?|\b([0-9a-f]{7,40})\b/g;
+
+// linkRefs makes file:line mentions and commit hashes in rendered text clickable.
+function linkRefs(root, thread) {
+  const files = new Set((state.view?.stations ?? []).flatMap((s) => (s.parts ?? []).map((p) => p.file)));
+  for (const t of ghThreadsAll()) files.add(t.path);
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) if (!walker.currentNode.parentElement.closest("a, button, .gh-ref")) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    const text = node.nodeValue;
+    refRe.lastIndex = 0;
+    if (!refRe.test(text)) continue;
+    refRe.lastIndex = 0;
+    const frag = document.createDocumentFragment();
+    let last = 0;
+    for (const m of text.matchAll(refRe)) {
+      const [whole, file, line, , sha] = m;
+      let link = null;
+      if (file) {
+        const known = files.has(file) || [...files].find((f) => f.endsWith("/" + file));
+        if (known) {
+          const path = files.has(file) ? file : known;
+          link = el(`<button class="gh-ref linkish" title="Show ${esc(path)}:${line}">${esc(whole)}</button>`);
+          link.onclick = (e) => {
+            e.stopPropagation();
+            ghGoTo(path, +line, thread);
+          };
+        }
+      } else if (sha && /\d/.test(sha) && /[a-f]/.test(sha)) {
+        link = el(`<button class="gh-ref linkish" title="Show commit ${esc(sha)}">${esc(whole)}</button>`);
+        link.onclick = (e) => {
+          e.stopPropagation();
+          if (thread) ghUI.focus = thread;
+          const scroller = document.querySelector(".modal.gh-panel .gh-panel-body");
+          if (scroller) ghUI.scroll = scroller.scrollTop;
+          openCommit(sha, document.querySelector(".modal.gh-panel") ? () => openGitHubPanel() : null);
+        };
+      }
+      if (!link) continue;
+      frag.append(text.slice(last, m.index), link);
+      last = m.index + whole.length;
+    }
+    if (!last) continue;
+    frag.append(text.slice(last));
+    node.replaceWith(frag);
+  }
+  return root;
+}
+
+function ghMd(src, thread) {
+  return linkRefs(el(`<div class="gh-md">${ghBody(src)}</div>`), thread);
+}
+
+// ghCheckBox shows what the agent said about a thread.
+function ghCheckBox(t, compact = false) {
+  const c = ghCheckOf(t);
+  if (!c) return null;
+  const cls = c.status.replace(" ", "-");
+  const box = el(`<div class="gh-check gh-check-${cls}${compact ? " compact" : ""}"><div class="gh-check-head"><span class="badge gh-status gh-status-${cls}">${esc(ghStatusLabel[c.status] ?? c.status)}</span> <span class="muted small">the agent</span></div></div>`);
+  if (c.text) box.append(ghMd(c.text, t.id));
+  else if (c.status === "pending") box.append(el(`<div class="muted small">${state.agentLive ? "The agent is looking at the code; its answer shows here." : "Start the agent; it has not answered yet."}</div>`));
+  return box;
+}
+
+async function askAgentAbout(ids, extra = "") {
+  if (!ids.length) return toast("No threads to ask about.");
+  if (!state.agentLive) return toast("Start the agent first, so it can check the threads.", true);
+  ghUI.asking = true;
+  try {
+    ghUI.checks = (await api("Reviews.AskGitHubStatus", ids, extra)) ?? ghUI.checks;
+    toast(`Asked the agent where ${plural(ids.length, "thread stands", "threads stand")}; answers show beside each thread.`);
+  } catch (e) {
+    toast(errText(e), true);
+  } finally {
+    ghUI.asking = false;
+  }
+  if (document.querySelector(".modal.gh-panel")) openGitHubPanel();
+}
+
+function ghPanelCard(t) {
+  const first = t.comments[0] ?? { author: "", body: "", url: "" };
+  const own = t.comment ? reader().comments.find((c) => c.id === t.comment) : null;
+  const card = el(`<div class="gh-card${t.resolved ? " gh-is-resolved" : ""}${ghUI.focus === t.id ? " gh-focus" : ""}" data-thread="${esc(t.id)}">
+    <div class="gh-card-main">
+      <div class="gh-card-head">
+        <button class="gh-loc linkish" title="${t.station ? "Go to its line in the review" : "Show the code around it"}">${esc(ghWhere(t))}</button>
+        <span class="badge ${t.resolved ? "gh-resolved" : "gh-open"}">${t.resolved ? "resolved" : "open"}</span>
+        ${t.outdated ? `<span class="badge" title="GitHub lost its line: the code moved on since">outdated</span>` : ""}
+        ${own ? `<span class="badge gh-picked" title="Your comment ${esc(own.id)} in this review">your ${esc(own.id)}</span>` : ""}
+        <span class="spacer"></span><span class="muted small">${esc((first.created || "").slice(0, 10))}</span>
+      </div>
+      <div class="gh-turn"><b>${esc(first.author || "ghost")}</b></div>
+    </div>
+    <div class="gh-card-side"></div>
+  </div>`);
+  const main = card.querySelector(".gh-card-main");
+  const firstTurn = card.querySelector(".gh-turn");
+  firstTurn.append(ghMd(first.body, t.id));
+  const rr = reactionsRow(first.reactions);
+  if (rr) firstTurn.append(rr);
+  for (const rp of t.comments.slice(1)) {
+    const turn = el(`<div class="gh-turn gh-turn-reply"><b>${esc(rp.author || "ghost")}</b> <span class="muted small">${esc((rp.created || "").slice(0, 10))}</span></div>`);
+    turn.append(ghMd(rp.body, t.id));
+    const r2 = reactionsRow(rp.reactions);
+    if (r2) turn.append(r2);
+    main.append(turn);
+  }
+  card.querySelector(".gh-loc").onclick = (e) => {
+    e.stopPropagation();
+    ghGoToThread(t);
+  };
+  const actions = el(`<div class="note-actions"></div>`);
+  const go = el(`<button class="na" title="Show its code; B brings you back here">Go to code</button>`);
+  go.onclick = (e) => {
+    e.stopPropagation();
+    ghGoToThread(t);
+  };
+  actions.append(go);
+  const rb = resolveButton(t, "thread", `github:${t.id}`, own);
+  if (rb) actions.append(rb);
+  const ask = el(`<button class="na" title="Ask the agent whether this thread is really done, checking the code and the commits named in it">${ghCheckOf(t) ? "Ask agent again" : "Ask agent"}</button>`);
+  ask.onclick = (e) => {
+    e.stopPropagation();
+    ghUI.focus = t.id;
+    askAgentAbout([t.id]);
+  };
+  actions.append(ask);
+  const open = el(`<button class="na" title="Open the thread on GitHub">GitHub ↗</button>`);
+  open.onclick = (e) => {
+    e.stopPropagation();
+    openURL(first.url);
+  };
+  actions.append(open);
+  main.append(actions);
+  const side = card.querySelector(".gh-card-side");
+  const check = ghCheckBox(t);
+  if (check) side.append(check);
+  else side.append(el(`<div class="gh-check gh-check-none muted small">Not checked yet. “Ask agent” has it compare the thread with the code.</div>`));
+  card.onclick = () => {
+    ghUI.focus = t.id;
+    document.querySelectorAll(".gh-card.gh-focus").forEach((x) => x.classList.remove("gh-focus"));
+    card.classList.add("gh-focus");
+  };
+  return card;
+}
+
+function chip(label, on, onclick, title = "") {
+  const b = el(`<button class="chip${on ? " on" : ""}"${title ? ` title="${esc(title)}"` : ""}>${label}</button>`);
+  b.onclick = onclick;
+  return b;
+}
+
+function ghFilterBar(threads, shown) {
+  const ui = ghUI;
+  const bar = el(`<div class="gh-filters"></div>`);
+  const redraw = () => openGitHubPanel();
+  const authors = new Map();
+  for (const t of threads) authors.set(ghStarter(t), (authors.get(ghStarter(t)) ?? 0) + 1);
+  const me = state.gh?.viewer ?? "";
+  const row1 = el(`<div class="gh-frow"><span class="gh-flabel">Started by</span></div>`);
+  row1.append(chip(`anyone <span class="muted">${threads.length}</span>`, !ui.author, () => ((ui.author = ""), redraw())));
+  const names = [...authors.keys()].sort((a, b) => (b === me) - (a === me) || authors.get(b) - authors.get(a) || a.localeCompare(b));
+  for (const name of names) {
+    row1.append(chip(`${name === me ? "me · " : ""}${esc(name)} <span class="muted">${authors.get(name)}</span>`, ui.author.toLowerCase() === name.toLowerCase(), () => ((ui.author = ui.author === name ? "" : name), redraw())));
+  }
+  const row2 = el(`<div class="gh-frow"><span class="gh-flabel">Show</span></div>`);
+  const byAuthor = threads.filter((t) => !ui.author || ghStarter(t).toLowerCase() === ui.author.toLowerCase());
+  for (const [id, label, n] of [["open", "open", byAuthor.filter((t) => !t.resolved).length], ["resolved", "resolved", byAuthor.filter((t) => t.resolved).length], ["all", "all", byAuthor.length]]) {
+    row2.append(chip(`${label} <span class="muted">${n}</span>`, ui.show === id, () => ((ui.show = id), ui.keep.clear(), redraw())));
+  }
+  row2.append(el(`<span class="gh-flabel">Agent says</span>`));
+  for (const [id, label, title] of [["", "anything", "Every thread"], ["work", "needs work", "The agent found it not done, partly done or unclear"], ["done", "done", "The agent found it done"], ["unchecked", "not checked", "Not asked yet"]]) {
+    row2.append(chip(label, ui.agent === id, () => ((ui.agent = id), redraw()), title));
+  }
+  const search = el(`<input class="gh-search" type="search" placeholder="Filter by text, file or person" value="${esc(ui.q)}">`);
+  search.oninput = () => {
+    ui.q = search.value;
+    clearTimeout(search._t);
+    search._t = setTimeout(() => {
+      redraw();
+      const s2 = document.querySelector(".modal.gh-panel .gh-search");
+      s2?.focus();
+      s2?.setSelectionRange(s2.value.length, s2.value.length);
+    }, 200);
+  };
+  search.onkeydown = (e) => {
+    if (e.key === "Escape" && search.value) {
+      e.stopPropagation();
+      search.value = "";
+      search.oninput();
+    }
+  };
+  row2.append(el(`<span class="spacer"></span>`), search);
+  const askable = shown.filter((t) => !t.resolved || ui.show !== "open");
+  const row3 = el(`<div class="gh-frow gh-ask"></div>`);
+  const ask = el(`<button class="small primary" title="Have the agent check each shown thread against the code and the commits replies name, and say whether it is really done">Ask agent where these stand (${askable.length})</button>`);
+  ask.disabled = !askable.length || ghUI.asking;
+  const extra = el(`<input class="gh-extra" type="text" placeholder="Anything to add for the agent (optional)" value="${esc(ui.extra)}">`);
+  extra.oninput = () => (ui.extra = extra.value);
+  extra.onkeydown = (e) => {
+    if (e.key === "Enter") ask.click();
+  };
+  ask.onclick = () => askAgentAbout(askable.map((t) => t.id), ui.extra);
+  row3.append(ask, extra);
+  if (!state.agentLive) row3.append(el(`<span class="muted small">start the agent first</span>`));
+  bar.append(row1, row2, row3);
+  return bar;
+}
+
+// openGitHubPanel opens the panel, or redraws it in place, keeping the reader's place in it.
+function openGitHubPanel(fresh = false) {
+  const ui = ghPanelState();
+  const pull = state.ghPull;
+  const existing = document.querySelector(".modal.gh-panel .gh-panel-body");
+  let anchor = null;
+  if (existing) {
+    ui.scroll = existing.scrollTop;
+    const a = ui.focus && existing.querySelector(`[data-thread="${CSS.escape(ui.focus)}"]`);
+    if (a) anchor = { id: ui.focus, off: a.offsetTop - existing.scrollTop };
+  } else if (fresh) {
+    ui.keep.clear();
+  }
+  $("#gh-back")?.remove();
+  const body = el(`<div class="gh-panel-body"></div>`);
   const head = prHead(state.gh);
   const re = el(`<button class="small">↻ Pull again</button>`);
   re.onclick = pullGitHub;
@@ -3948,24 +4284,33 @@ function openGitHubPanel() {
   if (!pull) {
     body.append(el(`<p class="muted">Nothing pulled yet.</p>`));
   } else {
-    const all = pull.threads;
-    const groups = [
-      ["Open, on lines in this review", all.filter((t) => !t.resolved && t.station)],
-      ["Open, on lines this review does not show", all.filter((t) => !t.resolved && !t.station)],
-      ["Resolved", all.filter((t) => t.resolved)],
-    ];
-    for (const [h, ts] of groups) {
-      if (!ts.length) continue;
-      body.append(el(`<h4>${h} (${ts.length})</h4>`));
-      for (const t of ts) body.append(threadCard(t, { where: true, static: true, jump: () => jumpToLine(t.station, t.path, t.line, t.side === "base") }));
-    }
-    const mine = Object.keys(pull.mine).length;
-    if (mine) body.append(el(`<p class="muted small">${plural(mine, "thread", "threads")} started by your posted comments ${mine > 1 ? "are" : "is"} shown on those comments.</p>`));
-    body.append(el(`<h4>Conversation (${pull.conversation.length})</h4>`));
-    if (!pull.conversation.length) body.append(el(`<p class="muted small">Nothing said outside the code.</p>`));
-    for (const p of pull.conversation) body.append(ghPostCard(p));
+    const all = ghThreadsAll();
+    const shown = all.filter((t) => ghMatches(t, ui));
+    body.append(ghFilterBar(all, shown));
+    const list = el(`<div class="gh-cards"></div>`);
+    if (!shown.length) list.append(el(`<p class="muted">No thread matches.${all.length ? "" : " Nobody commented on the code yet."}</p>`));
+    for (const t of shown) list.append(ghPanelCard(t));
+    body.append(list);
+    const conv = pull.conversation.filter((p) => (!ui.author || (p.author || "").toLowerCase() === ui.author.toLowerCase()) && (!ui.q || (p.author + " " + p.body).toLowerCase().includes(ui.q.toLowerCase())));
+    const det = el(`<details class="gh-conv"${ui.convOpen ? " open" : ""}><summary><h4>Conversation (${conv.length})</h4></summary></details>`);
+    det.ontoggle = () => (ui.convOpen = det.open);
+    if (!conv.length) det.append(el(`<p class="muted small">Nothing said outside the code${ui.author ? " by " + esc(ui.author) : ""}.</p>`));
+    for (const p of conv) det.append(ghPostCard(p));
+    body.append(det);
   }
-  const m = openModal(`GitHub · PR #${state.gh.number}`, body, "narrow gh-panel");
+  let m = existing?.closest(".modal");
+  if (m) {
+    existing.replaceWith(body);
+  } else {
+    m = openModal(`GitHub · PR #${state.gh.number}`, body, "wide gh-panel").querySelector(".modal");
+  }
+  const a = anchor && body.querySelector(`[data-thread="${CSS.escape(anchor.id)}"]`);
+  if (a) body.scrollTop = a.offsetTop - anchor.off;
+  else if (!fresh || existing) body.scrollTop = ui.scroll;
+  if (!existing && !fresh && ui.focus) {
+    const f = body.querySelector(`[data-thread="${CSS.escape(ui.focus)}"]`);
+    if (f) requestAnimationFrame(() => f.scrollIntoView({ block: "nearest" }));
+  }
   return m;
 }
 
@@ -4151,11 +4496,13 @@ async function openGitHubReview() {
 
 // Overlays: peek, commit, export, help
 
-async function openPeek(file, line) {
+async function openPeek(file, line, onclosed = null) {
   try {
-    showPeek(await api("Reviews.Peek", file, line));
+    const m = showPeek(await api("Reviews.Peek", file, line));
+    if (onclosed) m.onclosed = onclosed;
   } catch (e) {
     toast(errText(e), true);
+    onclosed?.();
   }
 }
 
@@ -4164,16 +4511,23 @@ function showPeek(pv) {
   for (const r of pv.rows) {
     code.append(el(`<div class="row${r.n - 1 === pv.at ? " sel" : ""}"><span class="mark"></span><span class="cov"></span><span class="ln">${r.n}</span><span class="src">${renderSpans(r.s, "") || " "}</span></div>`));
   }
-  openModal(pv.title, code);
+  const m = openModal(pv.title, code);
   requestAnimationFrame(() => code.querySelector(".row.sel")?.scrollIntoView({ block: "center" }));
+  return m;
 }
 
-async function openCommit(sha) {
+async function openCommit(sha, onclosed = null) {
   try {
     const pv = await api("Reviews.Commit", sha);
-    openModal(pv.title, el(`<pre class="commit">${esc(pv.text)}</pre>`));
+    const pre = el(`<pre class="commit">${esc(pv.text)}</pre>`);
+    const m = openModal(pv.title, pre);
+    if (onclosed) {
+      linkRefs(pre);
+      m.onclosed = onclosed;
+    }
   } catch (e) {
     toast(errText(e), true);
+    onclosed?.();
   }
 }
 
@@ -4200,7 +4554,7 @@ const helpKeys = [
   ["Walk", [["space", "next step; at the end of a stop, the next stop"], ["b", "previous step"], ["w", "switch between step by step and the full view"], ["e", "more of the stop card or overview; on a draft comment, edit it"], ["y n ?", "answer the orient question (overview)"]]],
   ["Move", [["} {", "next / previous stop"], ["] [", "next / previous note"], ["j k", "move the selected line"], ["J K shift+click", "select a block of lines"], ["ctrl+d ctrl+u", "half a page down / up"], ["g G", "top / bottom"], ["h l 0", "scroll code sideways / back"], ["N", "next new note (or previous match)"], ["L", "follow the note the selected note mentions (stop:n); again for the next one"], ["ctrl+o", "back to where you followed a mention from"]]],
   ["Judge", [["1 2 3", "verdict: looks good / needs changes / not sure"], ["space", "mark the selected note read in the full view"], ["?", "agree with the selected problem"], ["P", "ask the agent to fix the problems you agreed with and the stops that need changes"], ["x", "dismiss the selected note"], ["enter", "tick the selected call"], ["v", "reveal note cards on this stop"]]],
-  ["Talk", [["c", "comment on the selected line (draft); Edit on its card rewords it"], ["S", "send all drafts to the agent"], ["A", "the agent's answers to your comments: read, edit, reply"], ["a", "ask the agent about the selected line"], ["y Y", "copy the note / the whole stop"], ["`", "focus the agent terminal; ctrl+esc leaves it"]]],
+  ["Talk", [["c", "comment on the selected line (draft); Edit on its card rewords it"], ["S", "send all drafts to the agent"], ["A", "the agent's answers to your comments: read, edit, reply"], ["B", "the GitHub panel, back where you left it"], ["a", "ask the agent about the selected line"], ["y Y", "copy the note / the whole stop"], ["`", "focus the agent terminal; ctrl+esc leaves it"]]],
   ["See", [["/", "search; n N next / previous"], ["F", "filter notes by kind or focus"], ["n", "cycle note visibility"], ["s", "switch between inline and split"], ["z", "fold unchanged code"], ["+ -", "more / less context on the selected part"], ["f", "whole file of the selected part"], ["t", "tests that run the selected line"], ["T", "run them (the stop's tests when no line is selected)"], ["i", "try a change to the selected line or block: edit or delete it, its tests run against that, then it is put back"], ["o", "show or hide the test output"], ["u U", "next / previous untested change"], ["esc", "end search or spotlight, close an overlay"], ["r", "reload"], ["\\", "show or hide the sidebar"], ["ctrl+k", "go to a repository, worktree, branch or review"], ["ctrl+,", "settings"]]],
 ];
 
@@ -4310,6 +4664,7 @@ export function reviewKey(e) {
     S: sendComments,
     P: sendFixes,
     A: () => openDiscussionAnswers(),
+    B: () => (state.gh ? openGitHubPanel() : toast("No GitHub pull request for this review.")),
     r: () => reload().then(() => toast("reloaded")),
     H: openHelp,
     L: followSelectedRef,

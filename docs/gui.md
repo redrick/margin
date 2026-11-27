@@ -314,9 +314,25 @@ shows the reactions and replies it got on GitHub.
 Everyone else's review threads come into the review too. Each one is drawn on its line, found by
 the line's text in the pull request's diff, with its replies and reactions; resolved threads are
 folded until you click their header. *Resolve on GitHub* (or *Unresolve*) appears on any thread
-GitHub lets you change. *GitHub · N open* in the toolbar opens a panel with every thread: those on
-lines the review shows (with *Go to line*), those on lines it does not show or that GitHub marks
-outdated, the resolved ones, and the pull request's conversation and review texts.
+GitHub lets you change.
+
+*GitHub · N open* in the toolbar (or `B`) opens a panel with every review thread on the pull
+request, your own included, ordered by file and line, and the conversation below them. Filter it by
+who started a thread (*me* first), by open, resolved or all, by what the agent said, or by text. A
+thread you resolve or reopen there stays where it is until you open the panel again, so working
+down the list keeps your place.
+
+*Go to code* (or the thread's `path:line`) jumps to its line when a stop shows it, else opens the
+code around it. `path:line` mentions and commit hashes inside comments and answers are links too. A
+*← GitHub comments* button then takes you back to the same thread, scroll and filters, as does `B`;
+closing a peek or commit goes back by itself.
+
+*Ask agent where these stand* sends every thread the panel shows to the agent (*Ask agent* on a
+card sends just that one), with an optional line of your own. margin writes the threads, replies
+included, into `<review>.github.md` beside the review; the agent checks each against the code and
+any commit a reply names, and answers under it with *done*, *partly*, *not done* or *unclear* and
+the lines it means. The answer shows beside the thread in the panel, and on the thread's card in
+the review, as soon as the agent writes it. The agent is told not to change code or touch GitHub.
 
 margin pulls all of it when the review opens and when the window gets focus again (at most every
 30 seconds). **↻** in the toolbar pulls again at once, reading the pull request's diff afresh too. Agent notes and
@@ -361,6 +377,7 @@ Changed settings apply to reviews and agents started afterwards.
 | `\` | show or hide the sidebar |
 | `` ` `` | put the keyboard in the agent's terminal; `ctrl+esc` takes it out |
 | `A` | the agent's answers to your comments |
+| `B` | the GitHub panel, back where you left it |
 | `T` `i` `o` | run the selected line's tests, try a change to it, show or hide the test output (margin-tui has them too) |
 | `j` `k` `enter` | on a worktree page: move through what to review and open it |
 | `/` | on a worktree page: filter the branches, commits or pull requests |

@@ -22,8 +22,9 @@ type ghCache struct {
 	path    string
 	pr      *github.PR
 	posting bool
-	// threads holds the ids of the review threads last read from GitHub; only those can be resolved.
-	threads map[string]bool
+	// threads holds the review threads last read from GitHub, by id; only those can be resolved or
+	// handed to the agent.
+	threads map[string]*github.Thread
 }
 
 var ghRun github.Runner = github.GH
@@ -305,10 +306,14 @@ type ThreadView struct {
 	// Path and PRLine are where GitHub has it; PRLine is 0 when GitHub lost the line.
 	Path   string `json:"path"`
 	PRLine int    `json:"prLine"`
+	// OriginalLine is where the thread was first written, for a thread GitHub lost the line of.
+	OriginalLine int `json:"originalLine,omitempty"`
 	// Station, Line (1-based) and Side place it in the review; Station is empty when no stop shows it.
 	Station string `json:"station,omitempty"`
 	Line    int    `json:"line,omitempty"`
 	Side    string `json:"side,omitempty"`
+	// Comment is the reader's own comment that started the thread, when margin posted it.
+	Comment string `json:"comment,omitempty"`
 }
 
 // GitHubPull is everything said on the pull request, as last read.
@@ -352,12 +357,15 @@ func (r *Reviews) GitHubThreads() (*GitHubPull, error) {
 		c := toGitHub(q)
 		if t := github.FindThread(threads, q.GitHub, pr.Place(c).Path, c.Body); t != nil {
 			mine[t] = true
-			out.Mine[q.ID] = threadView(t)
+			v := threadView(t)
+			v.Station, v.Line, v.Side = placeThread(d, pr, t)
+			v.Comment = q.ID
+			out.Mine[q.ID] = v
 		}
 	}
-	known := map[string]bool{}
+	known := map[string]*github.Thread{}
 	for _, t := range threads {
-		known[t.ID] = true
+		known[t.ID] = t
 		if mine[t] {
 			continue
 		}
@@ -375,7 +383,7 @@ func (r *Reviews) GitHubThreads() (*GitHubPull, error) {
 
 func threadView(t *github.Thread) ThreadView {
 	v := ThreadView{ID: t.ID, Resolved: t.Resolved, CanResolve: t.CanResolve, CanUnresolve: t.CanUnresolve, Outdated: t.Outdated,
-		Comments: t.Comments, Reactions: []github.Reaction{}, Replies: []github.TComment{}, Path: t.Path, PRLine: t.Line}
+		Comments: t.Comments, Reactions: []github.Reaction{}, Replies: []github.TComment{}, Path: t.Path, PRLine: t.Line, OriginalLine: t.OriginalLine}
 	if v.Comments == nil {
 		v.Comments = []github.TComment{}
 	}
@@ -443,7 +451,7 @@ func (r *Reviews) ResolveGitHubThread(thread string, resolved bool) (*GitHubPull
 		return nil, err
 	}
 	r.gh.mu.Lock()
-	pr, known := r.gh.pr, r.gh.threads[thread]
+	pr, known := r.gh.pr, r.gh.threads[thread] != nil
 	if r.gh.path != d.Review.Path {
 		pr = nil
 	}

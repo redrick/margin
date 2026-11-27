@@ -391,7 +391,7 @@ func (r *Reviews) loadCurrent(expectedPath string, requested walkMode) (*View, e
 		}
 	}
 	if !reused {
-		paths := append(d.WatchPaths(), review.StatePath(path), review.CommentsPath(path))
+		paths := append(d.WatchPaths(), review.StatePath(path), review.CommentsPath(path), review.GitHubPath(path))
 		if snapshot != nil {
 			paths = snapshot.inputs.AppendWatchPaths(append(paths, walk.alternate.WatchPaths()...))
 		}
@@ -512,6 +512,8 @@ func (r *Reviews) watch(paths []string) {
 			}
 			if len(changed) == 1 && changed[0] == review.StatePath(path) {
 				r.app.Event.Emit("review:reader")
+			} else if len(changed) == 1 && changed[0] == review.GitHubPath(path) {
+				r.app.Event.Emit("review:github")
 			} else {
 				r.app.Event.Emit("review:changed")
 			}
